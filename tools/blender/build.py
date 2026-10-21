@@ -10,9 +10,11 @@ from mathutils import Vector, Matrix, Euler
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TEX = os.path.join(ROOT, 'tex1k' if '--web' in sys.argv else 'tex')
+sys.path.insert(0, ROOT)
 OUT = os.path.join(ROOT, 'out')
 os.makedirs(OUT, exist_ok=True)
-args = sys.argv[1:]
+# works both as `python build.py ...` (bpy package) and `blender -b -P build.py -- ...`
+args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 def arg(name, default=None):
     return args[args.index(name) + 1] if name in args else default
 
@@ -298,6 +300,23 @@ for i, (x, y) in enumerate([(lx, yt), (rx, 2.02 - T / 2)]):
 # ------------------------------------------------------------------ render settings
 scene.render.engine = 'CYCLES'
 scene.cycles.device = 'CPU'
+if '--gpu' in args:
+    # NVIDIA: OptiX first (works on GTX 16xx and RTX), then CUDA; AMD: HIP; Apple: Metal
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    for backend in ('OPTIX', 'CUDA', 'HIP', 'METAL', 'ONEAPI'):
+        try:
+            prefs.compute_device_type = backend
+            prefs.get_devices()
+            gpus = [d for d in prefs.devices if d.type == backend]
+        except Exception:
+            gpus = []
+        if gpus:
+            for d in prefs.devices: d.use = d.type == backend
+            scene.cycles.device = 'GPU'
+            print('Cycles on', backend, [d.name for d in gpus])
+            break
+    else:
+        print('No GPU found, rendering on the CPU')
 scene.cycles.samples = int(arg('--samples', 96))
 scene.cycles.use_denoising = True
 scene.view_settings.view_transform = 'AgX'

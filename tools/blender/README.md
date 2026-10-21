@@ -27,7 +27,31 @@ and replays the choreography and camera path of `createHero()` frame by frame.
 python frames_to_web.py                                              # -> site/assets/hero-frames/*.webp
 ```
 
-If the frame count changes, update `FRAME_COUNT` in `site/js/hero-frames.js`. With a GPU, render at 1920x1080.
+If the frame count changes, update `FRAME_COUNT` in `site/js/hero-frames.js`.
+
+### Rendering on a Windows PC with an NVIDIA card (e.g. GTX 1660 Ti)
+
+1. Install [Blender 5.2](https://www.blender.org/download/) and an up-to-date NVIDIA driver, plus Python 3 with `pip install pillow`.
+2. Get the branch and the textures:
+   ```
+   git clone -b wip https://github.com/jakubmichalec-debug/Carpenter
+   cd Carpenter\tools\blender
+   python fetch_assets.py
+   ```
+3. Render 120 frames at 1080p on the GPU (`--gpu` picks OptiX, then CUDA; about 15-30 s a frame on a 1660 Ti):
+   ```
+   "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b -P film.py -- --gpu --total 120 --samples 64 --res 1920x1080
+   ```
+   It skips frames that already exist, so you can stop it and run the same command again to continue.
+   Try one frame first: `... -P film.py -- --gpu --still 0.5 --samples 64 --res 1920x1080` writes `out\film_still_0.5.png`.
+4. Convert and publish:
+   ```
+   python frames_to_web.py
+   cd ..\..
+   git add site/assets/hero-frames
+   git commit -m "Hero frames: 1080p GPU render"
+   git push
+   ```
 
 - Panel names, sizes and positions mirror `createHero()` in `site/js/hero3d.js`. Change both together.
 - `hero3d.js` swaps each panel's geometry and material for the GLB's by name; the scroll choreography stays in JS.
