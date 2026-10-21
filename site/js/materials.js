@@ -208,7 +208,7 @@ const bar = (label, v) => `<div class="mt-bar"><span>${label}</span><i style="--
 function openDialog(id, origin) {
   const m = MATERIALS[id]; const x = META[id]; dlgId = id; dlgOrigin = origin;
   paint($('[data-dlg-canvas]', dlg), id);
-  $('[data-dlg-kind]', dlg).textContent = `${KIND_LABEL[m.kind]} · ${x.kind === KIND_LABEL[m.kind] ? 'In stock weekly' : ''}`.replace(/ · $/, '');
+  $('[data-dlg-kind]', dlg).textContent = KIND_LABEL[m.kind];
   $('[data-dlg-title]', dlg).textContent = m.label;
   $('[data-dlg-tone]', dlg).textContent = x.tone;
   const t = tier(m);
