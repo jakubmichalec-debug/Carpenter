@@ -7,6 +7,9 @@
  *   02 0.26-0.58  they slide into the alcove and lock; folded linen, garments and LED strips follow
  *   03 0.60-0.86  the two oak doors fly in and swing open
  *   04 0.86-1.00  the camera pulls back to show the wardrobe fitted in its alcove, with soft light
+ * Photoreal mode (preferred): hero-frames.js plays the Cycles-rendered assembly as an image sequence scrubbed by scroll
+ * (tools/blender/film.py renders it with this exact choreography). The live scene below is the fallback when the frames
+ * cannot load.
  * Realistic pass: once assets/3d/hero.glb (built in Blender, see tools/blender/) has loaded, every panel takes its
  * bevelled geometry and PBR oak/birch material, the room takes its Cycles-baked lightmaps and the scene is lit by an HDRI.
  * The procedural scene below renders first and stays as the fallback if the model fails to load.
@@ -17,6 +20,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { createFramePlayer } from './hero-frames.js';
 
 const root = document.querySelector('[data-hero]');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -580,7 +584,7 @@ function createHero(canvas, opts = {}) {
 }
 
 /* ------------------------------------------------------------ DOM wiring */
-function initHero() {
+async function initHero() {
   const canvas = root.querySelector('.hero__canvas');
   const track = root.querySelector('.hero__track');
   const stage = root.querySelector('.hero__stage');
@@ -594,12 +598,19 @@ function initHero() {
 
   const showStill = () => { root.classList.add('hero--still'); };
   let hero;
+  const ground = (getComputedStyle(document.documentElement).getPropertyValue('--paper-2') || '').trim() || '#e9e8e3';
   try {
-    hero = createHero(canvas, { still: reducedMotion, small: window.innerWidth < 700, onFrame: reducedMotion ? null : onProgress });
-  } catch (err) {
-    console.warn('Hero 3D unavailable, showing the still composition.', err);
-    showStill();
-    return;
+    hero = await createFramePlayer(canvas, { still: reducedMotion, onFrame: reducedMotion ? null : onProgress, background: ground });
+    root.classList.add('hero--frames');
+  } catch (frameErr) {
+    console.warn('Hero frames unavailable, using the live 3D scene.', frameErr);
+    try {
+      hero = createHero(canvas, { still: reducedMotion, small: window.innerWidth < 700, onFrame: reducedMotion ? null : onProgress });
+    } catch (err) {
+      console.warn('Hero 3D unavailable, showing the still composition.', err);
+      showStill();
+      return;
+    }
   }
 
   let lastChapter = -1;
