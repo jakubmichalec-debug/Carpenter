@@ -268,8 +268,8 @@ function drawCombo(front, body) {
   const c = $('[data-combo]', cmpRoot); const g = c.getContext('2d'); const W = c.width; const H = c.height;
   g.clearRect(0, 0, W, H);
   const css = getComputedStyle(document.documentElement);
-  g.fillStyle = css.getPropertyValue('--paper-3').trim() || '#e0d5c3'; g.fillRect(0, 0, W, H);
-  g.fillStyle = css.getPropertyValue('--paper-2').trim() || '#ebe3d6'; g.fillRect(0, 0, W, H * 0.8);
+  g.fillStyle = css.getPropertyValue('--paper-3').trim() || '#dddbd4'; g.fillRect(0, 0, W, H);
+  g.fillStyle = css.getPropertyValue('--paper-2').trim() || '#e9e8e3'; g.fillRect(0, 0, W, H * 0.8);
   g.fillStyle = 'rgba(0,0,0,.13)'; g.beginPath(); g.ellipse(W / 2, H * 0.86, 190, 14, 0, 0, 7); g.fill();
   const x = 90; const y = 40; const w = W - 180; const h = H - 120;
   const pat = (id) => { const p = g.createPattern(tile(id), 'repeat'); return p; };

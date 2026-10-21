@@ -5,14 +5,14 @@
 .svc-hero__inner { display: grid; gap: var(--space-4); }
 .svc-hero__inner .eyebrow { margin: 0; }
 .svc-hero__title {
-  margin: 0; max-width: 14ch; font-weight: 300; letter-spacing: -.04em; line-height: .96;
-  font-size: clamp(3rem, 1.2rem + 8vw, 9rem);
+  margin: 0; max-width: 14ch; font-weight: 400; letter-spacing: -.02em; line-height: .96;
+  font-size: var(--title-hero);
 }
-.svc-hero__title em { font-style: italic; color: var(--oak-deep); }
+.svc-hero__title em { font-style: normal; color: var(--oak); }
 .svc-hero__row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-5) var(--space-6); align-items: end; margin-top: var(--space-4); }
 .svc-hero__lead { margin: 0; font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); max-width: 38ch; }
 .svc-hero__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.svc-hero__stats .stat__num { font-size: clamp(3rem, 1.4rem + 4vw, 6rem); }
+.svc-hero__stats .stat__num { font-size: clamp(2.7rem, 1.4rem + 3.36vw, 5.16rem); }
 @media (max-width: 860px) { .svc-hero__row { grid-template-columns: 1fr; } }
 
 /* ---------- Sticky index ---------- */
@@ -51,7 +51,7 @@
 .svc-track::-webkit-scrollbar { display: none; }
 .svc-panel { flex: none; width: min(68vw, 300px); scroll-snap-align: center; }
 .svc-panel a { position: relative; display: grid; gap: .25rem; text-decoration: none; color: inherit; }
-.svc-panel__img { display: block; overflow: hidden; border-radius: var(--radius-m); aspect-ratio: 4 / 5; background: var(--paper-3); }
+.svc-panel__img { position: relative; display: block; overflow: hidden; border-radius: var(--radius-m); aspect-ratio: 4 / 5; background: var(--paper-3); }
 .svc-panel__img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease-out); }
 .svc-panel a:hover .svc-panel__img img, .svc-panel a:focus-visible .svc-panel__img img { transform: scale(1.06); }
 .svc-panel__n { position: absolute; left: .9rem; top: .7rem; font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .1em; color: var(--paper); text-shadow: 0 1px 8px color-mix(in srgb, var(--ink) 50%, transparent); }
@@ -100,7 +100,7 @@
 
 .svc__copy { display: grid; gap: var(--space-2); align-content: center; }
 .svc__num { margin: 0; }
-.svc__title { margin: 0; font-weight: 300; font-size: clamp(2.8rem, 1.2rem + 5vw, 6rem); letter-spacing: -.04em; line-height: .95; }
+.svc__title { margin: 0; font-weight: 400; font-size: clamp(2.52rem, 1.2rem + 4.2vw, 5.16rem); letter-spacing: -.02em; line-height: .95; }
 .svc__tag { margin: var(--space-1) 0 0; font-family: var(--font-display); font-size: var(--step-1); line-height: 1.2; letter-spacing: -.02em; color: var(--oak-deep); max-width: 28ch; }
 .svc__lead { margin: 0; color: var(--ink-2); max-width: 46ch; }
 .svc__opts { margin-top: var(--space-3); }
@@ -132,25 +132,25 @@
 }
 .js .svc__opts.is-in .svc-chip:hover { transform: translateY(-2px); transition-delay: 0s; }
 
-.svc-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4); margin-top: var(--space-3); padding: clamp(1rem, 2vw, 1.4rem) clamp(1.1rem, 2.4vw, 1.7rem); border-radius: var(--radius-l); background: var(--ink); color: var(--paper); }
-.svc-cta .eyebrow { color: var(--oak); margin: 0; font-size: .7rem; }
-.svc-cta__price { margin: .1rem 0; font-family: var(--font-display); font-weight: 300; letter-spacing: -.04em; line-height: 1; font-size: clamp(2.2rem, 1.5rem + 2vw, 3.4rem); font-variant-numeric: tabular-nums lining-nums; max-width: none; }
+.svc-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4); margin-top: var(--space-3); padding: clamp(1rem, 2vw, 1.4rem) clamp(1.1rem, 2.4vw, 1.7rem); border-radius: var(--radius-l); background: var(--charcoal); color: var(--paper); box-shadow: 0 18px 50px -20px color-mix(in srgb, var(--ink) 55%, transparent); }
+.svc-cta .eyebrow { color: var(--oak-light); margin: 0; font-size: .7rem; }
+.svc-cta__price { margin: .1rem 0; font-family: var(--font-display); font-weight: 400; letter-spacing: -.02em; line-height: 1; font-size: clamp(2.2rem, 1.5rem + 2vw, 3.4rem); font-variant-numeric: tabular-nums lining-nums; max-width: none; }
 .svc-cta__meta { margin: 0; font-size: var(--step--1); color: color-mix(in srgb, var(--paper) 70%, transparent); max-width: none; }
 .svc-cta__act { display: grid; gap: .5rem; justify-items: start; }
-.svc-cta__go { background: var(--oak); border-color: var(--oak); color: var(--ink); }
+.svc-cta__go { background: var(--amber); border-color: var(--amber); color: var(--ink); }
 .svc-cta__go:hover { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.svc-cta__price { color: var(--paper); }
 .svc-cta__alt { font-size: var(--step--1); color: var(--paper); border-bottom: 0; padding: 0; }
 .svc-cta__price.is-bump { animation: svc-bump .6s var(--ease-out); }
-@keyframes svc-bump { 40% { transform: translateY(-3px); color: var(--oak); } }
+@keyframes svc-bump { 40% { transform: translateY(-3px); color: var(--oak-light); } }
 
 /* ---------- Closing band ---------- */
 .svc-end__inner { display: grid; gap: var(--space-3); justify-items: start; }
-.svc-end__title { margin: 0; max-width: 14ch; font-weight: 300; font-size: clamp(2.6rem, 1.4rem + 5vw, 6rem); letter-spacing: -.04em; line-height: .98; }
+.svc-end__title { margin: 0; max-width: 14ch; font-weight: 400; font-size: clamp(2.34rem, 1.4rem + 4.2vw, 5.16rem); letter-spacing: -.02em; line-height: .98; }
 .svc-end__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
-.svc-end .btn { background: var(--oak); border-color: var(--oak); color: var(--ink); }
-.svc-end .btn:hover { background: var(--paper); border-color: var(--paper); }
-.svc-end .btn--ghost { background: transparent; color: var(--paper); border-color: color-mix(in srgb, var(--paper) 45%, transparent); }
-.svc-end .btn--ghost:hover { background: var(--paper); color: var(--ink); }
+.svc-end .btn:not(.btn--ghost) { background: var(--oak); border-color: var(--oak); color: var(--paper); }
+.svc-end .btn:not(.btn--ghost):hover { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.svc-end__actions { align-items: center; gap: var(--space-3) var(--space-4); }
 
 @media (prefers-reduced-motion: reduce) {
   .svc-overview__hint span, .svc-cta__price.is-bump { animation: none; }

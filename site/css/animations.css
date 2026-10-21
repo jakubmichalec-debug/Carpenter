@@ -67,7 +67,7 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
   transition: width .5s var(--ease-out), height .5s var(--ease-out), margin .5s var(--ease-out), background .4s, border-color .4s, opacity .3s;
 }
 .cursor__label {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--paper);
   opacity: 0; transform: scale(.6); transition: opacity .3s, transform .5s var(--ease-out); white-space: nowrap;
 }
 .cursor.is-hover .cursor__ring-in { width: 68px; height: 68px; margin: -34px 0 0 -34px; background: color-mix(in srgb, var(--paper) 22%, transparent); }

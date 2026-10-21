@@ -84,9 +84,9 @@ export function createConfiguratorScene(canvas, { quality = 'high', label = null
   controls.minDistance = 1.2;
 
   const lib = createMaterialLib(THREE);
-  const colFocus = new THREE.Color(cssColor('--focus', '#d9a441'));
+  const colFocus = new THREE.Color(cssColor('--oak', '#4f6f85'));
   const colErr = new THREE.Color(cssColor('--err', '#b2452f'));
-  const colInk = new THREE.Color(cssColor('--ink', '#1d1a16'));
+  const colInk = new THREE.Color(cssColor('--ink', '#18191a'));
 
   // ---------- state ----------
   let design = null;
@@ -495,7 +495,7 @@ export function createConfiguratorScene(canvas, { quality = 'high', label = null
       const x0 = sel.x / 100, x1 = (sel.x + sel.width) / 100;
       const pts = [x0, y, z, x1, y, z, x0, y - 0.04, z, x0, y + 0.04, z, x1, y - 0.04, z, x1, y + 0.04, z];
       const geo = new LineSegmentsGeometry().setPositions(pts);
-      const mat = new LineMaterial({ color: colInk, linewidth: 1.5, transparent: true, opacity: 0.8, depthTest: false });
+      const mat = new LineMaterial({ color: colFocus, linewidth: 2, transparent: true, opacity: 0.95, depthTest: false });
       mat.resolution.set(size.w, size.h); lineMats.push(mat);
       const dl = new LineSegments2(geo, mat); dl.renderOrder = 12; dl.userData.nopick = true;
       overlay.add(dl);
@@ -543,8 +543,9 @@ export function createConfiguratorScene(canvas, { quality = 'high', label = null
     const leds = entry.group.userData.leds;
     if (!leds) return;
     const t = lightingNow;
-    leds.mats.forEach((mt) => { mt.emissiveIntensity = lerp(0.9, 3.2, t); });
-    leds.lights.forEach((l) => { l.intensity = lerp(0.4, 7, t); });
+    leds.mats.forEach((mt) => { mt.emissiveIntensity = lerp(2.2, 4.2, t); });
+    leds.lights.forEach((l) => { l.intensity = lerp(2.4, 9, t); });
+    (leds.glows || []).forEach((gm) => { gm.opacity = lerp(0.6, 0.95, t); });
   }
 
   // ---------- camera ----------
@@ -867,7 +868,7 @@ export function createConfiguratorScene(canvas, { quality = 'high', label = null
       const hiddenOverlay = overlay.visible;
       overlay.visible = false;
       const bg = scene.background;
-      scene.background = new THREE.Color(cssColor('--paper-2', '#ebe3d6'));
+      scene.background = new THREE.Color(cssColor('--paper-2', '#e9e8e3'));
       if (lightingTarget > 0.5) scene.background = new THREE.Color(0x14181f);
       if (label) label.style.visibility = 'hidden';
       renderer.render(scene, camera);

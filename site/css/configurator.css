@@ -108,7 +108,7 @@
   position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; will-change: transform;
   display: flex; flex-direction: column; align-items: center; line-height: 1.15;
   padding: .32rem .7rem .36rem; border-radius: 10px;
-  background: var(--ink); color: var(--paper); font-family: var(--font-mono);
+  background: var(--charcoal); color: var(--paper); font-family: var(--font-mono);
   box-shadow: var(--shadow-1);
 }
 .cfg__dim[hidden] { display: none; }
@@ -151,7 +151,7 @@
 
 .cfg__toast {
   position: absolute; z-index: 30; left: calc((100% - var(--panel-w)) / 2); bottom: 22px; transform: translate(-50%, 16px);
-  background: var(--ink); color: var(--paper); padding: .6em 1.2em; border-radius: 999px;
+  background: var(--charcoal); color: var(--paper); padding: .6em 1.2em; border-radius: 999px;
   font-size: var(--step--1); font-weight: 600; box-shadow: var(--shadow-2);
   opacity: 0; pointer-events: none; transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
   text-align: center; max-width: min(92%, 440px); line-height: 1.4; padding: .7em 1.3em; border-radius: 20px; width: max-content;
@@ -350,7 +350,7 @@ input[type="range"]:disabled { cursor: default; }
 /* ---------- Quote ---------- */
 .qt { padding-top: 1.6rem; }
 .qt__label { margin: 0; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
-.qt__total { margin: .1rem 0 .2rem; font-family: var(--font-display); font-size: clamp(3rem, 2.4rem + 2.4vw, 4.4rem); line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; max-width: none; }
+.qt__total { margin: .1rem 0 .2rem; font-family: var(--font-display); font-size: clamp(3rem, 2.4rem + 2.4vw, 4.4rem); line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; max-width: none; }
 .qt__sub { margin: 0 0 1rem; font-size: var(--step--1); color: var(--ink-3); }
 .qt__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.2rem; }
 .pill { display: inline-block; padding: .4em 1em; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--line); font-size: var(--step--1); font-weight: 600; }

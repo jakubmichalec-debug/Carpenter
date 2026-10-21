@@ -274,9 +274,22 @@ export function createMaterialLib(THREE) {
     led() {
       if (cache.has('led')) return cache.get('led');
       const mat = new THREE.MeshStandardMaterial({
-        color: 0x2a2620, emissive: 0xffd7a0, emissiveIntensity: 0.9, roughness: 0.5
+        color: 0x2a2620, emissive: 0xffd7a0, emissiveIntensity: 2.2, roughness: 0.5
       });
       cache.set('led', mat); disposables.push(mat);
+      return mat;
+    },
+
+    // Soft warm halo that sits under each LED strip, so the light reads as a glow even in day mode.
+    ledGlow() {
+      if (cache.has('ledGlow')) return cache.get('ledGlow');
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(255,198,124,1)'); gr.addColorStop(0.3, 'rgba(255,178,92,.55)'); gr.addColorStop(0.65, 'rgba(255,160,70,.16)'); gr.addColorStop(1, 'rgba(255,150,60,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.SpriteMaterial({ map, color: 0xffb45a, transparent: true, opacity: 0.6, depthWrite: false });
+      cache.set('ledGlow', mat); disposables.push(mat, map);
       return mat;
     },
 

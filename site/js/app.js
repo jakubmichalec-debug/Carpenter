@@ -63,6 +63,7 @@ function boot() {
   initLinks();
   initSplitAndReveals();
   initCursor();
+  initPeek();
   scanMagnetic(document);
   scanTilt(document);
   scanCounts(document);
@@ -245,7 +246,14 @@ function splitEl(el) {
     [...node.childNodes].forEach((n) => {
       if (n.nodeType === 3) {
         const frag = document.createDocumentFragment();
-        n.textContent.split(/(\s+)/).forEach((part) => {
+        // punctuation straight after an inline element (</em>.) joins the word before it, so no gap opens up
+        let text = n.textContent;
+        const lead = text.match(/^\S+/);
+        if (lead && n.previousSibling && n.previousSibling.nodeType === 1 && words.length) {
+          words[words.length - 1].firstChild.appendChild(document.createTextNode(lead[0]));
+          text = text.slice(lead[0].length);
+        }
+        text.split(/(\s+)/).forEach((part) => {
           if (!part) return;
           if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
           const w = document.createElement('span');
@@ -383,6 +391,46 @@ function initCursor() {
   document.addEventListener('pointerdown', () => el.classList.add('is-down'));
   document.addEventListener('pointerup', () => el.classList.remove('is-down'));
   document.documentElement.addEventListener('pointerleave', () => { el.classList.remove('is-visible'); shown = false; });
+}
+
+/* ------------------------------------------------------------------ Cursor-following image preview
+   Any element with data-peek-src (and optional data-peek-label) shows a small photo that trails the pointer.
+   Works for elements added later (event delegation). Fine pointers only, off for reduced motion. */
+function initPeek() {
+  if (!fine || reduced) return;
+  const el = document.createElement('div');
+  el.className = 'peek'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = '<img alt="" decoding="async"><span class="peek__label"></span>';
+  document.body.appendChild(el);
+  const img = $('img', el); const label = $('.peek__label', el);
+  let tx = 0; let ty = 0; let x = 0; let y = 0; let rot = 0; let raf = 0; let on = false; let current = null;
+  const loop = () => {
+    const px = x; x = lerp(x, tx, 0.14); y = lerp(y, ty, 0.14);
+    rot = lerp(rot, Math.max(-9, Math.min(9, (x - px) * 0.6)), 0.15);
+    el.style.transform = `translate3d(${(x + 28).toFixed(1)}px, ${(y - el.offsetHeight / 2).toFixed(1)}px, 0) scale(${on ? 1 : 0.86}) rotate(${rot.toFixed(2)}deg)`;
+    raf = (on || Math.abs(x - tx) > 0.2 || Math.abs(y - ty) > 0.2) ? requestAnimationFrame(loop) : 0;
+  };
+  const place = (e) => {
+    tx = e.clientX; ty = e.clientY;
+    const w = el.offsetWidth; if (tx + 28 + w > window.innerWidth - 8) tx = e.clientX - w - 56;
+    if (!raf) raf = requestAnimationFrame(loop);
+  };
+  document.addEventListener('pointermove', (e) => { if (on && (e.pointerType === 'mouse' || e.pointerType === 'pen')) place(e); }, { passive: true });
+  document.addEventListener('pointerover', (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+    const t = e.target.closest && e.target.closest('[data-peek-src]');
+    if (t === current) return;
+    current = t;
+    if (!t) { on = false; el.classList.remove('is-on'); return; }
+    if (img.getAttribute('src') !== t.dataset.peekSrc) img.src = t.dataset.peekSrc;
+    label.textContent = t.dataset.peekLabel || '';
+    label.hidden = !t.dataset.peekLabel;
+    const first = !on; on = true; el.classList.add('is-on');
+    if (first) { x = tx = e.clientX; y = ty = e.clientY; }
+    place(e);
+  });
+  document.documentElement.addEventListener('pointerleave', () => { on = false; current = null; el.classList.remove('is-on'); });
+  window.addEventListener('scroll', () => { if (on && !raf) raf = requestAnimationFrame(loop); }, { passive: true });
 }
 
 /* ------------------------------------------------------------------ Magnetic */

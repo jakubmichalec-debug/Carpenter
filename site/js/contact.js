@@ -52,7 +52,8 @@ const RULES = {
   0: () => [['type', !form.querySelector('[name="type"]:checked')]],
   1: () => {
     const w = Number(field('width').value); const h = Number(field('height').value);
-    return [['room', !field('room').value], ['width', !field('width').value || !(w >= 60 && w <= 900)], ['height', !field('height').value || !(h >= 200 && h <= 400)]];
+    const samples = form.querySelector('[name="type"]:checked')?.value === 'sample-box'; // a sample box needs no measurements
+    return [['room', !field('room').value], ['width', field('width').value ? !(w >= 60 && w <= 900) : !samples], ['height', field('height').value ? !(h >= 200 && h <= 400) : !samples]];
   },
   2: () => [],
   3: () => [['name', field('name').value.trim().length < 2], ['email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(field('email').value.trim())], ['postcode', field('postcode').value.trim().length < 3], ['consent', !field('consent').checked]]
@@ -94,7 +95,7 @@ backBtn.addEventListener('click', () => showStep(step - 1, -1));
 
 /* ------------------------------------------------------------------ budget */
 const range = field('budget'); const out = $('[data-budget-out]'); const hint = $('[data-budget-hint]');
-const TYPE_LABEL = { wardrobe: 'Wardrobe', kitchen: 'Kitchen', 'wall-unit': 'Wall unit', desk: 'Desk or study', table: 'Table or bench', 'window-seat': 'Window seat', 'under-stairs': 'Under-stairs', other: 'Something else' };
+const TYPE_LABEL = { wardrobe: 'Wardrobe', kitchen: 'Kitchen', 'wall-unit': 'Wall unit', desk: 'Desk or study', table: 'Table or bench', 'window-seat': 'Window seat', 'under-stairs': 'Under-stairs', 'sample-box': 'Sample box', other: 'Something else' };
 let shownBudget = Number(range.value); let budgetRaf = 0;
 function budgetHint(v) {
   if (v < 3000) return 'This buys a desk, a window seat or a single wall unit.';
@@ -130,7 +131,7 @@ function finish() {
   const first = String(data.get('name') || '').trim().split(/\s+/)[0];
   $('[data-success-title]').textContent = first ? `Thank you, ${first}.` : 'Thank you.';
   const rows = [
-    ['Project', type], ['Room', data.get('room')], ['Wall', `${data.get('width')} cm${data.get('height') ? ` × ${data.get('height')} cm high` : ''}`],
+    ['Project', type], ['Room', data.get('room')], ['Wall', data.get('width') ? `${data.get('width')} cm${data.get('height') ? ` × ${data.get('height')} cm high` : ''}` : 'Not needed'],
     ['Fitted', data.get('when')], ['Budget', `${euro(b)}${b >= 30000 ? '+' : ''}${data.get('flexible') ? ', flexible' : ''}`], ['Reply to', data.get('email')]
   ];
   $('[data-recap]').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</dd></div>`).join('');
@@ -245,9 +246,17 @@ function initMap() {
   io.observe(map);
 }
 
+/* ------------------------------------------------------------------ #samples: preselect the Sample box project type */
+function initSamples() {
+  if (location.hash !== '#samples') return;
+  const radio = form.querySelector('[name="type"][value="sample-box"]');
+  if (radio) { radio.checked = true; const err = $('[data-err="type"]'); if (err) err.hidden = true; }
+}
+
 /* ------------------------------------------------------------------ boot */
 showStep(0, 1, false);
+initSamples();
 initHours();
 initMap();
 initDesign().then(() => { if (window.site && window.site.refresh) window.site.refresh(); });
-window.addEventListener('hashchange', () => { if (/design=/.test(location.hash)) location.reload(); });
+window.addEventListener('hashchange', () => { if (/design=/.test(location.hash)) location.reload(); else initSamples(); });

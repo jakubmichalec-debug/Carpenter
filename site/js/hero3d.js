@@ -121,7 +121,7 @@ function floorCanvas(size = 1024) {
 /* ------------------------------------------------------------ the scene */
 function createHero(canvas, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-  const wallColor = new THREE.Color('#ebe3d6');
+  const wallColor = new THREE.Color((getComputedStyle(document.documentElement).getPropertyValue('--paper-2') || '').trim() || '#e9e8e3');
   renderer.setClearColor(wallColor, 1);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -143,7 +143,7 @@ function createHero(canvas, opts = {}) {
     t.offset.set((seedOffset * 0.37) % 1, (seedOffset * 0.61) % 1);
     return t;
   };
-  const oakH = grainCanvas([196, 143, 84], 11);
+  const oakH = grainCanvas([188, 133, 76], 11);
   const oakV = rotated(oakH);
   const plyH = grainCanvas([236, 214, 172], 23);
   const plyV = rotated(plyH);
@@ -155,14 +155,14 @@ function createHero(canvas, opts = {}) {
   const ledMat = new THREE.MeshStandardMaterial({ color: '#fff1d6', emissive: '#ffd9a0', emissiveIntensity: 0, roughness: 0.5 });
 
   /* room: wall, floor, skirting */
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 14), new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1 }));
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 14), new THREE.MeshStandardMaterial({ color: '#e7e6e1', roughness: 1 }));
   wall.position.set(0, 7, -0.002); wall.receiveShadow = true; scene.add(wall);
   const floorTex = texFrom(floorCanvas(), 7, 7);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8, color: '#f7efe4' }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8, color: '#e6e3df' }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, -0.001, 10); floor.receiveShadow = true; scene.add(floor);
   // the wall stands proud of the niche: the wardrobe is built into an alcove (opening x -1..1, height 2.38, depth 0.66)
   const WALL_FRONT = 0.66;
-  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: '#e7e6e1', roughness: 1 });
   [[-16, 30], [16, 30]].forEach(([cx, w]) => {
     const blk = new THREE.Mesh(new THREE.BoxGeometry(w, 14, WALL_FRONT), wallMat);
     blk.position.set(cx + (cx < 0 ? -1 : 1), 7, WALL_FRONT / 2);
@@ -170,16 +170,16 @@ function createHero(canvas, opts = {}) {
   });
   const soffit = new THREE.Mesh(new THREE.BoxGeometry(2, 14, WALL_FRONT), wallMat);
   soffit.position.set(0, 2.38 + 7, WALL_FRONT / 2); soffit.receiveShadow = true; soffit.castShadow = true; scene.add(soffit);
-  const skirtMat = new THREE.MeshStandardMaterial({ color: '#f6f1e8', roughness: 0.8 });
+  const skirtMat = new THREE.MeshStandardMaterial({ color: '#f3f2ee', roughness: 0.8 });
   [[-16, 30], [16, 30]].forEach(([cx, w]) => {
     const sk = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.018), skirtMat);
     sk.position.set(cx + (cx < 0 ? -1 : 1), 0.05, WALL_FRONT + 0.009); sk.receiveShadow = true; sk.castShadow = true; scene.add(sk);
   });
 
   /* lights */
-  const hemi = new THREE.HemisphereLight('#fff4e2', '#9a7650', 1.6);
+  const hemi = new THREE.HemisphereLight('#f3f6f9', '#8c8984', 1.6);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight('#ffe3c0', 2.1);
+  const key = new THREE.DirectionalLight('#fff3e4', 2.1);
   key.position.set(0.8, 5.4, 5.6);
   key.target.position.set(0, 1, 0.3);
   key.castShadow = true;
@@ -355,12 +355,26 @@ function createHero(canvas, opts = {}) {
     scene.add(g);
     items.push({ obj: g, t0: 0.5 + i * 0.006, dur: 0.06, kind: 'garment', base: railY - 0.012 });
   }
-  // LED strips under the top panel and the top shelf
+  // LED strips under the top panel and the top shelf. Each strip gets a soft warm halo (a normal-blended
+  // sprite, so the glow reads on the light day-time ground too) and a small warm light that washes the bay.
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,196,120,1)'); gr.addColorStop(0.3, 'rgba(255,176,90,.55)'); gr.addColorStop(0.65, 'rgba(255,160,70,.16)'); gr.addColorStop(1, 'rgba(255,150,60,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const ledGlows = []; const ledLights = [];
   [[lx, yt, 0.32], [rx, 2.02 - T / 2, 0.32]].forEach(([x, y, z], i) => {
-    const led = new THREE.Mesh(new THREE.BoxGeometry(bayW - 0.1, 0.006, 0.03), ledMat);
-    led.position.set(x, y - 0.004, z + 0.08);
+    const led = new THREE.Mesh(new THREE.BoxGeometry(bayW - 0.1, 0.012, 0.034), ledMat);
+    led.position.set(x, y - 0.006, z + 0.08);
     scene.add(led);
     items.push({ obj: led, t0: 0.55 + i * 0.01, dur: 0.05, kind: 'led', base: led.position.y });
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffb45a', transparent: true, opacity: 0, depthWrite: false }));
+    halo.scale.set(bayW * 1.35, 0.62, 1); halo.position.set(x, y - 0.17, z + 0.12); halo.renderOrder = 5; halo.visible = false;
+    scene.add(halo); ledGlows.push(halo);
+    const lamp = new THREE.PointLight('#ffc27a', 0, 2.1, 2);
+    lamp.position.set(x, y - 0.12, z + 0.1); scene.add(lamp); ledLights.push(lamp);
   });
 
   items.forEach((it) => { it.obj.visible = false; });
@@ -402,12 +416,15 @@ function createHero(canvas, opts = {}) {
       const t = range(p, it.t0, it.t0 + it.dur);
       it.obj.visible = t > 0;
       if (t <= 0) return;
-      if (it.kind === 'led') { ledMat.emissiveIntensity = 2.2 * smooth(range(p, 0.84, 0.95)); return; }
+      if (it.kind === 'led') { ledMat.emissiveIntensity = 3.6 * smooth(range(p, 0.8, 0.93)); return; }
       const e = easeOutBack(t);
       if (it.kind === 'garment') { it.obj.scale.set(1, clamp(e, 0.001, 1.08), 1); it.obj.position.y = it.base; return; }
       it.obj.scale.setScalar(Math.max(0.001, e));
       it.obj.position.y = it.base + (1 - easeOutCubic(t)) * it.drop;
     });
+    const ledOn = smooth(range(p, 0.8, 0.93));
+    ledGlows.forEach((h) => { h.visible = ledOn > 0.01; h.material.opacity = 0.8 * ledOn; });
+    ledLights.forEach((l) => { l.intensity = 2.6 * ledOn; });
     const soft = smooth(range(p, 0.84, 1));
     inner.intensity = 3.2 * smooth(range(p, 0.72, 0.95));
     hemi.intensity = lerp(1.6, 1.8, soft);

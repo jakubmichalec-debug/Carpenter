@@ -1,25 +1,36 @@
 /* Grain & Joint design tokens and base styles. Page CSS uses these variables only. */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Young+Serif&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --paper: #f3eee5;
-  --paper-2: #ebe3d6;
-  --paper-3: #e0d5c3;
-  --ink: #1d1a16;
-  --ink-2: #4a443c;
-  --ink-3: #847a6c;
-  --line: rgba(29, 26, 22, 0.14);
-  --oak: #b9844a;
-  --oak-deep: #8a5a2b;
+  /* Ash & Slate on light paper. --oak/--oak-deep/--oak-light keep their names but now hold the slate accent. */
+  --paper: #f6f6f3;
+  --bone: #e9e8e3;
+  --paper-2: #e9e8e3;
+  --paper-3: #dddbd4;
+  --sand: #cfccc5;
+  --ink: #18191a;
+  --charcoal: #2a2b2d;      /* dark doses: price cards, tooltips, toasts, footer */
+  --ink-2: #4a4d50;
+  --ink-3: #5d6165;         /* 5.8:1 on paper, 5.1:1 on bone, 4.5:1 on paper-3 */
+  --line: rgba(24, 25, 26, 0.14);
+  --oak: #4f6f85;           /* slate accent: fills, large display words (4.9:1 on paper, 4.3:1 on bone: not for small text on bone) */
+  --oak-deep: #3e5a6d;      /* slate for text and hover (6.7:1 paper, 5.9:1 bone, 5.3:1 paper-3) */
+  --oak-light: #9fbfd4;     /* slate on charcoal/ink (9.1:1 on ink, 7.3:1 on charcoal) */
+  --accent: var(--oak); --accent-deep: var(--oak-deep); --accent-light: var(--oak-light);
+  --amber: #c08a4e;         /* second accent: small highlights, price-card CTA (5.9:1 against ink text), LED glow */
+  --moss: #6b7f6a;
+  --wood: #b9844a;          /* product finish (oak), used by wood illustrations, not a brand colour */
+  --wood-deep: #8a5a2b;
   --walnut: #4b3020;
   --sage: #7d8b6a;
+  --led: #ffd9a0;           /* warm LED glow */
   --clay: #c0765a;
-  --focus: #d9a441;
+  --focus: #4f6f85;
   --ok: #4f7a4a;
   --err: #b2452f;
 
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Young Serif', Georgia, serif;
+  --font-body: 'Hanken Grotesk', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --step--1: clamp(0.83rem, 0.8rem + 0.15vw, 0.9rem);
@@ -27,14 +38,15 @@
   --step-1: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
   --step-2: clamp(1.6rem, 1.4rem + 1vw, 2.2rem);
   --step-3: clamp(2.2rem, 1.8rem + 2vw, 3.6rem);
-  --step-4: clamp(3rem, 2.2rem + 4vw, 6.5rem);
+  --title-hero: clamp(2.6rem, 1.2rem + 6.4vw, 7.6rem);   /* every page hero h1: Young Serif, slate em */
+  --step-4: clamp(2.6rem, 2rem + 3.4vw, 5.6rem);
 
   --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 1rem; --space-4: 1.5rem;
   --space-5: 2.5rem; --space-6: 4rem; --space-7: 6rem; --space-8: 9rem;
 
   --radius-s: 6px; --radius-m: 14px; --radius-l: 28px;
-  --shadow-1: 0 1px 2px rgba(29,26,22,.06), 0 4px 16px rgba(29,26,22,.06);
-  --shadow-2: 0 10px 40px rgba(29,26,22,.14);
+  --shadow-1: 0 1px 2px rgba(24,25,26,.06), 0 4px 16px rgba(24,25,26,.06);
+  --shadow-2: 0 10px 40px rgba(24,25,26,.14);
 
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --ease-in-out: cubic-bezier(.65, 0, .35, 1);
@@ -63,13 +75,15 @@ body {
 img, svg, video, canvas { display: block; max-width: 100%; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
-h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 var(--space-3); }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 var(--space-3); }
 h1 { font-size: var(--step-4); }
 h2 { font-size: var(--step-3); }
 h3 { font-size: var(--step-2); }
 p { margin: 0 0 var(--space-3); max-width: 62ch; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.site-footer :focus-visible, .svc-cta :focus-visible, .ct-design :focus-visible, .mobile-menu :focus-visible, .mt-toast :focus-visible { outline-color: var(--oak-light); }
 ::selection { background: var(--oak); color: var(--paper); }
+em { font-style: normal; } /* Young Serif has no italic: emphasis is colour only */
 
 .container { width: 100%; max-width: var(--max); margin-inline: auto; padding-inline: var(--gutter); }
 .eyebrow { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }

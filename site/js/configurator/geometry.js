@@ -44,7 +44,7 @@ export function buildModule(module, THREE, lib) {
   g.name = m.id;
   g.userData.moduleId = m.id;
   const rnd = rngFor(m.id + m.type);
-  const ctx = { THREE, lib, g, m, rnd, doors: [], leds: { mats: [], lights: [] } };
+  const ctx = { THREE, lib, g, m, rnd, doors: [], leds: { mats: [], lights: [], glows: [] } };
   const type = MODULE_TYPES[m.type] ? m.type : 'wardrobe';
   if (type === 'table') buildTable(ctx);
   else if (type === 'desk') buildDesk(ctx);
@@ -121,6 +121,16 @@ function led(ctx, parent, x0, y0, z0, w, lightPos, lightW, lightH) {
   const mesh = box(ctx, parent, { material: mat, part: 'led', x0, y0, z0, w, h: 0.007, d: 0.014, cast: false });
   mesh.castShadow = false;
   ctx.leds.mats.push(mat);
+  // warm halo hanging under the strip (a child of the strip, so it follows the exploded view)
+  const glowMat = lib.ledGlow();
+  const halo = new THREE.Sprite(glowMat);
+  halo.scale.set(w * 1.4, Math.min(0.5, Math.max(0.22, w * 0.3)), 1);
+  halo.position.set(0, -halo.scale.y * 0.32, 0.03);
+  halo.renderOrder = 4;
+  halo.raycast = () => {};
+  halo.userData.led = true;
+  mesh.add(halo);
+  if (!ctx.leds.glows.includes(glowMat)) ctx.leds.glows.push(glowMat);
   if (lightPos && ctx.leds.lights.length < 2) {
     const light = new THREE.RectAreaLight(0xffd7a0, 0, lightW, lightH);
     light.position.set(lightPos[0], lightPos[1], lightPos[2]);

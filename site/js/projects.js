@@ -13,6 +13,10 @@ const stash = $('[data-stash]');
 const grid = $('[data-grid]');
 const status = $('[data-status]');
 const filtersEl = $('[data-filters]');
+const listEl = $('[data-list]');
+const viewBtns = $$('.pj-view__b');
+let view = 'grid';
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pill = $('.pj-filters__pill');
 const items = data.map((p) => stash.querySelector(`[data-id="${p.id}"]`));
 
@@ -75,6 +79,25 @@ function distribute() {
   $('[data-empty]').hidden = visibleIdx().length > 0;
 }
 
+/* ------------------------------------------------------------------ list view: rows with a cursor-following preview */
+function renderList() {
+  listEl.innerHTML = visibleIdx().map((i, n) => {
+    const p = data[i];
+    const cap = `${p.materials.split(',').slice(0, 2).join(',')} \u00b7 ${p.room.split(',').pop().trim()}`;
+    return `<li><a class="pj-row" href="#p-${p.id}" data-project="${i}" data-peek-src="${esc(p.thumb)}" data-peek-label="${esc(cap)}"><span class="pj-row__n">${String(i + 1).padStart(2, '0')}</span><span class="pj-row__t">${esc(p.title)}</span><span class="pj-row__m">${esc(p.materials)}</span><span class="pj-row__r">${esc(p.room.split(',').pop().trim())}</span><span class="pj-row__a" aria-hidden="true">\u2197</span></a></li>`;
+  }).join('');
+}
+function setView(next) {
+  if (next === view) return;
+  view = next;
+  viewBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === next)));
+  wrap.classList.toggle('is-list', next === 'list');
+  grid.hidden = next === 'list'; listEl.hidden = next !== 'list';
+  if (next === 'list') renderList(); else { distribute(); items.forEach((li) => { if (!li.hidden) li.classList.add('is-in'); }); }
+  if (window.site && window.site.refresh) window.site.refresh();
+}
+viewBtns.forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+
 function updateStatus() {
   const n = visibleIdx().length;
   status.textContent = filter === 'all' ? `Showing all ${data.length} projects` : `Showing ${n} of ${data.length} projects`;
@@ -98,6 +121,7 @@ async function setFilter(next) {
   filter = next;
   movePill();
   updateStatus();
+  if (view === 'list') { renderList(); return; }
   if (reduced) { distribute(); items.forEach((li, i) => { if (!li.hidden) li.classList.add('is-in'); }); return; }
   busy = true;
   const stay = []; const leave = []; const enter = [];
@@ -223,7 +247,8 @@ function fillInfo(i, swap) {
   lbOpen.hidden = !p.preset;
   lbOpen.href = 'configurator.html';
   lbQuote.href = 'contact.html';
-  lbQuote.textContent = p.preset ? 'Get a quote for this design' : 'Ask for something similar';
+  lbQuote.textContent = p.preset ? 'Get a quote for this design' : 'Discuss a project';
+  $('[data-lb-timber]', lb).textContent = `${p.materials.split(',').slice(0, 2).join(',')} \u00b7 ${p.room.split(',').pop().trim()}`;
   if (p.preset) {
     presetHash(p.preset).then((h) => {
       if (!h || data[lbList[lbPos]] !== p) return;
@@ -337,6 +362,12 @@ grid.addEventListener('click', (e) => {
   e.preventDefault();
   openLightbox(Number(a.dataset.project), a.closest('.pj-item'));
 });
+listEl.addEventListener('click', (e) => {
+  const a = e.target.closest('.pj-row');
+  if (!a) return;
+  e.preventDefault();
+  openLightbox(Number(a.dataset.project), null);
+});
 
 lb.addEventListener('click', (e) => {
   if (e.target.closest('[data-lb-close]')) closeLightbox();
@@ -415,6 +446,6 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
 let rz = 0;
 window.addEventListener('resize', () => {
   clearTimeout(rz);
-  rz = setTimeout(() => { movePill(); if (Math.min(colCount(), Math.max(1, visibleIdx().length)) !== cols && !busy) { distribute(); items.forEach((li) => { if (!li.hidden) li.classList.add('is-in'); }); } if (window.site && window.site.refresh) window.site.refresh(); }, 150);
+  rz = setTimeout(() => { movePill(); if (Math.min(colCount(), Math.max(1, visibleIdx().length)) !== cols && !busy && view === 'grid') { distribute(); items.forEach((li) => { if (!li.hidden) li.classList.add('is-in'); }); } if (window.site && window.site.refresh) window.site.refresh(); }, 150);
 });
 window.addEventListener('load', () => { movePill(); if (window.site && window.site.refresh) window.site.refresh(); });

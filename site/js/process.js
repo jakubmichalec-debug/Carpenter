@@ -112,7 +112,7 @@ async function init3D() {
 
   const css = getComputedStyle(document.documentElement);
   const tok = (n) => css.getPropertyValue(n).trim();
-  const OAK = tok('--oak') || '#b9844a';
+  const OAK = tok('--wood') || '#b9844a';
   const WALNUT = tok('--walnut') || '#4b3020';
 
   const scene = new THREE.Scene();
