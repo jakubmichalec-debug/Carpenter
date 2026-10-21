@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image credits · Grain &amp; Joint</title>
+  <meta name="description" content="Credits for every Unsplash photograph used on the Grain & Joint concept site.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  
+  <style>
+  .cr-hero { padding: calc(var(--header-h) + clamp(2.5rem, 7vw, 6rem)) 0 clamp(1.5rem, 3vw, 2.5rem); }
+  .cr-hero .eyebrow { margin: 0 0 var(--space-4); }
+  .cr-hero h1 { margin: 0; max-width: 14ch; font-weight: 300; letter-spacing: -.04em; line-height: .97; font-size: clamp(2.9rem, 1.2rem + 7.4vw, 8rem); }
+  .cr-hero h1 em { font-style: italic; color: var(--oak-deep); }
+  .cr-hero p { margin: var(--space-4) 0 0; max-width: 54ch; font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); }
+  .cr-list { list-style: none; margin: 0; padding: 0 0 clamp(4rem, 9vw, 8rem); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) clamp(1.5rem, 4vw, 4rem); }
+  @media (max-width: 760px) { .cr-list { grid-template-columns: 1fr; } }
+  .cr-item { display: grid; grid-template-columns: 120px 1fr; gap: var(--space-3); align-items: start; padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+  .cr-item img { width: 120px; height: 90px; object-fit: cover; border-radius: var(--radius-s); background: var(--paper-3); }
+  .cr-item p { margin: 0; font-size: var(--step--1); max-width: none; }
+  .cr-item__d { font-family: var(--font-display); font-size: var(--step-0) !important; line-height: 1.25; margin-bottom: .3rem !important; }
+  .cr-item__w a { text-decoration: underline; text-underline-offset: 3px; }
+  .cr-item__src { margin-top: .3rem !important; font-family: var(--font-mono); font-size: .72rem !important; letter-spacing: .06em; color: var(--ink-3); }
+  .cr-item__src a { text-decoration: none; }
+  .cr-note { padding: var(--space-4); border-radius: var(--radius-m); background: var(--paper-2); border: 1px solid var(--line); margin-bottom: var(--space-5); font-size: var(--step--1); }
+  .cr-note p { margin: 0; max-width: 70ch; }
+</style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <!-- page module here -->
+</head>
+<body data-page="credits">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <header class="cr-hero">
+      <div class="container">
+        <p class="eyebrow" data-reveal="fade">Credits</p>
+        <h1 data-split>Photographs by <em>other people</em>.</h1>
+        <p data-reveal data-reveal-delay="0.2">Every photograph on this site comes from Unsplash and is used under the Unsplash License. Everything else, from the 3D models to the illustrations, is made in code. Thank you to the photographers below.</p>
+      </div>
+    </header>
+    <section class="container" aria-label="Photo credits">
+      <div class="cr-note"><p>33 photographs in use. Names and profile links are the photographers&rsquo; Unsplash profiles. Grain &amp; Joint is a fictional studio and these photographers have no connection to it.</p></div>
+      <ul class="cr-list" role="list">
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak kitchen with island and tall appliance wall">
+          <div><p class="cr-item__d">Oak kitchen with island and tall appliance wall</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@framesforyourheart" rel="noopener">Frames For Your Heart</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3" rel="noopener">1512916194211</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1558997519-83ea9252edf8?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak-veneer wardrobe doors">
+          <div><p class="cr-item__d">Oak-veneer wardrobe doors</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@rumanamin" rel="noopener">Rumman Amin</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1558997519-83ea9252edf8" rel="noopener">1558997519</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1560185127-59e4420e2c93?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="White staircase with a wicker bench">
+          <div><p class="cr-item__d">White staircase with a wicker bench</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@fromitaly" rel="noopener">Francesca Tosolini</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1560185127-59e4420e2c93" rel="noopener">1560185127</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1576092762791-dd9e2220abd1?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Dark walnut board with visible grain">
+          <div><p class="cr-item__d">Dark walnut board with visible grain</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@nate_dumlao" rel="noopener">Nathan Dumlao</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1576092762791-dd9e2220abd1" rel="noopener">1576092762791</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1593430980497-a817d32da543?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="White library wall with open shelves">
+          <div><p class="cr-item__d">White library wall with open shelves</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@pickawood" rel="noopener">Pickawood</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1593430980497-a817d32da543" rel="noopener">1593430980497</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1597072689227-8882273e8f6a?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Wall-hung oak shelf and desk with chair">
+          <div><p class="cr-item__d">Wall-hung oak shelf and desk with chair</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@jefferyho" rel="noopener">Jeffery Ho</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1597072689227-8882273e8f6a" rel="noopener">1597072689227</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1610733374054-59454fe657cd?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak kitchen run with tall cabinets">
+          <div><p class="cr-item__d">Oak kitchen run with tall cabinets</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@sergeisushchik" rel="noopener">Sergei Sushchik</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1610733374054-59454fe657cd" rel="noopener">1610733374054</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Dining table set with green chairs">
+          <div><p class="cr-item__d">Dining table set with green chairs</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@spacejoy" rel="noopener">Spacejoy</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1617806118233-18e1de247200" rel="noopener">1617806118233</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1643036078703-61c3a61fecb5?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Timber table with green chairs">
+          <div><p class="cr-item__d">Timber table with green chairs</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@gaellewyphotography" rel="noopener">Gaëlle Lewyllie</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1643036078703-61c3a61fecb5" rel="noopener">1643036078703</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1643949914877-b20f30792c1e?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Built-in bench beside a grey wardrobe wall">
+          <div><p class="cr-item__d">Built-in bench beside a grey wardrobe wall</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@itsbilalmn" rel="noopener">Bilal Mansuri</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1643949914877-b20f30792c1e" rel="noopener">1643949914877</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1644931551533-02906718127f?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Weathered timber boards with deep grain">
+          <div><p class="cr-item__d">Weathered timber boards with deep grain</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@enginakyurt" rel="noopener">engin akyurt</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1644931551533-02906718127f" rel="noopener">1644931551533</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1672137233327-37b0c1049e77?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Wardrobe with a dressing nook and round mirror">
+          <div><p class="cr-item__d">Wardrobe with a dressing nook and round mirror</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@billy_sixteenstudio" rel="noopener">Billy Jo Catbagan</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1672137233327-37b0c1049e77" rel="noopener">1672137233327</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1676907228185-6869277a9f8f?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Open oak drawer with dish dividers">
+          <div><p class="cr-item__d">Open oak drawer with dish dividers</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@orgalux" rel="noopener">Orgalux</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1676907228185-6869277a9f8f" rel="noopener">1676907228185</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1683181181300-44c0c991a2cf?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="White hall wardrobe with shoe store">
+          <div><p class="cr-item__d">White hall wardrobe with shoe store</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@pickawood" rel="noopener">Pickawood</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1683181181300-44c0c991a2cf" rel="noopener">1683181181300</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1705417272217-490f4511abeb?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Light timber desk under a sloping ceiling">
+          <div><p class="cr-item__d">Light timber desk under a sloping ceiling</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@marko_lengyel" rel="noopener">Marko Lengyel</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1705417272217-490f4511abeb" rel="noopener">1705417272217</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1708397016786-8916880649b8?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Walk-in wardrobe with lit shelves">
+          <div><p class="cr-item__d">Walk-in wardrobe with lit shelves</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@aswatun" rel="noopener">Aswa Hanifah</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1708397016786-8916880649b8" rel="noopener">1708397016786</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1713514023762-b3995318dc94?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak wall cabinets above white drawers">
+          <div><p class="cr-item__d">Oak wall cabinets above white drawers</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@spxclicks" rel="noopener">Sanju Pandita</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1713514023762-b3995318dc94" rel="noopener">1713514023762</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1721739224993-f6fcdec51d1d?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Slim white wardrobe with stacked drawers">
+          <div><p class="cr-item__d">Slim white wardrobe with stacked drawers</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@lisaanna195" rel="noopener">Lisa Anna</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1721739224993-f6fcdec51d1d" rel="noopener">1721739224993</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1721901944646-8b7da57bea7e?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Pale sliding wardrobe doors on shelves">
+          <div><p class="cr-item__d">Pale sliding wardrobe doors on shelves</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@alextyson195" rel="noopener">Alex Tyson</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1721901944646-8b7da57bea7e" rel="noopener">1721901944646</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1721989516850-a02c70e2fce3?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak table with X base and tall windows">
+          <div><p class="cr-item__d">Oak table with X base and tall windows</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@spxclicks" rel="noopener">Sanju Pandita</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1721989516850-a02c70e2fce3" rel="noopener">1721989516850</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1722349674028-a148f4364e43?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak-fronted wardrobe wall with mirrors">
+          <div><p class="cr-item__d">Oak-fronted wardrobe wall with mirrors</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@lisaanna195" rel="noopener">Lisa Anna</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1722349674028-a148f4364e43" rel="noopener">1722349674028</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1722650364570-90bf509d7dff?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Open oak wardrobe beside a bed">
+          <div><p class="cr-item__d">Open oak wardrobe beside a bed</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@alextyson195" rel="noopener">Alex Tyson</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1722650364570-90bf509d7dff" rel="noopener">1722650364570</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Arched timber shelving bay">
+          <div><p class="cr-item__d">Arched timber shelving bay</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@optiny" rel="noopener">Raymond Yeung</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e" rel="noopener">1746361747275</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Desk beside a large window">
+          <div><p class="cr-item__d">Desk beside a large window</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@arthur3607" rel="noopener">Arthur Tseng</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1748566711619-a172ca8932ca" rel="noopener">1748566711619</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1749476101600-90b2eb7efa89?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Round walnut dining table">
+          <div><p class="cr-item__d">Round walnut dining table</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@youbeyo" rel="noopener">Jubéo Hernandez</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1749476101600-90b2eb7efa89" rel="noopener">1749476101600</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1758977403865-f79e156415b3?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Timber dining table corner and chair">
+          <div><p class="cr-item__d">Timber dining table corner and chair</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@vendedorescostalive" rel="noopener">Costa Live</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1758977403865-f79e156415b3" rel="noopener">1758977403865</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1763392199003-27cee33bae31?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Close-up of pale oak grain">
+          <div><p class="cr-item__d">Close-up of pale oak grain</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@zoshuacolah" rel="noopener">Zoshua Colah</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1763392199003-27cee33bae31" rel="noopener">1763392199003</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1767020991055-44a6eac02c19?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Dark timber shelving with books and plants">
+          <div><p class="cr-item__d">Dark timber shelving with books and plants</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@brookebalentine" rel="noopener">Brooke Balentine</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1767020991055-44a6eac02c19" rel="noopener">1767020991055</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1776482128072-898fb8a242bd?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Window seat with cushions">
+          <div><p class="cr-item__d">Window seat with cushions</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@francotheshooter" rel="noopener">Franco Debartolo</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1776482128072-898fb8a242bd" rel="noopener">1776482128072</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1788296817269-8df0458ab799?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Sunlit workbench with wooden hand tools">
+          <div><p class="cr-item__d">Sunlit workbench with wooden hand tools</p><p class="cr-item__w">Photo by <a href="https://unsplash.com/@maple_yin" rel="noopener">HENG YIN</a> on <a href="https://unsplash.com/" rel="noopener">Unsplash</a></p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1788296817269-8df0458ab799" rel="noopener">1788296817269</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Floating oak wall cabinets and shelves (Wall units card)">
+          <div><p class="cr-item__d">Floating oak wall cabinets and shelves (Wall units card)</p><p class="cr-item__w">Photo from <a href="https://unsplash.com/" rel="noopener">Unsplash</a> (photographer name still to be added)</p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1594026112284-02bb6f3352fe" rel="noopener">1594026112284</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Oak and white kitchen with island and stools (Kitchens card)">
+          <div><p class="cr-item__d">Oak and white kitchen with island and stools (Kitchens card)</p><p class="cr-item__w">Photo from <a href="https://unsplash.com/" rel="noopener">Unsplash</a> (photographer name still to be added)</p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1600585152220-90363fe7e115" rel="noopener">1600585152220</a></p></div>
+        </li>
+        <li class="cr-item">
+          <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=240&h=180&q=70" width="240" height="180" loading="lazy" alt="Built-in bench along a timber-clad wall (Window seats &amp; nooks card)">
+          <div><p class="cr-item__d">Built-in bench along a timber-clad wall (Window seats &amp; nooks card)</p><p class="cr-item__w">Photo from <a href="https://unsplash.com/" rel="noopener">Unsplash</a> (photographer name still to be added)</p><p class="cr-item__src"><a href="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c" rel="noopener">1600607687939</a></p></div>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

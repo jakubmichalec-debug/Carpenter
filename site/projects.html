@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects · Grain &amp; Joint</title>
+  <meta name="description" content="Twelve fictional built-in furniture projects from Grain & Joint: wardrobes, kitchens, living rooms, studies and dining. Filter, browse and open four in the configurator.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/projects.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/projects.js"></script>
+</head>
+<body data-page="projects">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html" aria-current="page">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html" aria-current="page">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <header class="pj-hero">
+      <div class="container">
+        <p class="eyebrow" data-reveal="fade">Projects</p>
+        <h1 class="pj-hero__title" data-split>Rooms we have <em>built</em>, drawn once and fitted by hand.</h1>
+        <div class="pj-hero__row">
+          <p class="pj-hero__lead" data-reveal data-reveal-delay="0.2">Twelve recent commissions across Antwerp and Flanders. Filter by room, open any one for the materials, size and build time, and open four of them straight in the configurator to see how they are put together.</p>
+          <p class="pj-hero__note" data-reveal data-reveal-delay="0.3">These projects are fictional examples made for this concept site.</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="pj-bar" aria-label="Filter projects">
+      <div class="container pj-bar__inner">
+        <div class="pj-filters" role="group" aria-label="Room type" data-filters>
+          <span class="pj-filters__pill" aria-hidden="true"></span>
+          <button type="button" class="pj-filter" data-filter="all" aria-pressed="true">All<sup>12</sup></button><button type="button" class="pj-filter" data-filter="wardrobes" aria-pressed="false">Wardrobes<sup>3</sup></button><button type="button" class="pj-filter" data-filter="kitchens" aria-pressed="false">Kitchens<sup>2</sup></button><button type="button" class="pj-filter" data-filter="living" aria-pressed="false">Living<sup>3</sup></button><button type="button" class="pj-filter" data-filter="study" aria-pressed="false">Study<sup>2</sup></button><button type="button" class="pj-filter" data-filter="dining" aria-pressed="false">Dining<sup>2</sup></button>
+        </div>
+        <p class="pj-status" role="status" aria-live="polite" data-status>Showing all 12 projects</p>
+      </div>
+    </section>
+
+    <section class="pj-gridwrap" aria-label="Projects">
+      <div class="container">
+        <ul class="pj-stash" data-stash>
+        <li class="pj-item" data-id="oak-wardrobe-wall" data-cat="wardrobes">
+          <a class="pj-card" href="#p-oak-wardrobe-wall" data-cursor="View" data-project="0">
+            <span class="pj-card__media" style="--ratio:1.2500"><img src="https://images.unsplash.com/photo-1722349674028-a148f4364e43?auto=format&fit=crop&w=900&h=1125&q=80" width="900" height="1125" loading="lazy" alt="Oak-fronted wardrobe wall with two slim mirrors and drawers below"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">01</span><span class="pj-card__t">Oak wardrobe wall</span><span class="pj-card__c">Wardrobes</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="oak-island-kitchen" data-cat="kitchens">
+          <a class="pj-card" href="#p-oak-island-kitchen" data-cursor="View" data-project="1">
+            <span class="pj-card__media" style="--ratio:1.0000"><img src="https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?auto=format&fit=crop&w=900&h=900&q=80" width="900" height="900" loading="lazy" alt="Oak kitchen with an island and a tall appliance wall"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">02</span><span class="pj-card__t">Oak kitchen with island</span><span class="pj-card__c">Kitchens</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="library-wall" data-cat="living">
+          <a class="pj-card" href="#p-library-wall" data-cursor="View" data-project="2">
+            <span class="pj-card__media" style="--ratio:1.2500"><img src="https://images.unsplash.com/photo-1593430980497-a817d32da543?auto=format&fit=crop&w=900&h=1125&q=80" width="900" height="1125" loading="lazy" alt="White built-in library with open shelves above closed cupboards"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">03</span><span class="pj-card__t">Library wall in painted ash</span><span class="pj-card__c">Living</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="dressing-nook" data-cat="wardrobes">
+          <a class="pj-card" href="#p-dressing-nook" data-cursor="View" data-project="3">
+            <span class="pj-card__media" style="--ratio:0.6667"><img src="https://images.unsplash.com/photo-1672137233327-37b0c1049e77?auto=format&fit=crop&w=900&h=600&q=80" width="900" height="600" loading="lazy" alt="Wardrobe wall with a round-mirrored dressing nook and lit hanging rails"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">04</span><span class="pj-card__t">Dressing nook with a stone shelf</span><span class="pj-card__c">Wardrobes</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="attic-desk" data-cat="study">
+          <a class="pj-card" href="#p-attic-desk" data-cursor="View" data-project="4">
+            <span class="pj-card__media" style="--ratio:0.6667"><img src="https://images.unsplash.com/photo-1705417272217-490f4511abeb?auto=format&fit=crop&w=900&h=600&q=80" width="900" height="600" loading="lazy" alt="Light timber desk tucked under a sloping ceiling with books and a lamp"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">05</span><span class="pj-card__t">Attic study desk</span><span class="pj-card__c">Study</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="round-walnut" data-cat="dining">
+          <a class="pj-card" href="#p-round-walnut" data-cursor="View" data-project="5">
+            <span class="pj-card__media" style="--ratio:1.3333"><img src="https://images.unsplash.com/photo-1749476101600-90b2eb7efa89?auto=format&fit=crop&w=900&h=1200&q=80" width="900" height="1200" loading="lazy" alt="Round walnut dining table with three legs in raking sunlight"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">06</span><span class="pj-card__t">Round walnut table</span><span class="pj-card__c">Dining</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="oak-galley" data-cat="kitchens">
+          <a class="pj-card" href="#p-oak-galley" data-cursor="View" data-project="6">
+            <span class="pj-card__media" style="--ratio:1.3333"><img src="https://images.unsplash.com/photo-1610733374054-59454fe657cd?auto=format&fit=crop&w=900&h=1200&q=80" width="900" height="1200" loading="lazy" alt="Oak kitchen run with tall cabinets and a steel fridge"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">07</span><span class="pj-card__t">Quiet oak galley</span><span class="pj-card__c">Kitchens</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="bay-window-seat" data-cat="living">
+          <a class="pj-card" href="#p-bay-window-seat" data-cursor="View" data-project="7">
+            <span class="pj-card__media" style="--ratio:0.6667"><img src="https://images.unsplash.com/photo-1776482128072-898fb8a242bd?auto=format&fit=crop&w=900&h=600&q=80" width="900" height="600" loading="lazy" alt="Window seat with grey cushions under a tall sash window"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">08</span><span class="pj-card__t">Window seat with deep drawers</span><span class="pj-card__c">Living</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="oak-ten" data-cat="dining">
+          <a class="pj-card" href="#p-oak-ten" data-cursor="View" data-project="8">
+            <span class="pj-card__media" style="--ratio:1.3333"><img src="https://images.unsplash.com/photo-1721989516850-a02c70e2fce3?auto=format&fit=crop&w=900&h=1200&q=80" width="900" height="1200" loading="lazy" alt="Oak dining table with an X base under pendant lights and tall black windows"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">09</span><span class="pj-card__t">Oak table for ten</span><span class="pj-card__c">Dining</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="arched-bay" data-cat="living">
+          <a class="pj-card" href="#p-arched-bay" data-cursor="View" data-project="9">
+            <span class="pj-card__media" style="--ratio:1.3333"><img src="https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e?auto=format&fit=crop&w=900&h=1200&q=80" width="900" height="1200" loading="lazy" alt="Arched timber shelving bay with warm lighting above a long table"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">10</span><span class="pj-card__t">Arched shelving bay</span><span class="pj-card__c">Living</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="sliding-hall" data-cat="wardrobes">
+          <a class="pj-card" href="#p-sliding-hall" data-cursor="View" data-project="10">
+            <span class="pj-card__media" style="--ratio:0.7500"><img src="https://images.unsplash.com/photo-1721901944646-8b7da57bea7e?auto=format&fit=crop&w=900&h=675&q=80" width="900" height="675" loading="lazy" alt="Pale sliding wardrobe doors partly open on shelves and drawers"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">11</span><span class="pj-card__t">Sliding hall wardrobe</span><span class="pj-card__c">Wardrobes</span></span>
+          </a>
+        </li>
+        <li class="pj-item" data-id="window-study" data-cat="study">
+          <a class="pj-card" href="#p-window-study" data-cursor="View" data-project="11">
+            <span class="pj-card__media" style="--ratio:0.7500"><img src="https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=900&h=675&q=80" width="900" height="675" loading="lazy" alt="Desk beside a large window overlooking trees"></span>
+            <span class="pj-card__cap"><span class="pj-card__n">12</span><span class="pj-card__t">Study at the window</span><span class="pj-card__c">Study</span></span>
+          </a>
+        </li>
+        </ul>
+        <div class="pj-grid" data-grid></div>
+        <p class="pj-empty" data-empty hidden>Nothing here yet.</p>
+      </div>
+    </section>
+
+    <section class="section section--dark pj-cta">
+      <div class="container pj-cta__inner">
+        <h2 class="pj-cta__title" data-split>Want one of these in your room?</h2>
+        <p data-reveal>Start from a project that is close, change the sizes and materials, and send us the design for a quote.</p>
+        <div class="pj-cta__actions" data-reveal data-reveal-delay="0.1">
+          <a class="btn" href="configurator.html" data-magnetic>Open the configurator</a>
+          <a class="btn btn--ghost" href="contact.html" data-magnetic>Talk to us</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="pj-lb" data-lb hidden role="dialog" aria-modal="true" aria-label="Project details" data-lenis-prevent>
+      <div class="pj-lb__backdrop" data-lb-close></div>
+      <div class="pj-lb__panel">
+        <div class="pj-lb__stage" data-stage>
+          <img class="pj-lb__img" data-lb-img alt="" draggable="false">
+          <button class="pj-lb__nav pj-lb__nav--prev" type="button" data-lb-prev aria-label="Previous project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          <button class="pj-lb__nav pj-lb__nav--next" type="button" data-lb-next aria-label="Next project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          <p class="pj-lb__count" data-lb-count aria-live="polite"></p>
+        </div>
+        <div class="pj-lb__info" data-lb-info>
+          <button class="pj-lb__close" type="button" data-lb-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          <p class="eyebrow" data-lb-cat></p>
+          <h2 class="pj-lb__title" data-lb-title></h2>
+          <p class="pj-lb__note" data-lb-note></p>
+          <dl class="pj-lb__spec">
+            <div><dt>Room</dt><dd data-lb-room></dd></div>
+            <div><dt>Materials</dt><dd data-lb-mat></dd></div>
+            <div><dt>Size</dt><dd data-lb-size></dd></div>
+            <div><dt>Build time</dt><dd><span data-lb-weeks></span> weeks</dd></div>
+          </dl>
+          <div class="pj-lb__actions">
+            <a class="btn" href="configurator.html" data-lb-open hidden>Open in configurator <span aria-hidden="true">&rarr;</span></a>
+            <a class="btn btn--ghost" href="contact.html" data-lb-quote>Ask for something similar</a>
+          </div>
+          <p class="pj-lb__hint">Arrow keys to browse, Esc to close.</p>
+        </div>
+      </div>
+    </div>
+    <script type="application/json" id="pj-data">[{"id":"oak-wardrobe-wall","title":"Oak wardrobe wall","cat":"wardrobes","catLabel":"Wardrobes","room":"Main bedroom, Berchem","materials":"Oak-veneer fronts, birch ply interior, bar handles","size":"320 × 250 × 60 cm","weeks":6,"img":"https://images.unsplash.com/photo-1722349674028-a148f4364e43?auto=format&fit=crop&w=1600&h=2000&q=80","thumb":"https://images.unsplash.com/photo-1722349674028-a148f4364e43?auto=format&fit=crop&w=900&h=1125&q=80","ratio":1.2500,"alt":"Oak-fronted wardrobe wall with two slim mirrors and drawers below","note":"Four bays under one continuous top rail, with a mirror either side of the middle doors so the room reads wider.","preset":"wardrobe"},{"id":"oak-island-kitchen","title":"Oak kitchen with island","cat":"kitchens","catLabel":"Kitchens","room":"Kitchen and dining, Zurenborg","materials":"Solid oak fronts, terrazzo worktop, steel handles","size":"520 × 260 cm, island 220 × 95","weeks":11,"img":"https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?auto=format&fit=crop&w=1600&h=1600&q=80","thumb":"https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?auto=format&fit=crop&w=900&h=900&q=80","ratio":1.0000,"alt":"Oak kitchen with an island and a tall appliance wall","note":"A full wall of tall cabinets hides the appliances; the island seats three and carries the stone top.","preset":"kitchen"},{"id":"library-wall","title":"Library wall in painted ash","cat":"living","catLabel":"Living","room":"Living room, Antwerp South","materials":"Ash painted white, oak shelf edges, LED strips","size":"360 × 260 × 35 cm","weeks":6,"img":"https://images.unsplash.com/photo-1593430980497-a817d32da543?auto=format&fit=crop&w=1600&h=2000&q=80","thumb":"https://images.unsplash.com/photo-1593430980497-a817d32da543?auto=format&fit=crop&w=900&h=1125&q=80","ratio":1.2500,"alt":"White built-in library with open shelves above closed cupboards","note":"Closed cupboards at the bottom for the clutter, shelves above sized for large books.","preset":null},{"id":"dressing-nook","title":"Dressing nook with a stone shelf","cat":"wardrobes","catLabel":"Wardrobes","room":"Dressing room, Mechelen","materials":"Clay and charcoal lacquer, smoked glass, LED","size":"380 × 260 × 55 cm","weeks":9,"img":"https://images.unsplash.com/photo-1672137233327-37b0c1049e77?auto=format&fit=crop&w=1600&h=1067&q=80","thumb":"https://images.unsplash.com/photo-1672137233327-37b0c1049e77?auto=format&fit=crop&w=900&h=600&q=80","ratio":0.6667,"alt":"Wardrobe wall with a round-mirrored dressing nook and lit hanging rails","note":"A dressing table that slides out of the wall, a round mirror, and rails lit from above.","preset":null},{"id":"attic-desk","title":"Attic study desk","cat":"study","catLabel":"Study","room":"Study under the eaves, Deurne","materials":"Oak-veneer top, birch ply, hard-wax oil","size":"220 × 75 × 70 cm","weeks":4,"img":"https://images.unsplash.com/photo-1705417272217-490f4511abeb?auto=format&fit=crop&w=1600&h=1067&q=80","thumb":"https://images.unsplash.com/photo-1705417272217-490f4511abeb?auto=format&fit=crop&w=900&h=600&q=80","ratio":0.6667,"alt":"Light timber desk tucked under a sloping ceiling with books and a lamp","note":"Cut to follow the slope of the roof, with a drawer unit on the low side and a cable channel along the back.","preset":"desk"},{"id":"round-walnut","title":"Round walnut table","cat":"dining","catLabel":"Dining","room":"Dining nook, Hoboken","materials":"Solid walnut, hard-wax oil","size":"Ø 120 × 75 cm","weeks":4,"img":"https://images.unsplash.com/photo-1749476101600-90b2eb7efa89?auto=format&fit=crop&w=1600&h=2133&q=80","thumb":"https://images.unsplash.com/photo-1749476101600-90b2eb7efa89?auto=format&fit=crop&w=900&h=1200&q=80","ratio":1.3333,"alt":"Round walnut dining table with three legs in raking sunlight","note":"Three splayed legs so nobody ever sits across one, and an edge softened by hand.","preset":null},{"id":"oak-galley","title":"Quiet oak galley","cat":"kitchens","catLabel":"Kitchens","room":"Galley kitchen, Berchem","materials":"Oak veneer, fingerprint-proof lacquer, steel","size":"430 × 250 cm","weeks":9,"img":"https://images.unsplash.com/photo-1610733374054-59454fe657cd?auto=format&fit=crop&w=1600&h=2133&q=80","thumb":"https://images.unsplash.com/photo-1610733374054-59454fe657cd?auto=format&fit=crop&w=900&h=1200&q=80","ratio":1.3333,"alt":"Oak kitchen run with tall cabinets and a steel fridge","note":"Handleless fronts, a hidden fridge panel and one long, unbroken line of oak.","preset":null},{"id":"bay-window-seat","title":"Window seat with deep drawers","cat":"living","catLabel":"Living","room":"Front room, Borgerhout","materials":"Ash front, birch ply carcass, wool cushion","size":"260 × 45 × 45 cm","weeks":5,"img":"https://images.unsplash.com/photo-1776482128072-898fb8a242bd?auto=format&fit=crop&w=1600&h=1067&q=80","thumb":"https://images.unsplash.com/photo-1776482128072-898fb8a242bd?auto=format&fit=crop&w=900&h=600&q=80","ratio":0.6667,"alt":"Window seat with grey cushions under a tall sash window","note":"Two lift-up lids over deep storage, and a back panel scribed around the window frame.","preset":"window-seat"},{"id":"oak-ten","title":"Oak table for ten","cat":"dining","catLabel":"Dining","room":"Open-plan dining, Brasschaat","materials":"Solid oak, black steel X base","size":"280 × 75 × 100 cm","weeks":6,"img":"https://images.unsplash.com/photo-1721989516850-a02c70e2fce3?auto=format&fit=crop&w=1600&h=2133&q=80","thumb":"https://images.unsplash.com/photo-1721989516850-a02c70e2fce3?auto=format&fit=crop&w=900&h=1200&q=80","ratio":1.3333,"alt":"Oak dining table with an X base under pendant lights and tall black windows","note":"Boards matched for colour, joined with floating tenons and left a little proud at the edge.","preset":null},{"id":"arched-bay","title":"Arched shelving bay","cat":"living","catLabel":"Living","room":"Reading corner, Leuven","materials":"Oak, stained ash, warm LED","size":"240 × 300 × 38 cm","weeks":7,"img":"https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e?auto=format&fit=crop&w=1600&h=2133&q=80","thumb":"https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e?auto=format&fit=crop&w=900&h=1200&q=80","ratio":1.3333,"alt":"Arched timber shelving bay with warm lighting above a long table","note":"Shelves cut to follow an arched opening, with a lit back wall that glows at dusk.","preset":null},{"id":"sliding-hall","title":"Sliding hall wardrobe","cat":"wardrobes","catLabel":"Wardrobes","room":"Hallway, Edegem","materials":"White lacquer, birch ply interior","size":"280 × 250 × 60 cm","weeks":5,"img":"https://images.unsplash.com/photo-1721901944646-8b7da57bea7e?auto=format&fit=crop&w=1600&h=1200&q=80","thumb":"https://images.unsplash.com/photo-1721901944646-8b7da57bea7e?auto=format&fit=crop&w=900&h=675&q=80","ratio":0.7500,"alt":"Pale sliding wardrobe doors partly open on shelves and drawers","note":"Two sliding doors on a floor track so the hall keeps its width, shoes and bags inside.","preset":null},{"id":"window-study","title":"Study at the window","cat":"study","catLabel":"Study","room":"Home office, Kontich","materials":"Walnut top, sage lacquer drawers","size":"180 × 75 × 65 cm","weeks":4,"img":"https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=1600&h=1200&q=80","thumb":"https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=900&h=675&q=80","ratio":0.7500,"alt":"Desk beside a large window overlooking trees","note":"Set at the window so the light falls across the left hand, with a drawer stack on the right.","preset":null}]</script>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

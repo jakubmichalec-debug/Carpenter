@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design Studio · Grain &amp; Joint</title>
+  <meta name="description" content="Design your built-in furniture in 3D, see the live price and send it to the workshop.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/configurator.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/configurator/ui.js"></script>
+</head>
+<body data-page="configurator">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main" class="cfg" data-lighting="day">
+    <h1 class="visually-hidden">Furniture design studio</h1>
+    <section class="cfg__stage" aria-label="3D preview">
+      <canvas id="cfg-canvas" class="cfg__canvas" tabindex="0" role="img" aria-label="Interactive 3D preview of your room. Drag to orbit, scroll to zoom, click a piece to select it. Arrow keys nudge the selected piece, Delete removes it."></canvas>
+      <div class="cfg__bar" role="toolbar" aria-label="View controls">
+        <div class="seg seg--views" role="radiogroup" aria-label="Camera view">
+          <label class="seg__opt"><input type="radio" name="view" value="front"><span>Front</span></label>
+          <label class="seg__opt"><input type="radio" name="view" value="top"><span>Top</span></label>
+          <label class="seg__opt"><input type="radio" name="view" value="free" checked><span>Orbit</span></label>
+        </div>
+        <label class="cfg__explode"><span class="cfg__explode-label">Explode</span>
+          <input type="range" id="cfg-explode" min="0" max="100" value="0" aria-label="Explode view"></label>
+        <div class="cfg__tools">
+          <button type="button" class="tool tool--explode" id="cfg-explode-btn" aria-pressed="false" title="Explode the furniture into its boards">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v3H4zM4 15h16v3H4zM12 2v4M9 4l3-2 3 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+            <span class="tool__t">Explode</span></button>
+          <button type="button" class="tool" id="cfg-doors" aria-pressed="false" title="Open or close all doors">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10v18H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M15 5l5 2v12l-5 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12.4" cy="12" r="0.9" fill="currentColor"/></svg>
+            <span class="tool__t">Doors</span></button>
+          <button type="button" class="tool" id="cfg-light" aria-pressed="false" title="Switch between day and night">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="ico-sun"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="ico-moon"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            <span class="tool__t" data-light-text>Day</span></button>
+          <button type="button" class="tool" id="cfg-shot" title="Download a PNG of the current view">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.6-2h6.8L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+            <span class="tool__t">Screenshot</span></button>
+        </div>
+      </div>
+      <div class="cfg__dim" id="cfg-dim" hidden aria-hidden="true"><b data-dim-w>0 cm</b><small data-dim-s></small></div>
+      <button type="button" class="cfg__issues" id="cfg-issues" hidden></button>
+      <p class="cfg__hint" id="cfg-hint">Drag to orbit &middot; scroll to zoom &middot; click a piece to edit &middot; click a door to open it</p>
+      <div class="cfg__loading" id="cfg-loading" role="status"><span class="cfg__spinner" aria-hidden="true"></span><span>Setting up the workshop&hellip;</span></div>
+      <div class="cfg__fallback" id="cfg-fallback" hidden>
+        <p><strong>3D preview unavailable.</strong> Your browser could not start WebGL, but you can still design and price your furniture with the panel.</p>
+      </div>
+      <div class="cfg__flash" id="cfg-flash" aria-hidden="true"></div>
+    </section>
+
+    <aside class="cfg__panel" id="cfg-panel" aria-label="Design controls">
+      <button type="button" class="cfg__grab" id="cfg-grab" aria-label="Resize the panel" aria-expanded="false" aria-controls="cfg-body"><i></i></button>
+      <div class="cfg__tabs" role="tablist" aria-label="Design sections">
+        <button type="button" role="tab" id="tab-room" aria-controls="pane-room" aria-selected="false" tabindex="-1">Room</button>
+        <button type="button" role="tab" id="tab-furniture" aria-controls="pane-furniture" aria-selected="true">Furniture</button>
+        <button type="button" role="tab" id="tab-quote" aria-controls="pane-quote" aria-selected="false" tabindex="-1">Quote</button>
+      </div>
+      <div class="cfg__strip">
+        <button type="button" class="cfg__strip-total" id="cfg-strip-btn" aria-label="Show full quote">
+          <span class="cfg__strip-label">Estimate</span>
+          <strong id="cfg-strip-total" aria-hidden="true">&euro;&nbsp;0</strong>
+        </button>
+        <span class="visually-hidden" id="cfg-live" aria-live="polite" aria-atomic="true"></span>
+        <div class="cfg__hist">
+          <button type="button" class="tool tool--icon" id="cfg-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4 12l5 5M4 12h10a6 6 0 010 12" transform="translate(0 -4)" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="tool tool--icon" id="cfg-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5M20 12H10a6 6 0 000 12" transform="translate(0 -4)" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="cfg__body" id="cfg-body">
+        <div role="tabpanel" id="pane-room" aria-labelledby="tab-room" hidden></div>
+        <div role="tabpanel" id="pane-furniture" aria-labelledby="tab-furniture"></div>
+        <div role="tabpanel" id="pane-quote" aria-labelledby="tab-quote" hidden></div>
+        <noscript><p class="note">The configurator needs JavaScript. You can still <a href="contact.html">contact the workshop</a> directly.</p></noscript>
+      </div>
+    </aside>
+    <div class="cfg__toast" id="cfg-toast" role="status" aria-live="polite"></div>
+  </main>
+  <section class="print-summary" id="print-summary" aria-hidden="true"></section>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!--
+  Page shell. Every page copies this exactly and only changes <title>, the meta description,
+  the body's data-page, aria-current on the nav link, page-specific <link>/<script> tags and <main>.
+  This file is not published as a page; it is a reference.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PAGE TITLE · Grain &amp; Joint</title>
+  <meta name="description" content="PAGE DESCRIPTION">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <!-- page css here -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <!-- page module here -->
+</head>
+<body data-page="PAGE-ID">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- page content -->
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Services · Grain &amp; Joint</title>
+  <meta name="description" content="Wardrobes, kitchens, wall units, desks, tables, window seats and under-stairs storage, built to measure in Antwerp. Tune each one and start a design.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/services.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/services.js"></script>
+</head>
+<body data-page="services">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html" aria-current="page">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html" aria-current="page">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <header class="svc-hero">
+      <div class="container svc-hero__inner">
+        <p class="eyebrow" data-reveal="fade">Services</p>
+        <h1 class="svc-hero__title" data-split>Seven kinds of <em>built-in</em>, one workshop.</h1>
+        <div class="svc-hero__row">
+          <p class="svc-hero__lead" data-reveal data-reveal-delay="0.2">Everything we make is drawn for one room, built in our Antwerp workshop and fitted by the same hands. Pick a service to see how it goes together, tune it, and start a design with those choices already made.</p>
+          <div class="svc-hero__stats" data-reveal data-reveal-delay="0.3">
+            <div class="stat"><p class="stat__num"><span data-count="7">7</span></p><p class="stat__label">Kinds of built-in furniture</p></div>
+            <div class="stat"><p class="stat__num"><span data-count="12">12</span><span class="stat__suffix">wks</span></p><p class="stat__label">Longest build, from sign-off to fitting</p></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="svc-index" aria-label="Services" data-index>
+      <div class="container svc-index__inner">
+        <ul role="list"><li><a href="#wardrobes" data-idx="wardrobes">Wardrobes</a></li><li><a href="#kitchens" data-idx="kitchens">Kitchens</a></li><li><a href="#wall-units" data-idx="wall-units">Wall units</a></li><li><a href="#desks" data-idx="desks">Desks &amp; studies</a></li><li><a href="#tables" data-idx="tables">Tables &amp; benches</a></li><li><a href="#window-seats" data-idx="window-seats">Window seats</a></li><li><a href="#under-stairs" data-idx="under-stairs">Under-stairs</a></li></ul>
+      </div>
+    </nav>
+
+    <section class="section svc" id="wardrobes" data-service="wardrobes" aria-labelledby="wardrobes-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">01 / 07</p>
+        <h2 id="wardrobes-h" class="svc__title" data-split>Wardrobes</h2>
+        <p class="svc__tag" data-reveal>Floor-to-ceiling storage, planned around the way you dress.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">We build into the awkward alcove, the sloping attic wall and the full bedroom wall alike. Carcasses in birch ply, fronts in solid oak, walnut or lacquer, and interiors drawn around your actual clothes.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Wardrobes gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Wardrobes</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 4</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more wardrobes">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1722349674028-a148f4364e43?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Oak-fronted wardrobe wall with a mirror panel between doors"></div>
+              <figcaption><span class="svc-panel__n">01</span>Oak fronts, birch interior</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1672137233327-37b0c1049e77?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Wardrobe wall with a dressing nook, round mirror and lit rails"></div>
+              <figcaption><span class="svc-panel__n">02</span>Dressing nook with a round mirror</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1721901944646-8b7da57bea7e?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Pale sliding wardrobe doors partly open on a shelving interior"></div>
+              <figcaption><span class="svc-panel__n">03</span>Sliding doors on a quiet track</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1708397016786-8916880649b8?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Walk-in wardrobe with lit shelves, drawers and hanging space"></div>
+              <figcaption><span class="svc-panel__n">04</span>Walk-in with lit rails and drawers</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Sliding doors</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Glass doors</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Hanging rail</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Shoe racks</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>LED strips</button></li><li><button type="button" class="svc-chip" data-opt="5" aria-pressed="false" style="--i:5"><span class="svc-chip__tick" aria-hidden="true"></span>Knob handles</button></li><li><button type="button" class="svc-chip" data-opt="6" aria-pressed="false" style="--i:6"><span class="svc-chip__tick" aria-hidden="true"></span>Push-to-open</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:7">Mirror panels</li><li class="svc-tag" style="--i:8">Tie and belt drawers</li><li class="svc-tag" style="--i:9">Pull-out valet rod</li><li class="svc-tag" style="--i:10">Corner units</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Wardrobes summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>5 to 7</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Up to 4 m wide</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Interior planned around your wardrobe, not a catalogue</li><li>Soft-close hinges and runners throughout</li><li>Scribed to your walls, no filler strips</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="kitchens" data-service="kitchens" aria-labelledby="kitchens-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">02 / 07</p>
+        <h2 id="kitchens-h" class="svc__title" data-split>Kitchens</h2>
+        <p class="svc__tag" data-reveal>Cabinetry that survives a decade of cooking and looks better for it.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Solid-wood fronts, dovetailed drawers and worktops in terrazzo or oak. We design around your appliances and your walking route, then build and fit every cabinet ourselves.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Kitchens gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Kitchens</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 4</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more kitchens">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1512916194211-3f2b7f5f7de3?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Oak kitchen with a black-topped island and tall appliance wall"></div>
+              <figcaption><span class="svc-panel__n">01</span>Oak island, black stone top</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1610733374054-59454fe657cd?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Oak kitchen run with tall cabinets and a steel fridge"></div>
+              <figcaption><span class="svc-panel__n">02</span>A long, quiet run of oak</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1713514023762-b3995318dc94?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Oak wall cabinets above white drawers in a bright kitchen"></div>
+              <figcaption><span class="svc-panel__n">03</span>Wall cabinets that reach the ceiling</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1676907228185-6869277a9f8f?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Open oak drawer with fitted dish dividers"></div>
+              <figcaption><span class="svc-panel__n">04</span>Drawers fitted out to the centimetre</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Charcoal fronts</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Oak fronts</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Oak worktop</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Open shelves</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>LED under-cabinet</button></li><li><button type="button" class="svc-chip" data-opt="5" aria-pressed="false" style="--i:5"><span class="svc-chip__tick" aria-hidden="true"></span>Knob handles</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:6">Integrated appliances</li><li class="svc-tag" style="--i:7">Pull-out larder</li><li class="svc-tag" style="--i:8">Corner carousel</li><li class="svc-tag" style="--i:9">Bin drawers</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Kitchens summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>8 to 12</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Runs and islands to 6 m</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Layout drawn around your appliances and walking route</li><li>Dovetailed solid-wood drawers on full-extension runners</li><li>Worktop templated on site, fitted by us</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="wall-units" data-service="wall-units" aria-labelledby="wall-units-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">03 / 07</p>
+        <h2 id="wall-units-h" class="svc__title" data-split>Wall units</h2>
+        <p class="svc__tag" data-reveal>Shelving and cabinets that make a wall part of the room.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Alcoves, media walls, libraries. Open shelves for the things you love, closed doors for the things you do not, and hidden channels for every cable.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Wall units gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Wall units</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 3</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more wall units">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1593430980497-a817d32da543?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="White library wall with open shelves above closed cupboards"></div>
+              <figcaption><span class="svc-panel__n">01</span>A library wall in painted ash</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1746361747275-31c08d2c6d5e?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Arched timber shelving bay with warm lighting"></div>
+              <figcaption><span class="svc-panel__n">02</span>Arched bays, warm light</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1767020991055-44a6eac02c19?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Dark timber shelving with books, plants and a mirror"></div>
+              <figcaption><span class="svc-panel__n">03</span>Deep shelves, dark back panel</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Oak fronts</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Walnut fronts</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Glass doors</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Closed shelves</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>LED lighting</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:5">Media niche</li><li class="svc-tag" style="--i:6">Fireplace surround</li><li class="svc-tag" style="--i:7">Picture ledge</li><li class="svc-tag" style="--i:8">Wall-hung units</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Wall units summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>4 to 6</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Wall to wall, floor to ceiling</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Shelf spans checked so nothing sags under books</li><li>Cable routes and socket cut-outs built in</li><li>Painted or oiled finish done in the workshop</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="desks" data-service="desks" aria-labelledby="desks-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">04 / 07</p>
+        <h2 id="desks-h" class="svc__title" data-split>Desks &amp; studies</h2>
+        <p class="svc__tag" data-reveal>A workspace that is calm to look at and easy to live with.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Desks that fit the window, the alcove or the attic eave: cable routes built in, drawers on full-extension runners, and a top at exactly the height you sit.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Desks &amp; studies gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Desks &amp; studies</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 3</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more desks &amp; studies">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1705417272217-490f4511abeb?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Light timber desk tucked under a sloping ceiling"></div>
+              <figcaption><span class="svc-panel__n">01</span>An under-the-eaves desk</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Desk set by a large window overlooking trees"></div>
+              <figcaption><span class="svc-panel__n">02</span>The desk on the best light in the room</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1763392199003-27cee33bae31?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Close-up of pale oak grain"></div>
+              <figcaption><span class="svc-panel__n">03</span>Oak top, hand-finished</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Oak top</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Charcoal fronts</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Four drawers</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Terrazzo top</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>Closed shelving</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:5">Cable trays</li><li class="svc-tag" style="--i:6">Sit-stand frame</li><li class="svc-tag" style="--i:7">Monitor riser</li><li class="svc-tag" style="--i:8">Pin boards</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Desks &amp; studies summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>3 to 5</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Desks from 80 to 260 cm</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Top height set to how you sit, not a standard</li><li>Cable trays and grommets, hidden</li><li>Hard-wax oil finish that can be re-touched</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="tables" data-service="tables" aria-labelledby="tables-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">05 / 07</p>
+        <h2 id="tables-h" class="svc__title" data-split>Tables &amp; benches</h2>
+        <p class="svc__tag" data-reveal>Dining tables sized for your room, and for the people you actually host.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Solid-top tables in oak, walnut or ash with joints we cut ourselves. Add a built-in bench along the wall to seat two more without another chair.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Tables &amp; benches gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Tables &amp; benches</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 4</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more tables &amp; benches">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1749476101600-90b2eb7efa89?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Round walnut table on three legs in raking sunlight"></div>
+              <figcaption><span class="svc-panel__n">01</span>Round walnut, three legs</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1758977403865-f79e156415b3?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Close-up of a timber dining table corner and chair"></div>
+              <figcaption><span class="svc-panel__n">02</span>A corner worth the joinery</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1721989516850-a02c70e2fce3?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Oak table with an X base in a room with tall black windows"></div>
+              <figcaption><span class="svc-panel__n">03</span>Oak, sized for ten</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1643036078703-61c3a61fecb5?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Timber table with green chairs by a window"></div>
+              <figcaption><span class="svc-panel__n">04</span>Warm oak with green chairs</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Walnut</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Ash</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Terrazzo top</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Wider, 240 cm</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:4">Extension leaf</li><li class="svc-tag" style="--i:5">Round tops</li><li class="svc-tag" style="--i:6">Bench cushions</li><li class="svc-tag" style="--i:7">Drawer in the apron</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Tables &amp; benches summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>4 to 6</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Tables from 80 to 300 cm</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Mortise-and-tenon frames, glued and pegged</li><li>Top flattened, sanded and oiled by hand</li><li>Delivered and levelled on your floor</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="window-seats" data-service="window-seats" aria-labelledby="window-seats-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">06 / 07</p>
+        <h2 id="window-seats-h" class="svc__title" data-split>Window seats</h2>
+        <p class="svc__tag" data-reveal>The best spot in the house, with storage underneath.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Lift-up lids or deep drawers under a cushioned seat, shaped to your window and any radiator. Flanked by shelves, it becomes the room’s reading corner.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Window seats gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Window seats</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 3</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more window seats">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1776482128072-898fb8a242bd?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Window seat with grey cushions beneath a tall window"></div>
+              <figcaption><span class="svc-panel__n">01</span>A seat under a tall window</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1643949914877-b20f30792c1e?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Built-in bench with a cushion beside a grey wardrobe wall"></div>
+              <figcaption><span class="svc-panel__n">02</span>A bench built into the wardrobe wall</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1576092762791-dd9e2220abd1?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Dark walnut board with visible grain"></div>
+              <figcaption><span class="svc-panel__n">03</span>Choose walnut, oak or ash</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Oak front</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Sage lacquer</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Four drawers</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Shelf wings</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>LED toe-kick</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:5">Radiator covers</li><li class="svc-tag" style="--i:6">Made-to-measure cushions</li><li class="svc-tag" style="--i:7">Reading lights</li><li class="svc-tag" style="--i:8">Bay windows</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Window seats summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>4 to 6</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Seats from 80 to 300 cm</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Radiator and bay shapes templated on site</li><li>Deep drawers or lift-up lids, your choice</li><li>Cushion made to measure in the same week</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+    <section class="section svc" id="under-stairs" data-service="under-stairs" aria-labelledby="under-stairs-h">
+      <div class="container svc__head">
+        <p class="svc__num eyebrow" data-reveal="fade">07 / 07</p>
+        <h2 id="under-stairs-h" class="svc__title" data-split>Under-stairs</h2>
+        <p class="svc__tag" data-reveal>Every cubic centimetre of the awkward space, made useful.</p>
+        <p class="svc__lead" data-reveal data-reveal-delay="0.1">Stepped drawers, a shoe store, a hidden cloakroom: we scan the stair, template the slope and build to it. Nothing is wasted and nothing looks left over.</p>
+      </div>
+
+      <div class="svc-gallery" data-gallery aria-label="Under-stairs gallery">
+        <div class="svc-gallery__hud" aria-hidden="true">
+          <span class="svc-gallery__name">Under-stairs</span>
+          <span class="svc-gallery__count"><b data-cur>1</b> / 3</span>
+          <span class="svc-gallery__bar"><i data-bar></i></span>
+        </div>
+        <ul class="svc-track" role="list" tabindex="0" aria-label="Swipe or scroll to see more under-stairs">
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1560185127-59e4420e2c93?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="White staircase with a wicker bench below black balusters"></div>
+              <figcaption><span class="svc-panel__n">01</span>A staircase worth building under</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1683181181300-44c0c991a2cf?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="White hall wardrobe with an open shoe store and shelves"></div>
+              <figcaption><span class="svc-panel__n">02</span>Shoes and coats, planned to depth</figcaption>
+            </figure>
+          </li>
+          <li class="svc-panel">
+            <figure>
+              <div class="svc-panel__img"><img src="https://images.unsplash.com/photo-1721739224993-f6fcdec51d1d?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Slim white wardrobe with stacked drawers and a hanging rail"></div>
+              <figcaption><span class="svc-panel__n">03</span>Narrow pull-outs for the small things</figcaption>
+            </figure>
+          </li>
+        </ul>
+        <p class="svc-gallery__hint" aria-hidden="true">Swipe <span>&rarr;</span></p>
+      </div>
+
+      <div class="container svc__body">
+        <div class="svc__opts" data-opts>
+          <h3 class="svc__h3">Tune the starting point</h3>
+          <p class="svc__note">Tap an option and the starting design, price and lead time update.</p>
+          <ul class="svc-chips" role="list"><li><button type="button" class="svc-chip" data-opt="0" aria-pressed="false" style="--i:0"><span class="svc-chip__tick" aria-hidden="true"></span>Six drawers</button></li><li><button type="button" class="svc-chip" data-opt="1" aria-pressed="false" style="--i:1"><span class="svc-chip__tick" aria-hidden="true"></span>Shoe racks</button></li><li><button type="button" class="svc-chip" data-opt="2" aria-pressed="false" style="--i:2"><span class="svc-chip__tick" aria-hidden="true"></span>Coat rail</button></li><li><button type="button" class="svc-chip" data-opt="3" aria-pressed="false" style="--i:3"><span class="svc-chip__tick" aria-hidden="true"></span>Push-to-open</button></li><li><button type="button" class="svc-chip" data-opt="4" aria-pressed="false" style="--i:4"><span class="svc-chip__tick" aria-hidden="true"></span>Clay lacquer</button></li></ul>
+          <h3 class="svc__h3 svc__h3--small">Also available</h3>
+          <ul class="svc-tags" role="list"><li class="svc-tag" style="--i:5">Stepped drawers</li><li class="svc-tag" style="--i:6">Hidden door</li><li class="svc-tag" style="--i:7">Wine rack</li><li class="svc-tag" style="--i:8">Vacuum bay</li></ul>
+        </div>
+        <aside class="svc-cta" aria-label="Under-stairs summary">
+          <p class="eyebrow">Indicative, incl. VAT</p>
+          <p class="svc-cta__price"><span data-price>&mdash;</span></p>
+          <dl class="svc-cta__meta">
+            <div><dt>Lead time</dt><dd><span data-weeks>4 to 6</span> weeks</dd></div>
+            <div><dt>Typical size</dt><dd>Any stair, any slope</dd></div>
+          </dl>
+          <ul class="svc-cta__inc" role="list"><li>Laser scan of the stair and every step height</li><li>Drawers stepped to follow the slope</li><li>Fronts matched to your stair or painted to blend</li></ul>
+          <a class="btn svc-cta__go" href="configurator.html" data-start data-magnetic data-cursor="Design">Start from this <span aria-hidden="true">&rarr;</span></a>
+          <a class="link-arrow svc-cta__alt" href="contact.html">Or talk it through</a>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section section--dark svc-end">
+      <div class="container svc-end__inner">
+        <h2 class="svc-end__title" data-split>Not sure which one you need?</h2>
+        <p data-reveal>Tell us about the room. We will say what we would build, roughly what it costs, and when we could start.</p>
+        <div class="svc-end__actions" data-reveal data-reveal-delay="0.1">
+          <a class="btn" href="contact.html" data-magnetic>Get a quote</a>
+          <a class="btn btn--ghost" href="configurator.html" data-magnetic>Open the configurator</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

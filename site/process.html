@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Process · Grain &amp; Joint</title>
+  <meta name="description" content="From a free call and a laser-scanned measure to 3D design, workshop build and fitting: how Grain & Joint builds furniture in five steps, with an interactive look at the joinery.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/process.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/process.js"></script>
+</head>
+<body data-page="process">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html" aria-current="page">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html" aria-current="page">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <header class="pr-hero">
+      <div class="container">
+        <p class="eyebrow" data-reveal="fade">Process</p>
+        <h1 class="pr-hero__title" data-split>Five steps from <em>first call</em> to the last screw.</h1>
+        <div class="pr-hero__row">
+          <p class="pr-hero__lead" data-reveal data-reveal-delay="0.2">No surprises: you see the drawing, the 3D model and the price before a single board is cut, and you hear from us every week while it is being built.</p>
+          <p class="pr-hero__meta" data-reveal data-reveal-delay="0.3"><span>5 to 12 weeks</span> from signed design to fitting</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="pr-timeline" aria-label="The five steps">
+      <div class="container">
+        <div class="pr-tl" data-timeline>
+          <svg class="pr-tl__rail" aria-hidden="true" focusable="false"><path class="pr-tl__track" d=""/><path class="pr-tl__line" d=""/></svg>
+          <ol class="pr-tl__list">
+        <li class="pr-step" data-step>
+          <span class="pr-step__dot" aria-hidden="true"></span>
+          <div class="pr-step__body">
+            <p class="pr-step__meta"><span class="pr-step__n">01</span><span class="pr-step__wk">Week 0</span></p>
+            <h3 class="pr-step__title">Call &amp; visit</h3>
+            <p class="pr-step__h">We start with a conversation and a tape measure.</p>
+            <p class="pr-step__p">A 30-minute call to hear what the room needs to do. Then one of us visits with samples, looks at the light, opens the cupboards you already have and notes what stays.</p>
+            <ul class="pr-step__list" role="list"><li>Free call and visit, no obligation</li><li>Sample boards and hardware to handle</li><li>Photographs and a first sketch on the day</li></ul>
+            <p class="pr-step__get"><span>You get</span>A written price range within 48 hours</p>
+            
+          </div>
+          <div class="pr-step__vis"><div class="pr-vis__photo" data-reveal="mask"><img src="https://images.unsplash.com/photo-1748566711619-a172ca8932ca?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="A room with a large window where a desk could be built in"></div></div>
+        </li>
+        <li class="pr-step" data-step>
+          <span class="pr-step__dot" aria-hidden="true"></span>
+          <div class="pr-step__body">
+            <p class="pr-step__meta"><span class="pr-step__n">02</span><span class="pr-step__wk">Week 1</span></p>
+            <h3 class="pr-step__title">Measure <span class="pr-step__tt">(laser-scanned)</span></h3>
+            <p class="pr-step__h">Every wall, to the millimetre.</p>
+            <p class="pr-step__p">Walls are never straight and floors never level. We scan the room with a laser, capturing sockets, pipes, skirting and the slope of the ceiling, so panels are scribed to the real room rather than the plan.</p>
+            <ul class="pr-step__list" role="list"><li>Laser scan of walls, floor and ceiling</li><li>Services, radiators and sockets mapped</li><li>Scan-accurate drawing sent to you</li></ul>
+            <p class="pr-step__get"><span>You get</span>A drawing accurate to 1 mm</p>
+            
+          </div>
+          <div class="pr-step__vis"><svg class="pr-vis__svg pr-scan" viewBox="0 0 480 360" role="img" aria-label="Illustration of a laser scan sweeping across a room corner and measuring each wall">
+  <rect x="0" y="0" width="480" height="360" class="pr-scan__bg"/>
+  <path class="pr-draw" pathLength="1" d="M40 60 H440 V250 H40 Z"/>
+  <path class="pr-draw" pathLength="1" d="M40 250 L12 330 H468 L440 250"/>
+  <path class="pr-draw" pathLength="1" d="M250 100 H390 V210 H250 Z"/>
+  <path class="pr-draw" pathLength="1" d="M320 100 V210 M250 155 H390"/>
+  <g class="pr-scan__pts"><circle cx="170" cy="184" r="2.2" style="--d:1.04s"/><circle cx="69" cy="276" r="2.2" style="--d:0.23s"/><circle cx="63" cy="253" r="2.2" style="--d:0.19s"/><circle cx="213" cy="77" r="2.2" style="--d:1.39s"/><circle cx="210" cy="98" r="2.2" style="--d:1.36s"/><circle cx="129" cy="316" r="2.2" style="--d:0.71s"/><circle cx="271" cy="245" r="2.2" style="--d:1.85s"/><circle cx="59" cy="137" r="2.2" style="--d:0.15s"/><circle cx="98" cy="119" r="2.2" style="--d:0.46s"/><circle cx="366" cy="171" r="2.2" style="--d:2.61s"/><circle cx="296" cy="164" r="2.2" style="--d:2.04s"/><circle cx="65" cy="99" r="2.2" style="--d:0.20s"/><circle cx="312" cy="272" r="2.2" style="--d:2.18s"/><circle cx="274" cy="271" r="2.2" style="--d:1.87s"/><circle cx="358" cy="267" r="2.2" style="--d:2.54s"/><circle cx="270" cy="311" r="2.2" style="--d:1.84s"/><circle cx="332" cy="246" r="2.2" style="--d:2.33s"/><circle cx="87" cy="303" r="2.2" style="--d:0.38s"/><circle cx="101" cy="253" r="2.2" style="--d:0.49s"/><circle cx="307" cy="202" r="2.2" style="--d:2.14s"/><circle cx="390" cy="192" r="2.2" style="--d:2.80s"/><circle cx="278" cy="282" r="2.2" style="--d:1.90s"/><circle cx="376" cy="179" r="2.2" style="--d:2.69s"/><circle cx="306" cy="193" r="2.2" style="--d:2.13s"/><circle cx="299" cy="259" r="2.2" style="--d:2.07s"/><circle cx="154" cy="187" r="2.2" style="--d:0.91s"/><circle cx="49" cy="262" r="2.2" style="--d:0.07s"/><circle cx="87" cy="206" r="2.2" style="--d:0.37s"/><circle cx="92" cy="134" r="2.2" style="--d:0.41s"/><circle cx="389" cy="145" r="2.2" style="--d:2.79s"/><circle cx="260" cy="258" r="2.2" style="--d:1.76s"/><circle cx="386" cy="139" r="2.2" style="--d:2.76s"/><circle cx="184" cy="290" r="2.2" style="--d:1.15s"/><circle cx="100" cy="104" r="2.2" style="--d:0.48s"/><circle cx="133" cy="291" r="2.2" style="--d:0.75s"/><circle cx="145" cy="140" r="2.2" style="--d:0.84s"/><circle cx="188" cy="317" r="2.2" style="--d:1.18s"/><circle cx="316" cy="293" r="2.2" style="--d:2.21s"/><circle cx="310" cy="231" r="2.2" style="--d:2.16s"/><circle cx="352" cy="254" r="2.2" style="--d:2.50s"/><circle cx="197" cy="80" r="2.2" style="--d:1.26s"/><circle cx="294" cy="73" r="2.2" style="--d:2.03s"/><circle cx="124" cy="125" r="2.2" style="--d:0.67s"/><circle cx="61" cy="89" r="2.2" style="--d:0.17s"/><circle cx="81" cy="65" r="2.2" style="--d:0.32s"/><circle cx="390" cy="260" r="2.2" style="--d:2.80s"/><circle cx="141" cy="129" r="2.2" style="--d:0.81s"/><circle cx="89" cy="298" r="2.2" style="--d:0.39s"/><circle cx="226" cy="256" r="2.2" style="--d:1.49s"/><circle cx="81" cy="110" r="2.2" style="--d:0.33s"/><circle cx="372" cy="64" r="2.2" style="--d:2.65s"/><circle cx="420" cy="260" r="2.2" style="--d:3.04s"/><circle cx="257" cy="160" r="2.2" style="--d:1.74s"/><circle cx="431" cy="230" r="2.2" style="--d:3.13s"/><circle cx="144" cy="92" r="2.2" style="--d:0.84s"/><circle cx="349" cy="305" r="2.2" style="--d:2.47s"/><circle cx="172" cy="214" r="2.2" style="--d:1.05s"/><circle cx="434" cy="255" r="2.2" style="--d:3.15s"/><circle cx="367" cy="122" r="2.2" style="--d:2.62s"/><circle cx="247" cy="66" r="2.2" style="--d:1.66s"/><circle cx="51" cy="109" r="2.2" style="--d:0.09s"/><circle cx="317" cy="173" r="2.2" style="--d:2.22s"/><circle cx="415" cy="290" r="2.2" style="--d:3.00s"/><circle cx="186" cy="103" r="2.2" style="--d:1.17s"/><circle cx="119" cy="179" r="2.2" style="--d:0.63s"/><circle cx="400" cy="180" r="2.2" style="--d:2.88s"/><circle cx="301" cy="89" r="2.2" style="--d:2.09s"/><circle cx="304" cy="250" r="2.2" style="--d:2.11s"/><circle cx="340" cy="262" r="2.2" style="--d:2.40s"/><circle cx="356" cy="212" r="2.2" style="--d:2.53s"/></g>
+  <g class="pr-scan__dim"><path d="M40 40 H440 M40 34 V46 M440 34 V46"/><text x="240" y="30" text-anchor="middle">4 218 mm</text>
+    <path d="M462 60 V250 M456 60 H468 M456 250 H468"/><text x="472" y="160" transform="rotate(90 472 160)" text-anchor="middle">2 604 mm</text></g>
+  <rect class="pr-scan__beam" x="0" y="40" width="3" height="300"/>
+  <rect class="pr-scan__glow" x="-60" y="40" width="60" height="300"/>
+</svg></div>
+        </li>
+        <li class="pr-step" data-step>
+          <span class="pr-step__dot" aria-hidden="true"></span>
+          <div class="pr-step__body">
+            <p class="pr-step__meta"><span class="pr-step__n">03</span><span class="pr-step__wk">Weeks 1 to 2</span></p>
+            <h3 class="pr-step__title">Design &amp; 3D</h3>
+            <p class="pr-step__h">See it before we cut it.</p>
+            <p class="pr-step__p">We model your room and the furniture in 3D, then walk you through it. You choose boards, fronts and handles from real samples. When you are happy we fix the price and the date.</p>
+            <ul class="pr-step__list" role="list"><li>3D model you can orbit and share</li><li>Materials and handles chosen from samples</li><li>Fixed quote and a booked workshop slot</li></ul>
+            <p class="pr-step__get"><span>You get</span>A fixed quote and your 3D design</p>
+            <a class="link-arrow pr-step__link" href="configurator.html">Try the configurator</a>
+          </div>
+          <div class="pr-step__vis"><svg class="pr-vis__svg pr-model" viewBox="0 0 480 360" role="img" aria-label="Illustration of a wardrobe model being drawn in three dimensions">
+  <rect x="0" y="0" width="480" height="360" class="pr-model__bg"/>
+  <g class="pr-model__grid"><path d="M150.0 174.0 L-179.1 364.0"/><path d="M150.0 174.0 L512.0 383.0"/><path d="M182.9 193.0 L-146.2 383.0"/><path d="M117.1 193.0 L479.1 402.0"/><path d="M215.8 212.0 L-113.3 402.0"/><path d="M84.2 212.0 L446.2 421.0"/><path d="M248.7 231.0 L-80.4 421.0"/><path d="M51.3 231.0 L413.3 440.0"/><path d="M281.6 250.0 L-47.5 440.0"/><path d="M18.4 250.0 L380.4 459.0"/><path d="M314.5 269.0 L-14.5 459.0"/><path d="M-14.5 269.0 L347.5 478.0"/><path d="M347.5 288.0 L18.4 478.0"/><path d="M-47.5 288.0 L314.5 497.0"/><path d="M380.4 307.0 L51.3 497.0"/><path d="M-80.4 307.0 L281.6 516.0"/><path d="M413.3 326.0 L84.2 516.0"/><path d="M-113.3 326.0 L248.7 535.0"/><path d="M446.2 345.0 L117.1 535.0"/><path d="M-146.2 345.0 L215.8 554.0"/><path d="M479.1 364.0 L150.0 554.0"/><path d="M-179.1 364.0 L182.9 573.0"/></g>
+  <polygon class="pr-model__face pr-model__face--front" points="150.0,250.0 306.3,340.2 306.3,131.2 150.0,41.0"/>
+  <polygon class="pr-model__face pr-model__face--side" points="306.3,340.2 255.3,369.7 255.3,160.7 306.3,131.2"/>
+  <polygon class="pr-model__face pr-model__face--top" points="150.0,41.0 306.3,131.2 255.3,160.7 99.0,70.4"/>
+  <path class="pr-draw" pathLength="1" d="M150.0 250.0 L306.3 340.2 L306.3 131.2 L150.0 41.0 Z"/>
+  <path class="pr-draw" pathLength="1" d="M306.3 340.2 L255.3 369.7 L255.3 160.7 L306.3 131.2 Z"/>
+  <path class="pr-draw" pathLength="1" d="M150.0 41.0 L306.3 131.2 L255.3 160.7 L99.0 70.4 Z"/>
+  <path class="pr-draw pr-draw--d" pathLength="1" d="M202.1 280.1 L202.1 71.1"/><path class="pr-draw pr-draw--d" pathLength="1" d="M254.2 310.2 L254.2 101.2"/><path class="pr-draw pr-draw--d" pathLength="1" d="M150.0 87.0 L306.3 177.2"/><path class="pr-draw pr-draw--h" pathLength="1" d="M195.5 188.5 L195.5 155.1"/><path class="pr-draw pr-draw--h" pathLength="1" d="M208.7 196.1 L208.7 162.7"/><path class="pr-draw pr-draw--h" pathLength="1" d="M247.6 218.6 L247.6 185.1"/><path class="pr-draw pr-draw--h" pathLength="1" d="M260.8 226.2 L260.8 192.7"/>
+  <g class="pr-model__dim"><path d="M164.8 241.4 L321.1 331.7"/><text x="246" y="301" text-anchor="middle">1 900</text>
+    <path d="M138.5 243.3 L138.5 34.3"/><text x="130" y="139" text-anchor="end">2 200</text></g>
+  <text class="pr-model__tag" x="400" y="50" text-anchor="end">3D</text>
+</svg></div>
+        </li>
+        <li class="pr-step" data-step>
+          <span class="pr-step__dot" aria-hidden="true"></span>
+          <div class="pr-step__body">
+            <p class="pr-step__meta"><span class="pr-step__n">04</span><span class="pr-step__wk">Weeks 2 to 8</span></p>
+            <h3 class="pr-step__title">Workshop</h3>
+            <p class="pr-step__h">Cut, joined and finished at Timber Lane.</p>
+            <p class="pr-step__p">Boards are cut from the cut list, joined with dovetails, tenons and dowels, glued and clamped, then sanded and oiled or lacquered. Everything is dry-assembled before it leaves the workshop.</p>
+            <ul class="pr-step__list" role="list"><li>Cut list nested to reduce waste</li><li>Joints cut and fitted by hand</li><li>Dry-fitted and photographed before delivery</li></ul>
+            <p class="pr-step__get"><span>You get</span>Progress photos every week</p>
+            
+          </div>
+          <div class="pr-step__vis"><div class="pr-vis__photo" data-reveal="mask"><img src="https://images.unsplash.com/photo-1788296817269-8df0458ab799?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="A sunlit workbench with wooden hand tools in a joinery workshop"></div></div>
+        </li>
+        <li class="pr-step" data-step>
+          <span class="pr-step__dot" aria-hidden="true"></span>
+          <div class="pr-step__body">
+            <p class="pr-step__meta"><span class="pr-step__n">05</span><span class="pr-step__wk">Last week</span></p>
+            <h3 class="pr-step__title">Fitting</h3>
+            <p class="pr-step__h">Two days, one tidy room.</p>
+            <p class="pr-step__p">We deliver, level and scribe the furniture into place, hang the doors, adjust every hinge and runner, and take every offcut and dust sheet away with us.</p>
+            <ul class="pr-step__list" role="list"><li>Scribed to walls, floor and ceiling</li><li>Doors and drawers adjusted until even</li><li>Room left clean, care guide handed over</li></ul>
+            <p class="pr-step__get"><span>You get</span>A two-year workmanship guarantee</p>
+            
+          </div>
+          <div class="pr-step__vis"><div class="pr-vis__photo" data-reveal="mask"><img src="https://images.unsplash.com/photo-1722650364570-90bf509d7dff?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Open oak wardrobe with shelves and drawers beside a bed"></div></div>
+        </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="pr-joint" data-joint aria-labelledby="joint-h">
+      <div class="pr-joint__sticky">
+        <div class="container pr-joint__inner">
+          <div class="pr-joint__text">
+            <p class="eyebrow">Joinery explained</p>
+            <h2 id="joint-h" class="pr-joint__title" data-split>How the joints <em>go together</em>.</h2>
+            <div class="pr-joint__tabs" role="tablist" aria-label="Joint type">
+              <button type="button" role="tab" id="tab-dovetail" aria-selected="true" aria-controls="joint-canvas" data-joint-btn="dovetail">Dovetail</button>
+              <button type="button" role="tab" id="tab-tenon" aria-selected="false" aria-controls="joint-canvas" data-joint-btn="tenon" tabindex="-1">Mortise &amp; tenon</button>
+            </div>
+            <div class="pr-joint__copy" data-joint-copy>
+              <p data-copy="dovetail">Tails on one board, sockets on the other. The wedge shape locks the corner so the joint can only come apart the way it went together. We use it for drawers and carcass corners.</p>
+              <p data-copy="tenon" hidden>A tongue cut on the rail fits a slot cut in the post, then is glued. It is the strongest way to join a frame, which is why we use it on table legs and frames.</p>
+            </div>
+            <ol class="pr-joint__phases" data-phases>
+              <li>Cut the pieces</li><li>Line up the joint</li><li>Slide it home</li><li>Glue and clamp</li>
+            </ol>
+            <label class="pr-joint__range"><span>Assemble</span><input type="range" min="0" max="100" value="0" step="1" data-joint-range aria-describedby="joint-help"><output data-joint-out>0%</output></label>
+            <p class="pr-joint__help" id="joint-help">Scroll to slide the joint together, or drag the slider. Drag the model to turn it.</p>
+          </div>
+          <div class="pr-joint__stage" data-cursor="Drag">
+            <canvas id="joint-canvas" data-joint-canvas aria-label="Interactive 3D model of the selected wood joint" role="img"></canvas>
+            <p class="pr-joint__fallback" data-joint-fallback hidden>The 3D view needs WebGL, which is not available in this browser. A dovetail locks two boards at a corner with interlocking wedges; a mortise and tenon fits a tongue into a slot.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section pr-faq" aria-labelledby="faq-h">
+      <div class="container pr-faq__grid">
+        <div>
+          <p class="eyebrow" data-reveal="fade">Questions</p>
+          <h2 id="faq-h" class="pr-faq__title" data-split>Good to know before we start.</h2>
+          <p data-reveal>Still wondering about something? <a href="contact.html">Ask us directly</a>.</p>
+        </div>
+        <div class="pr-faq__list" data-faq>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q0" aria-expanded="false" aria-controls="faq-a0"><span>How long does a project take?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a0" role="region" aria-labelledby="faq-q0"><div><p>Most commissions take five to twelve weeks from signed design to fitting. Wardrobes and desks sit at the short end, kitchens at the long end. The quote states the exact lead time, and we hold a workshop slot for you once you approve the design.</p></div></div>
+          </div>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q1" aria-expanded="false" aria-controls="faq-a1"><span>Do I pay anything before the design is finished?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a1" role="region" aria-labelledby="faq-q1"><div><p>The call and the visit are free. A design fee of €250 covers the laser scan, the 3D model and the fixed quote. It is included in the quote total, so it is not extra if you go ahead.</p></div></div>
+          </div>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q2" aria-expanded="false" aria-controls="faq-a2"><span>What if my walls are not straight?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a2" role="region" aria-labelledby="faq-q2"><div><p>They rarely are. That is why we laser-scan: panels are scribed to the actual wall, floor and ceiling, and any remaining gap is closed with a shadow line or a scribed return, not a ribbon of filler.</p></div></div>
+          </div>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q3" aria-expanded="false" aria-controls="faq-a3"><span>Can I change the design after I approve it?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a3" role="region" aria-labelledby="faq-q3"><div><p>Until we cut the first board, yes, at no cost. After that changes are priced at cost. Fronts, handles and interior fittings are the easiest to change late; overall sizes are the hardest.</p></div></div>
+          </div>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q4" aria-expanded="false" aria-controls="faq-a4"><span>Do you handle electrics and plumbing?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a4" role="region" aria-labelledby="faq-q4"><div><p>We coordinate with your electrician and plumber, leave the cut-outs and supply LED strips and drivers. The mains connection is always made by a certified electrician, ours or yours.</p></div></div>
+          </div>
+          <div class="pr-faq__item">
+            <h3 class="pr-faq__h"><button class="pr-faq__q" type="button" id="faq-q5" aria-expanded="false" aria-controls="faq-a5"><span>How is the price worked out?</span><i aria-hidden="true"></i></button></h3>
+            <div class="pr-faq__a" id="faq-a5" role="region" aria-labelledby="faq-q5"><div><p>Boards by area, hardware by count, workshop hours and installation, plus the design fee. The configurator uses exactly the same table, so the estimate you see there is the starting point for our fixed quote.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--dark pr-end">
+      <div class="container pr-end__inner">
+        <h2 class="pr-end__title" data-split>Ready for step one?</h2>
+        <p data-reveal>Book a free call and a visit. We will bring samples.</p>
+        <div class="pr-end__actions" data-reveal data-reveal-delay="0.1">
+          <a class="btn" href="contact.html" data-magnetic>Book a call</a>
+          <a class="btn btn--ghost" href="configurator.html" data-magnetic>Design it first</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

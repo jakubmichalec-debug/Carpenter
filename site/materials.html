@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Materials · Grain &amp; Joint</title>
+  <meta name="description" content="Oak, walnut, ash, birch plywood, lacquers and terrazzo: tilt each sample board, read the detail and compare any two materials, plus the hardware we fit.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/materials.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/materials.js"></script>
+</head>
+<body data-page="materials">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html" aria-current="page">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html" aria-current="page">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main">
+    
+    <header class="mt-hero">
+      <div class="container">
+        <p class="eyebrow" data-reveal="fade">Materials</p>
+        <h1 class="mt-hero__title" data-split>Boards and fronts, <em>chosen by hand</em>.</h1>
+        <div class="mt-hero__row">
+          <p class="mt-hero__lead" data-reveal data-reveal-delay="0.2">Nine finishes we build with every week. Tilt a sample board, open it for the detail, and put any two side by side before you choose.</p>
+          <a class="link-arrow" href="#compare" data-reveal data-reveal-delay="0.3">Jump to the compare tool</a>
+        </div>
+      </div>
+      <div class="container mt-hero__band">
+        <div class="mt-hero__img" data-reveal="mask"><img src="https://images.unsplash.com/photo-1644931551533-02906718127f?auto=format&fit=crop&w=1800&h=700&q=80" width="1800" height="700" alt="Close-up of weathered timber boards with deep grain" fetchpriority="low"></div>
+      </div>
+    </header>
+
+    <section class="section mt-library" id="library" aria-labelledby="lib-h">
+      <div class="container">
+        <div class="mt-lib__head">
+          <h2 id="lib-h" class="mt-h2" data-split>The sample library</h2>
+          <div class="mt-kinds" role="group" aria-label="Filter by kind" data-kinds></div>
+        </div>
+        <ul class="mt-grid" role="list" data-grid></ul>
+        <p class="mt-note">Black steel is used for handles and runners only, so it is not shown as a board.</p>
+        <noscript><p>The material library needs JavaScript. We build with oak, walnut, ash, birch plywood, four lacquers and terrazzo.</p></noscript>
+      </div>
+    </section>
+
+    <section class="section section--paper-2 mt-compare" id="compare" aria-labelledby="cmp-h">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Compare</p>
+          <h2 id="cmp-h" class="section-head__title" data-split>Two materials, <em>side by side</em></h2>
+          <p class="section-head__aside">Pick two from the menus, or press the plus on any sample above. The numbers use the same prices as the configurator.</p>
+        </div>
+        <div class="mt-cmp" data-compare>
+          <div class="mt-cmp__pickers">
+            <label class="mt-pick"><span>Material A</span><select data-pick="0"></select></label>
+            <span class="mt-cmp__vs" aria-hidden="true">vs</span>
+            <label class="mt-pick"><span>Material B</span><select data-pick="1"></select></label>
+          </div>
+          <div class="mt-cmp__boards">
+            <figure class="mt-cmp__board"><canvas data-cmp-canvas="0" width="720" height="540" role="img" aria-label="Sample of material A"></canvas><figcaption data-cmp-name="0"></figcaption></figure>
+            <figure class="mt-cmp__board"><canvas data-cmp-canvas="1" width="720" height="540" role="img" aria-label="Sample of material B"></canvas><figcaption data-cmp-name="1"></figcaption></figure>
+          </div>
+          <div class="mt-cmp__table" data-table></div>
+          <div class="mt-cmp__combo">
+            <canvas data-combo width="560" height="420" role="img" aria-label="A cabinet with fronts in material A and carcass in material B"></canvas>
+            <div>
+              <h3>Together on a cabinet</h3>
+              <p data-combo-text></p>
+              <div class="mt-swap"><button type="button" class="btn btn--ghost" data-swap>Swap A and B</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section mt-hw" id="hardware" aria-labelledby="hw-h">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Hardware</p>
+          <h2 id="hw-h" class="section-head__title" data-split>The parts you <em>touch every day</em></h2>
+          <p class="section-head__aside">Hinges, runners and handles decide how a cabinet feels after the first year. We fit soft-close as standard.</p>
+        </div>
+        <div class="mt-hw__grid" data-hw></div>
+      </div>
+    </section>
+
+    <section class="section section--dark mt-end">
+      <div class="container mt-end__inner">
+        <h2 class="mt-end__title" data-split>Want to feel them in person?</h2>
+        <p data-reveal>We bring sample boards and hardware to every visit.</p>
+        <div class="mt-end__actions" data-reveal data-reveal-delay="0.1">
+          <a class="btn" href="contact.html" data-magnetic>Book a visit</a>
+          <a class="btn btn--ghost" href="configurator.html" data-magnetic>Try them in 3D</a>
+        </div>
+      </div>
+    </section>
+
+    <dialog class="mt-dialog" data-dialog aria-labelledby="dlg-title">
+      <div class="mt-dialog__inner">
+        <button class="mt-dialog__close" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <div class="mt-dialog__media"><canvas data-dlg-canvas width="900" height="900" role="img" aria-label="Large sample of the material"></canvas></div>
+        <div class="mt-dialog__body">
+          <p class="eyebrow" data-dlg-kind></p>
+          <h2 id="dlg-title" class="mt-dialog__title" data-dlg-title></h2>
+          <p class="mt-dialog__tone" data-dlg-tone></p>
+          <div class="mt-dialog__price"><span class="mt-tier" data-dlg-tier></span><span data-dlg-price></span></div>
+          <div class="mt-bars" data-dlg-bars></div>
+          <dl class="mt-dialog__dl">
+            <div><dt>Used for</dt><dd data-dlg-used></dd></div>
+            <div><dt>Make-up</dt><dd data-dlg-make></dd></div>
+            <div><dt>Finish</dt><dd data-dlg-finish></dd></div>
+            <div><dt>Care</dt><dd data-dlg-care></dd></div>
+          </dl>
+          <div class="mt-dialog__actions">
+            <button class="btn btn--ghost" type="button" data-dlg-compare>Add to compare</button>
+            <a class="btn" href="configurator.html" data-dlg-use>Use in the configurator <span aria-hidden="true">&rarr;</span></a>
+          </div>
+        </div>
+      </div>
+    </dialog>
+    <p class="visually-hidden" role="status" aria-live="polite" data-live></p>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00</p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
