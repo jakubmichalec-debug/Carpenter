@@ -70,42 +70,9 @@
         <div class="hero__stage">
           <canvas class="hero__canvas" role="img" aria-label="A 3D oak wardrobe assembling itself from flat-packed panels as you scroll"></canvas>
 
-          <!-- Fallback when WebGL is unavailable: the finished wardrobe, drawn in SVG -->
+          <!-- Fallback when WebGL is unavailable: the finished wardrobe, rendered in Blender (Cycles) -->
           <div class="hero__still" aria-hidden="true">
-            <svg viewBox="0 0 640 640" focusable="false">
-              <defs>
-                <linearGradient id="oakGrad" x1="0" x2="1"><stop offset="0" stop-color="#c9954f"/><stop offset=".5" stop-color="#d6a765"/><stop offset="1" stop-color="#b9844a"/></linearGradient>
-                <linearGradient id="doorGradL" x1="0" x2="1"><stop offset="0" stop-color="#a8733a"/><stop offset="1" stop-color="#c58f52"/></linearGradient>
-                <linearGradient id="doorGradR" x1="1" x2="0"><stop offset="0" stop-color="#a8733a"/><stop offset="1" stop-color="#c58f52"/></linearGradient>
-                <filter id="stillBlur"><feGaussianBlur stdDeviation="14"/></filter>
-              </defs>
-              <ellipse cx="320" cy="572" rx="250" ry="22" fill="#18191a" opacity=".22" filter="url(#stillBlur)"/>
-              <rect x="170" y="66" width="300" height="478" rx="3" fill="url(#oakGrad)"/>
-              <rect x="184" y="80" width="272" height="450" fill="#ecd6aa"/>
-              <rect x="184" y="80" width="272" height="450" fill="#18191a" opacity=".06"/>
-              <rect x="318" y="80" width="5" height="450" fill="#d6bd8d"/>
-              <g fill="#d6bd8d"><rect x="184" y="190" width="132" height="5"/><rect x="184" y="300" width="132" height="5"/><rect x="184" y="410" width="132" height="5"/><rect x="325" y="300" width="131" height="5"/><rect x="325" y="410" width="131" height="5"/><rect x="325" y="110" width="131" height="5"/></g>
-              <g>
-                <rect x="198" y="164" width="86" height="26" rx="4" fill="#7d8b6a"/><rect x="204" y="144" width="80" height="20" rx="4" fill="#efe6d4"/><rect x="198" y="126" width="84" height="18" rx="4" fill="#c0765a"/>
-                <rect x="222" y="270" width="88" height="30" rx="4" fill="#efe6d4"/><rect x="212" y="248" width="90" height="22" rx="4" fill="#8aa0aa"/><rect x="214" y="226" width="86" height="22" rx="4" fill="#d9a441"/><rect x="200" y="204" width="84" height="22" rx="4" fill="#6b4a35"/>
-                <rect x="196" y="378" width="90" height="32" rx="4" fill="#c0765a"/><rect x="200" y="350" width="86" height="28" rx="4" fill="#efe6d4"/><rect x="198" y="322" width="90" height="28" rx="4" fill="#7d8b6a"/>
-                <rect x="206" y="486" width="92" height="44" rx="4" fill="#d8c7a6"/><rect x="236" y="452" width="70" height="28" rx="4" fill="#a9b59a"/><rect x="200" y="436" width="90" height="24" rx="4" fill="#efe6d4"/>
-                <rect x="338" y="378" width="100" height="32" rx="4" fill="#efe6d4"/><rect x="342" y="350" width="96" height="28" rx="4" fill="#c0765a"/><rect x="336" y="324" width="104" height="26" rx="4" fill="#8aa0aa"/>
-                <rect x="340" y="272" width="98" height="28" rx="4" fill="#7d8b6a"/><rect x="336" y="248" width="104" height="24" rx="4" fill="#efe6d4"/><rect x="342" y="226" width="96" height="22" rx="4" fill="#d9a441"/>
-                <rect x="338" y="84" width="100" height="26" rx="4" fill="#6b4a35"/>
-              </g>
-              <rect x="330" y="148" width="120" height="4" rx="2" fill="#b9b3a8"/>
-              <g>
-                <path d="M350 152h20l8 10v70h-36v-70z" fill="#7d8b6a"/><path d="M372 152h20l8 10v78h-36v-78z" fill="#c0765a"/><path d="M394 152h20l8 10v60h-36v-60z" fill="#efe6d4"/><path d="M416 152h20l8 10v72h-36v-72z" fill="#8aa0aa"/>
-              </g>
-              <ellipse cx="320" cy="96" rx="150" ry="26" fill="#ffb45a" opacity=".55" filter="url(#stillBlur)"/><rect x="184" y="80" width="272" height="5" fill="#ffe2a8"/>
-              <rect x="170" y="544" width="300" height="14" fill="#3a2618"/>
-              <path d="M170 66L96 92V528L170 544z" fill="url(#doorGradL)"/>
-              <path d="M470 66L544 92V528L470 544z" fill="url(#doorGradR)"/>
-              <rect x="102" y="262" width="5" height="90" rx="2" fill="#2a2622"/>
-              <rect x="533" y="262" width="5" height="90" rx="2" fill="#2a2622"/>
-              <g stroke="#7d5229" stroke-width="1" opacity=".35" fill="none"><path d="M110 100v420M124 96v430M138 92v440M152 88v450"/><path d="M530 100v420M516 96v430M502 92v440M488 88v450"/></g>
-            </svg>
+            <img src="assets/3d/hero-still.webp" width="1920" height="1080" alt="" decoding="async">
           </div>
 
           <div class="hero__vignette" aria-hidden="true"></div>

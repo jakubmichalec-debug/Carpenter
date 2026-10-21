@@ -7,11 +7,16 @@
  *   02 0.26-0.58  they slide into the alcove and lock; folded linen, garments and LED strips follow
  *   03 0.60-0.86  the two oak doors fly in and swing open
  *   04 0.86-1.00  the camera pulls back to show the wardrobe fitted in its alcove, with soft light
+ * Realistic pass: once assets/3d/hero.glb (built in Blender, see tools/blender/) has loaded, every panel takes its
+ * bevelled geometry and PBR oak/birch material, the room takes its Cycles-baked lightmaps and the scene is lit by an HDRI.
+ * The procedural scene below renders first and stays as the fallback if the model fails to load.
  * The camera is framed so everything stays in view (portrait phones use the top half of the screen). Under prefers-reduced-motion, or when WebGL is
  * unavailable, the wardrobe is shown fully assembled (a still render, or an SVG composition as the last resort).
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 const root = document.querySelector('[data-hero]');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -157,23 +162,25 @@ function createHero(canvas, opts = {}) {
   /* room: wall, floor, skirting */
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 14), new THREE.MeshStandardMaterial({ color: '#e7e6e1', roughness: 1 }));
   wall.position.set(0, 7, -0.002); wall.receiveShadow = true; scene.add(wall);
+  const roomMeshes = [wall];
   const floorTex = texFrom(floorCanvas(), 7, 7);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8, color: '#e6e3df' }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, -0.001, 10); floor.receiveShadow = true; scene.add(floor);
+  roomMeshes.push(floor);
   // the wall stands proud of the niche: the wardrobe is built into an alcove (opening x -1..1, height 2.38, depth 0.66)
   const WALL_FRONT = 0.66;
   const wallMat = new THREE.MeshStandardMaterial({ color: '#e7e6e1', roughness: 1 });
   [[-16, 30], [16, 30]].forEach(([cx, w]) => {
     const blk = new THREE.Mesh(new THREE.BoxGeometry(w, 14, WALL_FRONT), wallMat);
     blk.position.set(cx + (cx < 0 ? -1 : 1), 7, WALL_FRONT / 2);
-    blk.receiveShadow = true; blk.castShadow = true; scene.add(blk);
+    blk.receiveShadow = true; blk.castShadow = true; scene.add(blk); roomMeshes.push(blk);
   });
   const soffit = new THREE.Mesh(new THREE.BoxGeometry(2, 14, WALL_FRONT), wallMat);
-  soffit.position.set(0, 2.38 + 7, WALL_FRONT / 2); soffit.receiveShadow = true; soffit.castShadow = true; scene.add(soffit);
+  soffit.position.set(0, 2.38 + 7, WALL_FRONT / 2); soffit.receiveShadow = true; soffit.castShadow = true; scene.add(soffit); roomMeshes.push(soffit);
   const skirtMat = new THREE.MeshStandardMaterial({ color: '#f3f2ee', roughness: 0.8 });
   [[-16, 30], [16, 30]].forEach(([cx, w]) => {
     const sk = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.018), skirtMat);
-    sk.position.set(cx + (cx < 0 ? -1 : 1), 0.05, WALL_FRONT + 0.009); sk.receiveShadow = true; sk.castShadow = true; scene.add(sk);
+    sk.position.set(cx + (cx < 0 ? -1 : 1), 0.05, WALL_FRONT + 0.009); sk.receiveShadow = true; sk.castShadow = true; scene.add(sk); roomMeshes.push(sk);
   });
 
   /* lights */
@@ -379,6 +386,86 @@ function createHero(canvas, opts = {}) {
 
   items.forEach((it) => { it.obj.visible = false; });
 
+  /* ---- realistic pass: swap in the Blender model when it arrives */
+  const ASSETS = 'assets/3d/';
+  // lightmaps are stored gamma-encoded at irradiance * scale (tools/blender/lm.json); MeshBasicMaterial divides by PI
+  const LM = { floor: 0.1809, walls: 0.1996 };
+  const LM_GAIN = 0.74;
+  let realistic = false;
+  async function upgradeFromBlender() {
+    const texLoader = new THREE.TextureLoader();
+    const loadTex = (url) => new Promise((res, rej) => texLoader.load(url, res, undefined, rej));
+    const [gltf, hdr, lmFloor, lmWalls] = await Promise.all([
+      new GLTFLoader().loadAsync(ASSETS + 'hero.glb'),
+      new RGBELoader().loadAsync(ASSETS + 'room_1k.hdr'),
+      loadTex(ASSETS + 'lm_floor.jpg'),
+      loadTex(ASSETS + 'lm_walls.jpg'),
+    ]);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromEquirectangular(hdr).texture;
+    hdr.dispose(); pmrem.dispose();
+    scene.environment = envMap;
+    scene.environmentRotation = new THREE.Euler(0, THREE.MathUtils.degToRad(200), 0);
+    const byName = {};
+    gltf.scene.traverse((o) => { if (o.isMesh) byName[o.name] = o; });
+
+    panels.forEach((rec) => {
+      const src = byName[rec.name];
+      if (!src) return;
+      const geo = src.geometry.clone();
+      if (rec.local.x) geo.translate(rec.local.x, 0, 0);
+      rec.mesh.geometry.dispose();
+      rec.mesh.geometry = geo;
+      rec.mesh.material = src.material;
+      src.material.envMapIntensity = 0.55;
+      if (rec.door) {
+        // the GLB's handle and posts are children of the door centre; our door origin sits on the hinge
+        rec.mesh.children.slice().forEach((c) => rec.mesh.remove(c));
+        src.children.slice().forEach((c) => {
+          c.position.x += rec.local.x;
+          c.castShadow = true;
+          rec.mesh.add(c);
+        });
+      }
+    });
+
+    lmFloor.colorSpace = lmWalls.colorSpace = THREE.SRGBColorSpace;
+    lmFloor.channel = lmWalls.channel = 1;
+    lmFloor.flipY = lmWalls.flipY = false;
+    const roomGroup = new THREE.Group();
+    Object.values(byName).filter((m) => /^(room_|wall_|skirt_)/.test(m.name)).forEach((m) => {
+      const isFloor = m.name === 'room_floor';
+      const old = m.material;
+      m.material = new THREE.MeshBasicMaterial({
+        map: old.map || null,
+        color: old.map ? 0xffffff : old.color,
+        lightMap: isFloor ? lmFloor : lmWalls,
+        lightMapIntensity: (Math.PI / (isFloor ? LM.floor : LM.walls)) * LM_GAIN,
+      });
+      m.updateMatrixWorld();
+      roomGroup.add(m.clone());
+    });
+    scene.add(roomGroup);
+    // real-time contact shadows from the moving panels onto the baked room
+    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.32 });
+    const sFloor = new THREE.Mesh(new THREE.PlaneGeometry(14, 10), shadowMat);
+    sFloor.rotation.x = -Math.PI / 2; sFloor.position.set(0, 0.0015, 4.6); sFloor.receiveShadow = true;
+    const sBack = new THREE.Mesh(new THREE.PlaneGeometry(2, 2.38), shadowMat);
+    sBack.position.set(0, 1.19, 0.0015); sBack.receiveShadow = true;
+    scene.add(sFloor, sBack);
+    [-1, 1].forEach((sd) => {
+      const sFront = new THREE.Mesh(new THREE.PlaneGeometry(8, 4.6), shadowMat);
+      sFront.position.set(sd * 5, 2.3, 0.6615); sFront.receiveShadow = true;
+      scene.add(sFront);
+    });
+    roomMeshes.forEach((m) => { m.visible = false; });
+    realistic = true;
+    hemi.intensity = 0.35; fill.intensity = 0.25;
+    renderer.toneMappingExposure = 0.9;
+    invalidate();
+  }
+  upgradeFromBlender().catch((err) => console.warn('Hero model unavailable, keeping the procedural scene.', err));
+
   /* ------------------------------------------------------------ state + render */
   const state = { target: 0, current: 0, mx: 0, my: 0, cmx: 0, cmy: 0, w: 1, h: 1, running: false, visible: true, raf: 0, last: performance.now() };
   const tmpQ = new THREE.Quaternion();
@@ -427,7 +514,7 @@ function createHero(canvas, opts = {}) {
     ledLights.forEach((l) => { l.intensity = 2.6 * ledOn; });
     const soft = smooth(range(p, 0.84, 1));
     inner.intensity = 3.2 * smooth(range(p, 0.72, 0.95));
-    hemi.intensity = lerp(1.6, 1.8, soft);
+    hemi.intensity = realistic ? lerp(0.35, 0.45, soft) : lerp(1.6, 1.8, soft);
     key.intensity = lerp(2.1, 1.6, soft);
 
     // camera: the whole wardrobe (open doors, flying panels) stays inside the frame at every position

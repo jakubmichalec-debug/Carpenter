@@ -33,3 +33,7 @@ Every photograph is from [Unsplash](https://unsplash.com/) and used under the [U
 - Floating oak wall cabinets and shelves (Wall units card): photo on [Unsplash](https://images.unsplash.com/photo-1594026112284-02bb6f3352fe) (`photo-1594026112284-02bb6f3352fe`)
 - Oak and white kitchen with island and stools (Kitchens card): photo on [Unsplash](https://images.unsplash.com/photo-1600585152220-90363fe7e115) (`photo-1600585152220-90363fe7e115`)
 - Built-in bench along a timber-clad wall (Window seats & nooks card): photo on [Unsplash](https://images.unsplash.com/photo-1600607687939-ce8a6c25118c) (`photo-1600607687939-ce8a6c25118c`)
+
+### 3D textures
+
+The Home hero's wardrobe and room (`site/assets/3d/`, built with `tools/blender/`) use CC0 assets from [Poly Haven](https://polyhaven.com/): [oak_veneer_01](https://polyhaven.com/a/oak_veneer_01), [white_oak_veneer](https://polyhaven.com/a/white_oak_veneer), [laminate_floor_02](https://polyhaven.com/a/laminate_floor_02), [white_plaster_02](https://polyhaven.com/a/white_plaster_02) and the [small_empty_room_3](https://polyhaven.com/a/small_empty_room_3) HDRI.

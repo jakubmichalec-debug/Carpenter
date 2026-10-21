@@ -3,3 +3,7 @@ tmp/
 screenshots/
 .DS_Store
 __pycache__/
+tools/blender/tex/
+tools/blender/tex1k/
+tools/blender/out/
+tools/blender/.venv/
