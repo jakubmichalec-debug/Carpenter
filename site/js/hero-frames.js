@@ -3,8 +3,8 @@
  * tools/blender/film.py) on the hero canvas, scrubbed by scroll. Same API as createHero() in hero3d.js
  * (setTarget, jump, pointer, setVisible, resize, progress), so the page wiring does not change.
  *
- * Frames load coarse to fine (every 16th, 8th, 4th, 2nd, then all), and the player always draws the nearest
- * loaded frames, crossfading between the two either side of the current position so scrubbing stays smooth.
+ * Frames load coarse to fine (every 16th, 8th, 4th, 2nd, then all); the player draws the nearest loaded frame,
+ * redrawing only when that frame changes.
  */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -45,7 +45,7 @@ export async function createFramePlayer(canvas, opts = {}) {
     const worker = async () => {
       while (queue.length) {
         const i = queue.shift();
-        try { frames[i] = await loadImage(src(i)); invalidate(); } catch { /* a missing frame falls back to its neighbours */ }
+        try { frames[i] = await loadImage(src(i)); drawn = -1; invalidate(); } catch { /* a missing frame falls back to its neighbours */ }
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
@@ -56,19 +56,29 @@ export async function createFramePlayer(canvas, opts = {}) {
     return -1;
   };
 
-  function drawImage(img, alpha) {
+  // Performance: draw one frame at 1x (the frames are 1280 wide, so a denser canvas adds no detail, only fill cost),
+  // only when the frame index or the size changes, and do the pointer parallax with a CSS transform on the canvas.
+  let drawn = -1;
+  function draw(i) {
+    const img = frames[i];
     const { w, h } = state;
     const iw = img.naturalWidth; const ih = img.naturalHeight;
     const portrait = w / h < 1;
-    // cover the canvas, a little oversized for the pointer parallax; on phones keep the wardrobe (right of centre) in view
+    // cover the canvas, slightly oversized for the parallax; on phones keep the wardrobe (right of centre) in view
     const scale = Math.max(w / iw, (portrait ? h * 0.62 : h) / ih) * 1.04;
     const dw = iw * scale; const dh = ih * scale;
-    const focusX = portrait ? 0.62 : 0.5;
-    let dx = w / 2 - dw * focusX + (portrait ? 0 : 0);
-    dx = clamp(dx, w - dw, 0);
+    const dx = clamp(w / 2 - dw * (portrait ? 0.62 : 0.5), w - dw, 0);
     const dy = portrait ? 0 : (h - dh) / 2;
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(img, dx + state.cmx * -8, dy + state.cmy * -6, dw, dh);
+    ctx.fillStyle = opts.background || '#e9e8e3';
+    if (portrait) ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, dx, dy, dw, dh);
+    if (portrait) {
+      // phones: fade the render's lower edge into the page ground under the text
+      const g = ctx.createLinearGradient(0, dh * 0.72, 0, dh);
+      g.addColorStop(0, 'rgba(233,232,227,0)'); g.addColorStop(1, opts.background || '#e9e8e3');
+      ctx.fillStyle = g; ctx.fillRect(0, dh * 0.72 - 1, w, dh * 0.28 + 2);
+    }
+    drawn = i;
   }
 
   function frame() {
@@ -77,32 +87,16 @@ export async function createFramePlayer(canvas, opts = {}) {
     const now = performance.now();
     const dt = Math.min(0.12, (now - state.last) / 1000 || 0.016);
     state.last = now;
-    const k = 1 - Math.exp(-dt * 7);
+    const k = 1 - Math.exp(-dt * 16); // Lenis already smooths the scroll; a second slow ease made the hero trail behind
     const dp = state.target - state.current;
     state.current = Math.abs(dp) < 0.0002 ? state.target : state.current + dp * k;
     const km = 1 - Math.exp(-dt * 3.5);
     state.cmx += (state.mx - state.cmx) * km; state.cmy += (state.my - state.cmy) * km;
 
-    const pos = state.current * (FRAME_COUNT - 1);
-    const i0 = nearest(Math.floor(pos), -1);
-    const i1 = nearest(Math.ceil(pos), 1);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = opts.background || '#e9e8e3';
-    ctx.fillRect(0, 0, state.w, state.h);
-    if (i0 >= 0) drawImage(frames[i0], 1);
-    if (i1 >= 0 && i1 !== i0) {
-      const f = i0 < 0 ? 1 : clamp((pos - i0) / (i1 - i0), 0, 1);
-      if (f > 0.01) drawImage(frames[i1], f);
-    }
-    ctx.globalAlpha = 1;
-    if (state.w / state.h < 1) {
-      // phones: the render fills the top of the stage; fade its lower edge into the page ground under the text
-      const iw = (frames[i0] || frames[i1]).naturalWidth; const ih = (frames[i0] || frames[i1]).naturalHeight;
-      const dh = ih * Math.max(state.w / iw, (state.h * 0.62) / ih) * 1.04;
-      const g = ctx.createLinearGradient(0, dh * 0.72, 0, dh);
-      g.addColorStop(0, 'rgba(233,232,227,0)'); g.addColorStop(1, opts.background || '#e9e8e3');
-      ctx.fillStyle = g; ctx.fillRect(0, dh * 0.72 - 1, state.w, dh * 0.28 + 2);
-    }
+    let i = nearest(Math.round(state.current * (FRAME_COUNT - 1)), -1);
+    if (i < 0) i = nearest(0, 1);
+    if (i >= 0 && i !== drawn) draw(i);
+    canvas.style.transform = `translate3d(${(state.cmx * -8).toFixed(2)}px, ${(state.cmy * -6).toFixed(2)}px, 0)`;
     if (opts.onFrame) opts.onFrame(state.current);
     const moving = Math.abs(state.target - state.current) > 0.0002 || Math.abs(state.mx - state.cmx) > 0.002 || Math.abs(state.my - state.cmy) > 0.002;
     if (moving && !opts.still) state.raf = requestAnimationFrame(frame);
@@ -111,11 +105,10 @@ export async function createFramePlayer(canvas, opts = {}) {
 
   function resize() {
     const r = canvas.parentElement.getBoundingClientRect();
-    state.dpr = Math.min(window.devicePixelRatio || 1, 2);
     state.w = Math.max(1, Math.round(r.width)); state.h = Math.max(1, Math.round(r.height));
-    canvas.width = Math.round(state.w * state.dpr); canvas.height = Math.round(state.h * state.dpr);
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-    ctx.imageSmoothingQuality = 'high';
+    canvas.width = state.w; canvas.height = state.h;
+    ctx.imageSmoothingQuality = 'medium';
+    drawn = -1;
     invalidate();
   }
 
