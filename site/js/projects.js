@@ -40,15 +40,37 @@ function distribute() {
   });
   const gap = parseFloat(getComputedStyle(colEls[0]).rowGap) || 24;
   const colW = (grid.clientWidth - (cols - 1) * 24) / cols;
-  const heights = colEls.map((_, i) => (i === 1 ? 40 : 0));
-  data.forEach((p, i) => {
-    const li = items[i];
-    if (!matches(p)) { li.hidden = true; stash.appendChild(li); return; }
-    li.hidden = false;
-    let k = 0;
-    heights.forEach((h, j) => { if (h < heights[k] - 1) k = j; });
-    colEls[k].appendChild(li);
-    heights[k] += colW * p.ratio + 76 + gap;
+  const capH = 76 + gap; // caption plus gap under each card
+  const vis = data.map((p, i) => i).filter((i) => matches(data[i]));
+  data.forEach((p, i) => { if (!matches(p)) { items[i].hidden = true; stash.appendChild(items[i]); } });
+  // greedy shortest-column placement, then a few swap/move passes to even out the columns
+  const hOf = (i) => colW * data[i].ratio + capH;
+  let assign = vis.map(() => 0); const heights = Array(cols).fill(0);
+  vis.forEach((i, n) => { let k = 0; heights.forEach((h, j) => { if (h < heights[k] - 1) k = j; }); assign[n] = k; heights[k] += hOf(i); });
+  const spread = (a) => { const hs = Array(cols).fill(0); a.forEach((k, n) => { hs[k] += hOf(vis[n]); }); return Math.max(...hs) - Math.min(...hs); };
+  for (let pass = 0; pass < 3; pass++) {
+    vis.forEach((_, n) => {
+      for (let k = 0; k < cols; k++) {
+        if (k === assign[n]) continue;
+        const t = assign.slice(); t[n] = k;
+        if (spread(t) < spread(assign) - 1) assign = t;
+      }
+    });
+  }
+  const colItems = Array.from({ length: cols }, () => []); const colH = Array(cols).fill(0);
+  vis.forEach((i, n) => { colItems[assign[n]].push(i); colH[assign[n]] += hOf(i); items[i].hidden = false; });
+  // stretch the image crop a little in shorter columns so every column ends on the same line
+  const target = Math.max(...colH);
+  const singles = colItems.every((l) => l.length === 1) && cols > 1;
+  const meanRatio = singles ? vis.reduce((s, i) => s + data[i].ratio, 0) / vis.length : 0;
+  colItems.forEach((list, k) => {
+    if (singles) { list.forEach((i) => $('.pj-card__media', items[i]).style.setProperty('--ratio', meanRatio.toFixed(4))); list.forEach((i) => colEls[k].appendChild(items[i])); return; }
+    list.forEach((i) => { $('.pj-card__media', items[i]).style.setProperty('--ratio', data[i].ratio.toFixed(4)); });
+    const imgH = colH[k] - list.length * capH; const extra = target - colH[k];
+    if (list.length && extra > 1 && extra / imgH < 0.45) {
+      list.forEach((i) => { const h = colW * data[i].ratio; $('.pj-card__media', items[i]).style.setProperty('--ratio', (data[i].ratio * (1 + extra / imgH)).toFixed(4)); });
+    }
+    list.forEach((i) => colEls[k].appendChild(items[i]));
   });
   $('[data-empty]').hidden = visibleIdx().length > 0;
 }
@@ -106,8 +128,8 @@ async function setFilter(next) {
   });
   enter.forEach((i, n) => {
     items[i].animate(
-      [{ opacity: 0, transform: 'translateY(48px) scale(.95)' }, { opacity: 1, transform: 'none' }],
-      { duration: 900, delay: 160 + Math.min(n, 8) * 70, easing: EASE, fill: 'backwards' });
+      [{ opacity: 0, transform: 'translateY(28px) scale(.96)' }, { opacity: 1, transform: 'none' }],
+      { duration: 800, delay: 40 + Math.min(n, 8) * 50, easing: EASE, fill: 'backwards' });
   });
   if (h0 !== h1) grid.animate([{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 820, easing: EASE });
   busy = false;

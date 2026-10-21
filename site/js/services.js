@@ -287,6 +287,10 @@ function initPinned() {
     });
     return () => undo.forEach((fn) => fn());
   });
+  // gentle parallax on every stacked image (not tied to the pinned gallery)
+  $$('[data-par]').forEach((el) => {
+    gsap.fromTo(el, { yPercent: -6 }, { yPercent: 6, ease: 'none', scrollTrigger: { trigger: el.parentElement, start: 'top bottom', end: 'bottom top', scrub: true } });
+  });
   const refresh = () => (window.site && window.site.refresh ? window.site.refresh() : ST.refresh());
   window.addEventListener('load', refresh, { once: true });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(refresh, 50));
