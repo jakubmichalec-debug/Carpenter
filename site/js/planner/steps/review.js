@@ -329,7 +329,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     try { renderMod = await import('../render.js'); } catch (err) { console.warn('The render module did not load.', err); finishFailed('The realistic render could not load. The live view still works.'); return; }
     let onScreen = false;
     job = renderMod.startRender({
-      host: imgBox, project: renderedProject, camera: cs.camera, hiddenWalls: cs.hiddenWalls, fronts, settings, manualBlend: !!probe.software,
+      host: imgBox, project: renderedProject, camera: cs.camera, hiddenWalls: cs.hiddenWalls, fronts, settings,
       onStage(name) {
         if (name === 'building') setText('Building the room for the renderer.');
         else if (name === 'compiling') setText('Compiling the light transport. This is the slow part on some devices.');

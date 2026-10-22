@@ -10,6 +10,54 @@ import { ceilingPolygons, placedTransform, insideRoom } from './review-logic.js'
 const M = 0.01;
 const SUN_ELEVATION = (38 * Math.PI) / 180;
 
+// Everything is merged into one mesh per material before the path tracer sees it. Why: the tracer merges all meshes into
+// one geometry itself, in the order of their uuids, which is random on every page load, and with this scene (indexed and
+// non-indexed geometries, multi-material walls, a 0.01 scale on the furniture groups) some orders rendered whole surfaces
+// dark or too bright, and which ones changed from one render to the next. One plain, non-indexed mesh per material, with
+// the world transform (and so the cm to metre scale and the normals) already baked in, leaves nothing to go wrong.
+function flattenByMaterial(THREE, root) {
+  root.updateMatrixWorld(true);
+  const buckets = new Map(); // material -> { pos: [], nrm: [], uv: [] }
+  const take = (mat) => { if (!buckets.has(mat)) buckets.set(mat, { pos: [], nrm: [], uv: [] }); return buckets.get(mat); };
+  const meshes = [];
+  root.traverse((o) => { if (o.isMesh && o.visible) meshes.push(o); });
+  for (const m of meshes) {
+    let geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    geo.applyMatrix4(m.matrixWorld); // positions and normals (renormalised)
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+    const pos = geo.attributes.position.array, nrm = geo.attributes.normal.array;
+    const uv = geo.attributes.uv ? geo.attributes.uv.array : null;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    const groups = geo.groups && geo.groups.length ? geo.groups : [{ start: 0, count: geo.attributes.position.count, materialIndex: 0 }];
+    for (const g of groups) {
+      const mat = mats[g.materialIndex] || mats[0];
+      const b = take(mat);
+      const v0 = g.start, v1 = Math.min(geo.attributes.position.count, g.start + g.count);
+      for (let i = v0; i < v1; i++) {
+        b.pos.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+        b.nrm.push(nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]);
+        if (uv) b.uv.push(uv[i * 2], uv[i * 2 + 1]); else b.uv.push(0, 0);
+      }
+    }
+    geo.dispose();
+  }
+  const flat = new THREE.Group();
+  flat.name = 'render-flat';
+  const geos = [];
+  for (const [mat, b] of buckets) {
+    if (!b.pos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = `flat:${mat.name || mat.uuid.slice(0, 6)}`;
+    flat.add(mesh);
+    geos.push(geo);
+  }
+  return { flat, geos };
+}
+
 export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camera, hiddenWalls = [], hdr = null, background = '#f6f6f3' }) {
   const room = project.room;
   const scene = new THREE.Scene();
@@ -22,13 +70,12 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
   const ceilingY = ceilingHeightAt(room, camPos.x / M, camPos.z / M) * M;
   const interior = !!camera.isPerspectiveCamera && insideRoom(room, camPos.x / M, camPos.z / M) && camPos.y < ceilingY - 0.05;
   const hide = new Set(hiddenWalls);
-  const dbg0 = (typeof window !== 'undefined' && window.gjRenderDebug) || {}; // TEMP
 
   // ----- room -----
   root.add(buildFloor(room, THREE, lib));
   const wallGroups = [];
   room.walls.forEach((c, i) => {
-    if (hide.has(c.id) || dbg0.noWalls) return;
+    if (hide.has(c.id)) return;
     const g = buildWall(room, i, THREE, lib);
     g.traverse((o) => {
       if (!o.isMesh) return;
@@ -38,14 +85,13 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
         if (o.name === 'slope') { m.emissiveIntensity = 0; }                         // the viewer lifts it with a glow; light does that here
       }
     });
-    if (dbg0.noGlass) g.traverse((o) => { if (o.parent && /^window:/.test(o.parent.name) && o.isMesh && o.material.transparent) o.visible = false; });
     wallGroups.push(g);
     root.add(g);
   });
 
   // ----- ceiling (inside views only; the slope plane of an attic is replaced by it) -----
   const extras = []; // geometries and materials made here
-  if (interior && !dbg0.noCeiling) {
+  if (interior) {
     for (const g of wallGroups) g.traverse((o) => { if (o.name === 'slope') o.visible = false; });
     const mat = lib.plain('#f3f1ec', 0.96);
     for (const poly of ceilingPolygons(room)) {
@@ -68,7 +114,7 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
 
   // ----- pieces -----
   const ledMeshes = [];
-  for (const pl of dbg0.noPieces ? [] : project.placements || []) {
+  for (const pl of project.placements || []) {
     const piece = (project.pieces || []).find((p) => p.id === pl.pieceId);
     const tr = piece && placedTransform(project, pl);
     if (!tr) continue;
@@ -84,8 +130,6 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
     root.add(wrapper);
     inner.traverse((o) => { if (o.isMesh && o.userData.part === 'led') ledMeshes.push(o); });
   }
-  if (dbg0.noBump) root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.bumpMap = null; }); }); // TEMP
-  if (dbg0.noMaps) root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.bumpMap = null; m.map = null; }); }); // TEMP
   scene.updateMatrixWorld(true);
 
   // ----- light -----
@@ -108,11 +152,14 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
     glowers.push(panel.geometry, panelMat);
   }
   const lights = [];
+  const { flat, geos } = flattenByMaterial(THREE, root);
+  scene.remove(root);
+  scene.add(flat);
 
   // ----- sky -----
   // The HDRI is an indoor photograph: it is the daylight at the windows, so it lights the room from inside and is what you
   // see out of a window. Looking in from outside it is turned up.
-  if (hdr && !dbg.noEnv) {
+  if (hdr) {
     scene.environment = hdr;
     scene.environmentIntensity = interior ? 1 : 2.2;
     if (interior) { scene.background = hdr; scene.backgroundIntensity = 1; scene.backgroundBlurriness = 0.02; }
@@ -122,7 +169,8 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
   return {
     scene, interior, ledCount: ledMeshes.length, lightCount: lights.length,
     dispose() {
-      disposeGroup(root);
+      disposeGroup(root); // the original meshes: their wall materials and floor material (the flat meshes share them)
+      geos.forEach((g) => g.dispose());
       root.traverse((o) => { if (o.isMesh && o.userData && o.userData.part === 'floor' && o.material) o.material.dispose(); });
       extras.forEach((e) => e.dispose());
       glowers.forEach((e) => e.dispose());

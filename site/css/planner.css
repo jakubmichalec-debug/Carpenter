@@ -815,8 +815,8 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
   .pl-print__meta { margin: 0; text-align: right; font-family: var(--font-mono); font-size: 8.5pt; color: var(--ink-2); }
   .pl-print__title { margin: 0 0 4pt; font-size: 22pt; }
   .pl-print__room { margin: 0 0 8pt; color: var(--ink-2); }
-  .pl-print__img { width: 100%; max-height: 92mm; object-fit: cover; margin: 6pt 0 12pt; border-radius: 6pt; break-inside: avoid; }
-  .pl-q-piece--print { margin: 0 0 10pt; border-top: 1px solid var(--ink); break-inside: avoid; }
+  .pl-print__img { display: block; width: 100%; max-height: 92mm; object-fit: contain; background: var(--paper-2); margin: 6pt 0 12pt; border-radius: 6pt; break-inside: avoid; }
+  .pl-q-piece--print { margin: 0 0 10pt; border: 0; border-top: 1px solid var(--ink); border-radius: 0; background: transparent; break-inside: avoid; }
   .pl-q-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; margin: 6pt 0 4pt; font-family: var(--font-body); font-size: 11.5pt; font-weight: 700; letter-spacing: 0; }
   .pl-q-piece--print .pl-q-body { display: block; padding: 0; border: 0; column-count: 2; column-gap: 16pt; }
   .pl-q-piece--print .pl-q-sec { break-inside: avoid; margin-bottom: 6pt; }

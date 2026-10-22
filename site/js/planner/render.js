@@ -82,7 +82,7 @@ export function startRender(opts) {
         if (samples > 0) {
           // the last picture is smoothed once: a small edge-preserving blur on the linear image, nothing is smoothed while it refines
           const full = R.tracer.target.width >= W;
-          if (window.gjRenderDebug && window.gjRenderDebug.noDenoise) blit(0.3, 0.03); else blit(full ? 2.4 : 1.2, 0.08);
+          blit(full ? 2.4 : 1.2, 0.08);
           out = document.createElement('canvas');
           out.width = W; out.height = H;
           out.getContext('2d').drawImage(R.canvas, 0, 0);
@@ -124,12 +124,6 @@ export function startRender(opts) {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     R.renderer = renderer;
     if (!renderer.capabilities.isWebGL2 || !renderer.extensions.has('EXT_color_buffer_float')) throw new Error('unsupported');
-    if ((window.gjRenderDebug && window.gjRenderDebug.manualBlend) || opts.manualBlend) {
-      // Some software rasterizers report EXT_float_blend but do not blend float targets, so each sample would overwrite the
-      // last. Hiding the extension makes the library average samples itself, in a shader.
-      const get = renderer.extensions.get.bind(renderer.extensions);
-      renderer.extensions.get = (name) => (name === 'EXT_float_blend' ? null : get(name));
-    }
     renderer.setPixelRatio(1);
     renderer.setSize(W, H, false);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -157,8 +151,7 @@ export function startRender(opts) {
 
     const tracer = new PT.WebGLPathTracer(renderer);
     R.tracer = tracer;
-    window.gjRenderHook = { tracer, renderer, THREE }; // TEMP
-    tracer.bounces = (window.gjRenderDebug && window.gjRenderDebug.bounces) || settings.bounces;
+    tracer.bounces = settings.bounces;
     tracer.filterGlossyFactor = 0.5;
     tracer.multipleImportanceSampling = true;
     tracer.renderToCanvas = false;
@@ -169,9 +162,7 @@ export function startRender(opts) {
     tracer.fadeDuration = 0;
     tracer.textureSize.set(settings.cls === 'weak' ? 512 : 1024, settings.cls === 'weak' ? 512 : 1024);
     tracer.tiles.set(settings.tiles[0], settings.tiles[1]);
-    if (window.gjRenderDebug && window.gjRenderDebug.oneStage) settings.stages = [{ scale: 1, samples: settings.maxSamples }]; // TEMP
     tracer.renderScale = settings.stages[0].scale;
-    if (window.gjRenderDebug && window.gjRenderDebug.tracer) Object.assign(tracer, window.gjRenderDebug.tracer); // TEMP
     tracer.setScene(R.built.scene, cam);
 
     R.quad = new pass.FullScreenQuad(new PT.DenoiseMaterial({}));
