@@ -1,11 +1,12 @@
 // Planner page boot: store, stepper, step views and the live viewer. Three.js loads here and nowhere else.
-import { createStore, loadInitialProject, STEP_IDS } from './store.js';
+import { createStore, loadInitialProject } from './store.js';
 import { validateProject } from './validate.js';
 import { createRoomStep } from './steps/room.js';
 import { createFurnitureStep } from './steps/furniture.js';
 import { createInteriorStep } from './steps/interior.js';
 import { createPlaceStep } from './steps/place.js';
-import { createPlaceholderStep } from './steps/placeholder.js';
+import { createReviewStep } from './steps/review.js';
+import { issueStep } from './review-logic.js';
 import { clashesByPiece } from './place-geom.js';
 
 const LABELS = ['Room', 'Furniture', 'Interior', 'Place', 'Review'];
@@ -51,8 +52,12 @@ const views = [
   createFurnitureStep(panels[1], { store, announce, confirmAction }),
   createInteriorStep(panels[2], { insideBox: $('#pl-inside'), dock: $('#pl-dock'), store, announce, showInside }),
   createPlaceStep(panels[3], { plan: $('#pl-place'), store, announce, confirmAction, showPlan: showInside }),
-  createPlaceholderStep(panels[4], STEP_IDS[4], 4)
+  createReviewStep(panels[4], {
+    store, announce, getViewer: () => viewer, getFronts: () => frontsMode,
+    rbar: $('#pl-rbar'), stage: $('#pl-stage'), host: $('#pl-render'), printBox: $('#pl-print')
+  })
 ];
+const review = views[4];
 
 // validation is cached per project object
 let vProject = null, validation = { errors: [] };
@@ -64,11 +69,6 @@ function validated() {
 const stepButtons = $$('.pl-step__btn');
 let maxReached = state.ui.step;
 const visited = new Set([state.ui.step]);
-const issueStep = (ref, code) => {
-  const t = ref && ref.type;
-  if (code === 'piece-unplaced') return 3; // a piece that is not placed yet is the Place step's business
-  return t === 'room' || t === 'opening' ? 0 : t === 'piece' || t === 'bay' ? 1 : t === 'item' ? 2 : t === 'placement' ? 3 : 0;
-};
 
 function renderStepper() {
   const v = validated();
@@ -104,6 +104,7 @@ function showStep() {
   maxReached = Math.max(maxReached, s);
   visited.add(s);
   panels.forEach((p, i) => { p.hidden = i !== s; });
+  views.forEach((v, i) => { if (i !== s && v.hide) v.hide(); }); // the Review step frees its render and GPU resources here
   views[s].show();
   $('#pl-scroll').scrollTop = 0;
 }
@@ -134,6 +135,7 @@ function renderPane() {
   const pane = kind !== 'room' && state.ui.pane === 'wall' ? 'plan' : state.ui.pane;
   app.dataset.pane = pane;
   app.dataset.kind = kind;
+  app.dataset.step = String(s);
   paneBtns.forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.paneBtn === pane));
     if (b.dataset.paneBtn === 'wall') b.hidden = kind !== 'room';
@@ -151,6 +153,7 @@ function pushProject() {
 }
 // fronts shown on the piece: closed on the Furniture step, hidden on the Interior step, and the pill cycles them
 const FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors ajar', hidden: 'Doors hidden' };
+const REVIEW_FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors open' };
 let frontsMode = 'closed';
 const doorsBtn = $('#pl-doors');
 // on the Place step the selected piece is outlined and pieces with a blocking problem get a red mark on the floor
@@ -171,17 +174,20 @@ function syncViewer(before) {
   if (!viewer) return;
   const s = state.ui.step;
   const inPiece = s === 1 || s === 2;
+  const inReview = s === 4;
   if (!before || before.ui.step !== s) {
     if (inPiece) frontsMode = s === 1 ? 'closed' : 'hidden';
-    doorsBtn.hidden = !inPiece;
-    $('.pl-viewer__hint').textContent = inPiece ? 'Drag to orbit \u00b7 scroll to zoom'
+    if (inReview) frontsMode = 'closed';
+    doorsBtn.hidden = !(inPiece || inReview);
+    $('.pl-viewer__hint').textContent = inPiece || inReview ? 'Drag to orbit \u00b7 scroll to zoom'
       : s === 3 ? 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a piece to select it'
         : 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a wall to select it';
     viewer.setPiecePicking(s === 3);
-    $('#pl-top').hidden = inPiece;
-    $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
+    $('#pl-top').hidden = inPiece || inReview; // Review has its own Top preset
+    $('#pl-doors-label').textContent = (inReview ? REVIEW_FRONT_LABEL : FRONT_LABEL)[frontsMode];
     doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
     if (inPiece && viewer.getView() === 'plan') viewer.setView('3d');
+    viewer.setPlacedFronts(inReview ? frontsMode : 'closed'); // pieces in the room have their doors open only in Review
   }
   if (!before || state.project !== before.project || before.ui.step !== s || before.ui.pieceId !== state.ui.pieceId) {
     if (!pendingRaf) pendingRaf = requestAnimationFrame(pushPiece);
@@ -206,6 +212,15 @@ async function bootViewer() {
     viewer.highlightWall(state.ui.step === 0 ? state.ui.wallId : null);
     syncViewer(null);
     doorsBtn.addEventListener('click', () => {
+      if (state.ui.step === 4) {
+        // Review: the doors of everything in the room are closed or open
+        frontsMode = frontsMode === 'closed' ? 'ajar' : 'closed';
+        doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
+        $('#pl-doors-label').textContent = REVIEW_FRONT_LABEL[frontsMode];
+        viewer.setPlacedFronts(frontsMode);
+        review.frontsChanged();
+        return;
+      }
       frontsMode = frontsMode === 'closed' ? 'ajar' : frontsMode === 'ajar' ? 'hidden' : 'closed';
       doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
       $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
@@ -216,7 +231,8 @@ async function bootViewer() {
     viewer.onViewChange((m) => top.setAttribute('aria-pressed', String(m === 'plan')));
     $('#pl-reset').addEventListener('click', () => viewer.resetView());
     stage.classList.add('is-ready');
-    window.gjPlanner = { store, viewer };
+    window.gjPlanner = { store, viewer, review };
+    review.viewerReady();
   } catch (err) {
     console.warn('The 3D view could not start.', err);
     stage.classList.add('is-failed');
@@ -246,5 +262,5 @@ window.addEventListener('pagehide', () => { store.flush(); });
 
 render(null);
 showStep();
-window.gjPlanner = { store, viewer: null };
+window.gjPlanner = { store, viewer: null, review };
 bootViewer();

@@ -1,5 +1,5 @@
-// Contact page: multi-step quote form (nothing is sent anywhere), a "Your design" summary from #design=,
-// live opening hours and a stylised map.
+// Contact page: multi-step quote form (nothing is sent anywhere), a "Your design" summary from #p= (the planner)
+// or #design= (the old configurator), live opening hours and a stylised map.
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s, r = document) => r.querySelector(s);
@@ -216,6 +216,52 @@ function elevation(d, MATERIALS) {
   return s + '</svg>';
 }
 
+/* ------------------------------------------------------------------ design from #p= (the planner) */
+const escapeHtml = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function initPlan() {
+  const m = location.hash.match(/^#p=([A-Za-z0-9_-]+)/);
+  const notice = $('[data-notice]'); const panel = $('[data-design]');
+  const fail = () => { notice.textContent = 'We could not read that design link, so the form is empty. You can still send us a request.'; notice.hidden = false; };
+  if (!m) { fail(); return; }
+  let libs;
+  try { libs = await Promise.all([import('./planner/share.js'), import('./planner/pricing.js'), import('./planner/review-logic.js')]); }
+  catch (err) { console.warn('Planner modules unavailable.', err); return; }
+  const [share, pricing, logic] = libs;
+  const enc = m[1];
+  let project = null; let quote = null;
+  try { project = await share.decodeProject(enc); quote = project && pricing.quoteProject(project); } catch (err) { project = null; }
+  if (!project || !project.pieces.length) { fail(); return; }
+  const sum = logic.summaryFor(project, quote);
+  const view = logic.quoteView(quote, project);
+
+  panel.hidden = false;
+  let art = '';
+  try {
+    const entry = JSON.parse(sessionStorage.getItem(logic.THUMB_KEY) || 'null');
+    if (logic.validThumb(entry, enc)) art = `<img src="${entry.thumb}" alt="Your design as you left it in the planner" width="560" height="315">`;
+  } catch (err) { /* no thumbnail: the plan below does the job */ }
+  $('[data-design-art]').innerHTML = art || logic.planSvg(project);
+  $('[data-design-mods]').innerHTML = sum.pieces.map((p) => `<li><i style="background:${escapeHtml(p.color)}"></i><strong>${escapeHtml(p.label)}</strong><span>${escapeHtml(p.size)}</span></li>`).join('');
+  $('[data-design-mats]').textContent = view.materials.length ? `Materials: ${view.materials.map((x) => `${x.label} (${x.m2.toFixed(1)} m\u00b2)`).join(', ')}.` : '';
+  $('[data-design-total]').textContent = logic.formatEuro(sum.total);
+  $('[data-design-weeks]').textContent = `about ${sum.leadTimeWeeks} weeks`;
+  $('[data-design-edit]').href = logic.plannerLink(enc);
+
+  const mark = (el) => el && el.closest('.ct-field') && el.closest('.ct-field').classList.add('is-prefilled');
+  const radio = form.querySelector(`[name="type"][value="${sum.formType}"]`); if (radio) radio.checked = true;
+  if (sum.roomGuess) { field('room').value = sum.roomGuess; mark(field('room')); }
+  field('width').value = sum.wallWidth; mark(field('width'));
+  field('height').value = sum.wallHeight; mark(field('height'));
+  field('depth').value = '';
+  const b = clamp(Math.round(sum.total / 500) * 500, 1500, 30000);
+  range.value = String(b); renderBudget(false);
+  if (!field('message').value) {
+    field('message').value = logic.contactMessage(sum, new URL(logic.plannerLink(enc), location.href).href);
+    mark(field('message'));
+  }
+  $('.ct-hero__lead').textContent = 'We have filled in what we could from your design. Check each step, add your details, and send it over.';
+}
+
 /* ------------------------------------------------------------------ opening hours (Antwerp time) */
 function initHours() {
   const HOURS = { 0: null, 1: [8, 17], 2: [8, 17], 3: [8, 17], 4: [8, 17], 5: [8, 16], 6: null };
@@ -258,5 +304,5 @@ showStep(0, 1, false);
 initSamples();
 initHours();
 initMap();
-initDesign().then(() => { if (window.site && window.site.refresh) window.site.refresh(); });
-window.addEventListener('hashchange', () => { if (/design=/.test(location.hash)) location.reload(); else initSamples(); });
+(/^#p=/.test(location.hash) ? initPlan() : initDesign()).then(() => { if (window.site && window.site.refresh) window.site.refresh(); });
+window.addEventListener('hashchange', () => { if (/design=|^#p=/.test(location.hash)) location.reload(); else initSamples(); });

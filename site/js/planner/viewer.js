@@ -110,6 +110,8 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
   const outlineMat = new THREE.LineBasicMaterial({ color: accent });
   const noRay = () => {};
   let pickPieces = false; // clicking a piece selects it (only on the Place step)
+  let placedFronts = 'closed'; // doors of the placed pieces: 'closed' or 'ajar' (the Review step opens them)
+  let lastProject = null;      // what setProject was last given, to rebuild when the fronts change
   // one piece shown alone (steps 2 and 3): the room is hidden while it is set
   let pieceGroup = null, pieceSig = '', pieceId = null, pieceSize = null;
 
@@ -313,7 +315,7 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
     const wrapper = new THREE.Group();
     wrapper.userData = { pieceId: piece.id };
     const lift = new THREE.Group();
-    const inner = buildPiece(piece, THREE, lib, { fronts: 'closed' });
+    const inner = buildPiece(piece, THREE, lib, { fronts: placedFronts });
     inner.userData = { ...inner.userData, pieceId: piece.id };
     const edge = 0.015;
     const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w + edge * 2, h + edge * 2, d + edge * 2)), outlineMat);
@@ -341,7 +343,7 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
       const fp = piece && footprintOf(project, pl);
       if (!fp) continue;
       seen.add(piece.id);
-      const geoSig = pieceSignature(piece, 'closed');
+      const geoSig = pieceSignature(piece, placedFronts);
       let e = placed.get(piece.id);
       if (!e || e.geoSig !== geoSig) {
         if (e) dropEntry(e);
@@ -380,6 +382,7 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
   function setProject(project, { selected = null, clashes = [] } = {}) {
     const room = project && project.room;
     if (!room) return;
+    lastProject = { project, opts: { selected, clashes } };
     let rebuilt = false;
     const movedPieces = syncPieces(project, selected, new Set(clashes));
 
@@ -525,8 +528,56 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
     request();
   }
 
+  // ---------- review step helpers ----------
+  // doors of all placed pieces: 'closed' or 'ajar'
+  function setPlacedFronts(mode) {
+    const next = mode === 'ajar' ? 'ajar' : 'closed';
+    if (next === placedFronts) return;
+    placedFronts = next;
+    if (lastProject) setProject(lastProject.project, lastProject.opts);
+  }
+
+  // camera move to a pose given in metres: { position: [x, y, z], target: [x, y, z] }
+  function setPose({ position, target }, { instant = false } = {}) {
+    if (mode !== '3d' || pieceGroup) return;
+    const pos = new THREE.Vector3(...position), tgt = new THREE.Vector3(...target);
+    if (instant || reduced) { tween = null; persp.position.copy(pos); orbit.target.copy(tgt); orbit.update(); updateFades(); request(); }
+    else tweenTo(pos, tgt, 700);
+  }
+
+  // the camera as it is now, for the path tracer: a clone with current matrices, plus the walls the viewer hides
+  function getCameraState() {
+    const cam = activeCam().clone();
+    cam.updateMatrixWorld(true);
+    cam.updateProjectionMatrix();
+    const hidden = [];
+    if (mode === '3d') for (const [id, e] of walls) if (e.target === 0) hidden.push(id);
+    return { mode, camera: cam, size: { w: size.w, h: size.h }, hiddenWalls: hidden };
+  }
+
+  // renders now and returns a canvas with the frame on the page background (a PNG with a transparent sky looks broken)
+  function capture({ maxWidth = 1600 } = {}) {
+    if (size.w === 0 || size.h === 0) return null;
+    updateFades();
+    stepFades(10); // settle any wall that is still fading
+    renderer.render(scene, activeCam());
+    const k = Math.min(1, maxWidth / canvas.width);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(canvas.width * k));
+    out.height = Math.max(1, Math.round(canvas.height * k));
+    const ctx = out.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, out.height);
+    g.addColorStop(0, cssColor('--paper', '#f6f6f3'));
+    g.addColorStop(1, cssColor('--paper-3', '#dddbd4'));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(canvas, 0, 0, out.width, out.height);
+    request(); // the next paint after the capture comes from the normal path
+    return out;
+  }
+
   return {
-    setProject, setPiece, focusWall, highlightWall, setView,
+    setProject, setPiece, focusWall, highlightWall, setView, setPlacedFronts, setPose, getCameraState, capture,
     setPiecePicking(on) { pickPieces = !!on; },
     getView: () => mode,
     onViewChange(cb) { viewCbs.push(cb); },

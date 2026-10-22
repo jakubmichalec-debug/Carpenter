@@ -127,7 +127,8 @@
 .ct-design .eyebrow { color: var(--oak-light); margin: 0 0 var(--space-1); }
 .ct-design h2 { margin: 0 0 var(--space-3); font-weight: 400; font-size: var(--step-3); letter-spacing: -.02em; }
 .ct-design__art { margin-bottom: var(--space-3); border-radius: var(--radius-m); background: color-mix(in srgb, var(--paper) 8%, transparent); padding: .6rem; }
-.ct-design__art svg { width: 100%; height: auto; }
+.ct-design__art svg, .ct-design__art img { width: 100%; height: auto; }
+.ct-design__art img { border-radius: var(--radius-s); }
 .ct-design__art .d-wall { fill: color-mix(in srgb, var(--paper) 14%, transparent); }
 .ct-design__art .d-open { fill: color-mix(in srgb, var(--paper) 30%, transparent); stroke: color-mix(in srgb, var(--paper) 60%, transparent); stroke-width: 1; }
 .ct-design__art .d-mod { stroke: var(--charcoal); stroke-width: 1.2; transform-box: fill-box; transform-origin: 50% 100%; animation: ct-rise .9s var(--ease-out) both; animation-delay: calc(var(--i) * 90ms + .2s); }
