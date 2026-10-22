@@ -31,6 +31,8 @@ If the frame count changes, update `FRAME_COUNT` in `site/js/hero-frames.js`.
 
 ### Rendering on a Windows PC with an NVIDIA card (e.g. GTX 1660 Ti)
 
+Shortcut: double-click `render_gpu.bat` (downloads textures, renders a test frame, then all 120, then converts them). The steps it runs:
+
 1. Install [Blender 5.2](https://www.blender.org/download/) and an up-to-date NVIDIA driver, plus Python 3 with `pip install pillow`.
 2. Get the branch and the textures:
    ```
