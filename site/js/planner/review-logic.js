@@ -152,7 +152,7 @@ export function renderSettings(env = {}, override = null) {
   // quarter resolution first so an image shows at once, then half, then the full size
   const stages = [{ scale: 0.25, samples: 2 }, { scale: 0.5, samples: 4 }, { scale: 1, samples: maxSamples }];
   return {
-    cls: weak ? 'weak' : 'desktop', width, height, maxSamples, maxSeconds, tiles, bounces: weak ? 4 : 6, stages, capped: weak, reasons,
+    cls: weak ? 'weak' : 'desktop', width, height, maxSamples, maxSeconds, tiles, denoise: !(override && override.denoise === false), bounces: weak ? 4 : 6, stages, capped: weak, reasons,
     note: weak ? `This device renders at up to ${longEdge} px wide and ${maxSamples} samples (${reasons.join(', ')}), so it finishes sooner and looks a little grainier.` : ''
   };
 }

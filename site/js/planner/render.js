@@ -36,6 +36,18 @@ function loadHdr(THREE, RGBELoader) {
   return hdrCache;
 }
 
+const TEX_BASE = new URL('../../assets/planner-tex/', import.meta.url).href;
+const texCache = new Map(); // name -> Promise<{ diff, rough, nor }>; decoded images are kept for later renders on the page
+function loadTexSet(THREE, name) {
+  if (!texCache.has(name)) {
+    const loader = new THREE.TextureLoader();
+    const one = (suffix) => loader.loadAsync(`${TEX_BASE}${name}_${suffix}.jpg`).catch(() => null); // a missing file just means a plainer material
+    texCache.set(name, Promise.all([name === 'plaster' ? null : one('diff'), one('rough'), one('nor')]) // plaster has no diffuse: the wall colour is the albedo
+    .then(([diff, rough, nor]) => ({ diff, rough, nor })));
+  }
+  return texCache.get(name);
+}
+
 const cssColor = (name, fallback) => {
   try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; } catch { return fallback; }
 };
@@ -82,7 +94,7 @@ export function startRender(opts) {
         if (samples > 0) {
           // the last picture is smoothed once: a small edge-preserving blur on the linear image, nothing is smoothed while it refines
           const full = R.tracer.target.width >= W;
-          blit(full ? 2.4 : 1.2, 0.08);
+          if (settings.denoise === false) blit(0.3, 0.03); else blit(full ? 1.8 : 1.0, 0.06);
           out = document.createElement('canvas');
           out.width = W; out.height = H;
           out.getContext('2d').drawImage(R.canvas, 0, 0);
@@ -127,11 +139,16 @@ export function startRender(opts) {
     renderer.setPixelRatio(1);
     renderer.setSize(W, H, false);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1;
+    renderer.toneMappingExposure = 0.8;
 
     let hdr = null;
     try { hdr = await loadHdr(THREE, loaders.RGBELoader); } catch (err) { console.warn('The HDRI could not load; rendering with plain light.', err); }
     R.hdr = hdr;
+    setStage('loading', { what: 'textures' });
+    const tex = {};
+    try {
+      await Promise.all(scn.neededTextures(project).map(async (n) => { tex[n] = await loadTexSet(THREE, n); }));
+    } catch (err) { console.warn('Textures could not load; rendering with plain materials.', err); }
     if (stopRequested || disposed) return finish('stopped');
 
     setStage('building');
@@ -147,7 +164,7 @@ export function startRender(opts) {
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     const lib = mats.createMaterialLib(THREE);
-    R.built = scn.buildRenderScene({ project, THREE, lib, fronts, camera: cam, hiddenWalls, hdr, background: cssColor('--paper', '#f6f6f3') });
+    R.built = scn.buildRenderScene({ project, THREE, lib, fronts, camera: cam, hiddenWalls, hdr, background: cssColor('--paper', '#f6f6f3'), tex });
 
     const tracer = new PT.WebGLPathTracer(renderer);
     R.tracer = tracer;

@@ -178,6 +178,11 @@ test('renderSettings: aspect is kept, long edge capped, sizes even, override app
   assert.deepEqual(o.tiles, [1, 1]);
   assert.equal(o.stages[2].samples, 5);
 });
+test('renderSettings: denoise is on unless a test turns it off', () => {
+  assert.equal(R.renderSettings({}).denoise, true);
+  assert.equal(R.renderSettings({}, { width: 320 }).denoise, true);
+  assert.equal(R.renderSettings({}, { denoise: false }).denoise, false);
+});
 test('renderSettings: big images are tiled so one frame stays short', () => {
   assert.deepEqual(R.renderSettings({ aspect: 16 / 9 }).tiles, [2, 2]); // 1600x900
   assert.deepEqual(R.renderSettings({ aspect: 16 / 9 }, { width: 800 }).tiles, [1, 1]);
