@@ -1,18 +1,22 @@
 # Step-by-step planner: system design
 
-Status: proposal, not built yet. Replaces the single-screen planner in `site/configurator.html`.
+Status: approved (templates for rooms, extended interior catalogue, replaces the old planner). Building in phases.
+Replaces the single-screen planner in `site/configurator.html`, which will redirect to `planner.html` and keep old links working.
 
 ## 1. Requirements
 
 ### What the user does (functional)
 A five-step flow. The user can go back to any earlier step at any time without losing work.
 
-1. **Room.** Build the room: its outline (rectangle, L-shape or any polygon you draw), wall heights, a sloped
-   ceiling, and openings on each wall (doors, windows, radiators, sockets, niches). Choose floor and wall finishes.
+1. **Room.** Start from a template and set its measurements: rectangle, L-shape, chimney breast with two alcoves,
+   attic, hallway or bay window. Then set the ceiling height, add openings on any wall (doors, windows, radiators,
+   sockets) and choose floor and wall finishes. Free drawing is not in scope yet; the model already stores
+   rooms as corner lists, so it can be added later without a migration.
 2. **Furniture.** Pick a type (wardrobe, kitchen run, wall unit, desk, table, window seat, under-stairs), a style
    (fronts, handles, plinth, materials) and its size.
-3. **Interior.** Lay out the inside, bay by bay. Set the number of bays, then add and move shelves, hanging rails
-   (long or short), drawer stacks, shoe racks, pull-outs and LED strips. Every item can be dragged to any height,
+3. **Interior.** Lay out the inside, bay by bay. Set the number of bays, then add and move any item from the
+   interior catalogue (section 3): shelves, rails, drawers, jewellery and divided drawers, shoe racks, trouser and
+   tie racks, baskets, a laundry pull-out, a fold-out ironing board, mirrors, cubbies, hooks and LED strips. Every item can be dragged to any height,
    within limits that make sense (a drawer stack needs room for its runners, for example).
 4. **Place.** Put the piece in the room: against a wall (snapped to it, and kept clear of doors, windows and
    radiators), in a corner, or free-standing (a table or an island). From here the user can **add another piece**,
@@ -118,6 +122,40 @@ project = {
   changes its design. Duplicating a piece later ("two identical bedside units") is just a second placement.
 * **The interior is a list of items with heights, per bay.** That covers any layout without a fixed menu
   of presets. Presets ("hanging + shelves", "all drawers") are just starting lists.
+
+### Interior catalogue (`model.js` → `ITEMS`)
+Every item has a kind, the parameters the editor shows, the vertical space it needs (`clear`, cm above its `y`),
+whether it needs a door in front, and its hardware for pricing. The interior editor's palette is this table.
+
+| kind | Label | Params | Needs (cm) | Hardware priced |
+|---|---|---|---|---|
+| `shelf` | Shelf | material (body or glass), adjustable | 18 above | 4 shelf pins (adjustable) |
+| `rail-long` | Long hanging rail | — | 150 below | rail per bay width, 2 rail sockets |
+| `rail-short` | Short hanging rail | — | 95 below | rail, 2 sockets |
+| `double-hang` | Double hanging | — | 190 total | 2 rails |
+| `pull-down-rail` | Pull-down rail | — | 100 below, bay ≥ 210 high | wardrobe lift mechanism |
+| `drawers` | Drawer stack | count 1 to 6, front height 12 to 30 | sum of fronts | full-extension soft-close runners per drawer |
+| `inner-drawers` | Drawers behind the door | count 1 to 4 | sum of fronts | runners; front set back 2.5 cm so the door closes |
+| `jewellery` | Jewellery drawer | lining colour | 8 | runners, velvet tray with dividers |
+| `divided-drawer` | Socks and underwear drawer | grid 3 × 4 or 4 × 5 | 15 | runners, divider grid |
+| `shoes` | Shoe rack | rows 1 to 4, angled | 20 per row | angled rack rails |
+| `shoe-pullout` | Pull-out shoe rack | rows 2 to 4 | 22 per row | runners |
+| `trouser-rack` | Pull-out trouser rack | — | 70 | side-mount runner, rack |
+| `tie-belt` | Tie and belt rack | side | 50 | side pull-out |
+| `valet-rod` | Valet rod | side | 5 | telescopic rod |
+| `basket` | Pull-out basket | wood or wire, depth 15 to 30 | depth + 3 | runners |
+| `hamper` | Laundry pull-out | 1 or 2 bags | 60 | runners, removable bags |
+| `ironing` | Fold-out ironing board | — | 110, bay ≥ 40 wide | ironing board fitting |
+| `mirror` | Mirror | inside door or pull-out | — (door) / 120 (pull-out) | mirror glass per m², pull-out runner |
+| `divider` | Vertical divider | position | spans a gap | board |
+| `cubbies` | Cubby grid | columns × rows | 30 per row | boards |
+| `hooks` | Accessory hooks | count 3 to 8 | 10 | hook rail |
+| `led` | LED strip | warm or neutral, motion sensor | 2 | LED per metre, driver, sensor if set |
+
+Presets per bay: *Hanging + shelf*, *Double hanging*, *Shelves*, *Drawers + shelves*, *Shoes*, *Dressing* (jewellery
+drawer, divided drawer, trouser rack, mirror). Kitchen, desk and wall-unit types get their own palettes
+(cutlery insert, pan drawer, bin pull-out, corner carousel, cable tray, keyboard drawer, book shelf, media niche).
+
 * **Rules** (`validate.js`, pure, reporting `{ code, message, ref }` like today):
   * room: at least 3 walls, no crossing walls, openings fit on their wall and don't overlap.
   * piece: bays sum to the inner width; each item stays inside its bay; minimum gaps (shelf to shelf 18 cm,
@@ -128,14 +166,29 @@ project = {
   * Problems never block editing. They show as warnings on the step and in the quote. Only **Send to
     quote form** asks the user to fix blocking ones first.
 
+Every project also stores `room.template = { id, params }` so the room step can reopen the same template form.
+
 **Migration:** `migrate(v1)` turns today's single back wall into a four-wall rectangle and each v1 module into
 a piece and a placement on wall 1, expanding the v1 `interior` enum into an item list. Old share links keep working.
+
+### Room templates (`model.js` → `roomFromTemplate(id, params)`)
+Each template is a function from named measurements to the corner list, so editing a measurement regenerates
+the walls. Openings are kept by wall index and offset where the wall still exists, and flagged if not.
+
+| id | Params (cm) | Notes |
+|---|---|---|
+| `rect` | width, depth | 4 walls |
+| `l-shape` | lengthA, widthA, lengthB, widthB | 6 walls; the notch is the bottom right |
+| `alcoves` | width, depth, breastWidth, breastDepth, breastOffset | chimney breast on wall 1, two alcoves either side |
+| `attic` | width, depth, kneeHeight, slopeAngle, slopeWall | rectangle with `slope` set; height is the ridge |
+| `hallway` | length, width | rectangle with long-wall defaults and door openings at the ends |
+| `bay` | width, depth, bayWidth, bayDepth | 3-sided bay on wall 1 |
 
 ## 4. The steps in detail
 
 | Step | Editor | Main interactions | Leaves the step when |
 |---|---|---|---|
-| 1 Room | Plan (SVG grid at 1 cm with a 5 cm snap) plus an elevation of the selected wall | Pick a template (rectangle, L, attic); drag corners; split a wall to add a corner; type exact lengths; drag openings along a wall; set ceiling and slope | The outline is closed and valid. "Next: furniture" |
+| 1 Room | Template cards, then a plan (SVG, 1 cm grid, 5 cm snap) plus an elevation of the selected wall | Pick a template; set its named measurements by number input or by dragging the dimension handles on the plan; drag openings along a wall; set ceiling height (and knee wall and slope for the attic) | The room is valid. "Next: furniture" |
 | 2 Furniture | Cards, then a style panel | Type → style (preset look) → size, using sliders and number inputs limited per type | Always. The piece is created, unplaced |
 | 3 Interior | Front elevation of the piece, doors hidden | Set the bay count, drag bay dividers; drag items from a palette into a bay; drag items up and down (snapping to 32 mm system holes); delete; apply a preset per bay | Always. "Next: place it" |
 | 4 Place | Plan of the room with the piece under the pointer | Click a wall to snap it, slide it along, rotate a free piece; red where it clashes. Buttons: **Add another piece** (step 2), **Edit this piece** (step 2 or 3), **Review** | At least one piece is placed |
@@ -226,8 +279,8 @@ measurements. Builders (Sonnet) do one phase each. Each phase ends usable and de
 
 * **SVG editors vs. editing in 3D:** SVG is precise and accessible but less "magic". The 3D view stays
   live beside it. Revisit if user testing shows people want to grab things in 3D.
-* **Free-form polygon rooms:** they cover any plan but make placement snapping harder, so walls stay straight.
-  Curved walls are out of scope.
+* **Templates instead of free drawing:** six parametric templates cover most rooms and keep placement simple.
+  Free drawing (dragging corners, splitting walls) can come later on the same corner-list model. Curved walls are out of scope.
 * **Path tracing in the browser:** it's free and private but slow on weak devices. If it ever becomes a real
   product with real customers, a server render queue gives Blender quality on any device.
 * **Interior as free items vs. presets:** items give full control. Presets keep it quick for most people, so both are offered.
