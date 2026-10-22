@@ -77,12 +77,12 @@ export async function createFramePlayer(canvas, opts = {}) {
         if (opts.onLoad) opts.onLoad(loadedCount);
       }
     };
-    // six parallel requests: GitHub Pages serves HTTP/2, and the frames are small (about 23 KB each)
+    // six parallel requests: GitHub Pages serves HTTP/2, and the frames are small (about 40 KB each)
     await Promise.all(Array.from({ length: opts.eager === false ? 2 : 6 }, worker));
   })();
 
   // Performance: one drawImage per change of frame, into a canvas no denser than the frames themselves
-  // (more device pixels than the 1280-wide source adds no detail, only fill cost). Parallax is a CSS transform.
+  // (more device pixels than the source frames add no detail, only fill cost). Parallax is a CSS transform.
   const layout = () => {
     const { w, h } = state;
     const iw = first.naturalWidth; const ih = first.naturalHeight;
