@@ -158,8 +158,10 @@ rShelves = [shelfH[0], shelfH[1], 2.02]
 for i, y in enumerate(rShelves):
     P[f'shelfR{i}'] = panel(f'shelfR{i}', [bayW, T, D - 0.04], [rx, y, (D - 0.04) / 2 + 0.01], BIRCH, 'x', 12 + i)
 # rail: a real tube instead of a box
-bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.013, depth=bayW - 0.02, rotation=(0, math.pi / 2, 0))
+bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.013, depth=bayW - 0.02)
 rail = bpy.context.object; rail.name = 'rail'; rail.data.name = 'rail'
+# lay the tube along x in the mesh itself: place() and film.py reset the object rotation
+rail.data.transform(Matrix.Rotation(math.pi / 2, 4, 'Y'))
 for c in rail.users_collection: c.objects.unlink(rail)
 wardrobe.objects.link(rail); rail.data.materials.append(STEEL); place(rail, [rx, railY, 0.3])
 for p in rail.data.polygons: p.use_smooth = True
