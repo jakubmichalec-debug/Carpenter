@@ -6,8 +6,7 @@
  * Frames download coarse to fine (every 16th, 8th, 4th, 2nd, then all) and stay in memory as compressed blobs
  * (about 80 KB each). Only some are decoded at a time: every ANCHOR-th frame, plus WINDOW frames either side of
  * the scroll position. 120 decoded 1080p frames would take about 1 GB, which made browsers evict and re-decode
- * them mid-scroll. The player cross-fades between the two decoded frames either side of the scroll position,
- * so the motion reads as continuous, and redraws only when that pair or the blend changes.
+ * them mid-scroll. The player draws the nearest decoded frame and redraws only when that frame changes.
  */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -20,7 +19,6 @@ const FALLBACK = { count: 120, v: 4 };
 const ANCHOR = 8;
 const WINDOW = 6; // decoded frames kept either side of the scroll position
 const DECODERS = 2; // decodes in flight at once
-const BLEND_STEPS = 24; // the blend is quantised so a slow scroll does not redraw on every pixel
 // the pointer parallax moves the canvas by up to this many whole pixels; the canvas overscans the stage by a
 // little more (home.css), so the move never bares an edge and no CSS scale resamples (and softens) the frame
 const PARALLAX = { x: 8, y: 6 };
@@ -70,15 +68,17 @@ export async function createFramePlayer(canvas, opts = {}) {
   let drawn = '';
   let transform = '';
 
-  // the loaded frames either side of pos and how far pos lies between them (0 = all `a`, 1 = all `b`)
+  // the decoded frame nearest to pos (as a pair with t = 0, so draw() could still blend two if ever needed)
   const pairAt = (pos) => {
     let a = -1; let b = -1;
     for (let k = Math.floor(pos); k >= 0; k--) if (frames[k]) { a = k; break; }
     for (let k = Math.ceil(pos); k < N; k++) if (frames[k]) { b = k; break; }
     if (a < 0) return { a: b, b, t: 0 };
     if (b < 0 || b === a) return { a, b: a, t: 0 };
-    const t = Math.round(((pos - a) / (b - a)) * BLEND_STEPS) / BLEND_STEPS;
-    return t <= 0 ? { a, b: a, t: 0 } : t >= 1 ? { a: b, b, t: 0 } : { a, b, t };
+    // the nearest whole frame: cross-fading two frames showed the swinging doors twice, half see-through,
+    // so smoothness comes from the number of frames (FRAMES in render_gpu.bat) instead
+    const n = pos - a <= b - pos ? a : b;
+    return { a: n, b: n, t: 0 };
   };
   const keyOf = (q) => `${q.a}|${q.b}|${q.t}`;
 
