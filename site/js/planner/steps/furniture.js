@@ -189,17 +189,19 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     const p = current();
     const project = state.project;
 
-    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId]);
-    if (ck !== chipsKey) { chipsKey = ck; chipsEl.innerHTML = pieceChipsHtml(project, state.ui.pieceId) || '<p class="pl-hint">No pieces yet. Pick a type below to start.</p>'; }
+    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId, !!state.ui.starting]);
+    if (ck !== chipsKey) { chipsKey = ck; chipsEl.innerHTML = pieceChipsHtml(project, state.ui.starting ? null : state.ui.pieceId) || '<p class="pl-hint">No pieces yet. Pick a type below to start.</p>'; }
     $('#pl-f-pieces-sec').hidden = !project.pieces.length;
     delBtn.disabled = !p;
-    rest.hidden = !p;
+    const starting = !!state.ui.starting;
+    rest.hidden = !p || starting;
 
-    root.querySelectorAll('[data-type]').forEach((b) => b.setAttribute('aria-pressed', String(!!p && p.type === b.dataset.type)));
+    root.querySelectorAll('[data-type]').forEach((b) => b.setAttribute('aria-pressed', String(!!p && !starting && p.type === b.dataset.type)));
     $('#pl-f-typehint').textContent = !p ? 'Pick a type to add a piece. You can add as many as you need.'
+      : starting ? 'Pick a type for your next piece. The ones you have made stay in your list.'
       : state.ui.fresh ? 'Not the right type? Pick another and it replaces this one.'
         : 'Picking a type adds a new piece. The ones you have shaped stay in your list.';
-    if (!p) { notesEl.innerHTML = ''; notesKey = ''; return; }
+    if (!p || starting) { notesEl.innerHTML = ''; notesKey = ''; return; }
 
     if (tuneType !== p.type) { tuneType = p.type; buildSize(p); buildTune(p); }
     root.querySelectorAll('[data-style]').forEach((b) => b.setAttribute('aria-pressed', String(p.style === b.dataset.style)));

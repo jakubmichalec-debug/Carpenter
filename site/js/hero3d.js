@@ -205,7 +205,7 @@ function createHero(canvas, opts = {}) {
   scene.add(inner);
 
   /* wardrobe dimensions (metres) */
-  const W = 2.0; const H = 2.3; const D = 0.6; const T = 0.022; const PL = 0.1;
+  const W = 2.0; const H = 2.376; const D = 0.6; const T = 0.022; const PL = 0.1;
   const yb = PL + T; const yt = H - T;
   const bayW = W / 2 - T - T / 2;
   const lx = -(W / 2 - T) / 2 - T / 4; const rx = -lx;

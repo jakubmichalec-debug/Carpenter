@@ -122,7 +122,7 @@ def place(ob, pos3, rot_y=0.0):
     ob.rotation_euler = Euler((0, 0, rot_y))
 
 # ------------------------------------------------------------------ wardrobe (mirrors hero3d.js)
-W, H, D, T, PL = 2.0, 2.3, 0.6, 0.022, 0.1
+W, H, D, T, PL = 2.0, 2.376, 0.6, 0.022, 0.1  # H fills the 2.38 m alcove, less a 4 mm scribe gap
 yb, yt = PL + T, H - T
 bayW = W / 2 - T - T / 2
 lx = -(W / 2 - T) / 2 - T / 4; rx = -lx
