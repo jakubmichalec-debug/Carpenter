@@ -611,3 +611,84 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
   .pl-dock .pl-hint { display: none; }
   .pl-dock .pl-chip--plain { height: 32px; }
 }
+
+/* ---------- Step 4: Place ---------- */
+.pl-placebox {
+  position: relative; display: none; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--bone); overflow: hidden; min-height: 0;
+}
+.pl-placebox svg { position: absolute; inset: 0; display: block; user-select: none; -webkit-user-select: none; }
+.pl-placebox.is-dragging { cursor: grabbing; }
+.pl-app[data-kind="place"] .pl-placebox { display: block; flex: 1 1 0; }
+.pl-app[data-kind="place"] .pl-plan, .pl-app[data-kind="place"] .pl-elev, .pl-app[data-kind="place"] .pl-inside { display: none !important; }
+.pl-app[data-kind="place"] .pl-areas { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1280px) {
+  .pl-app[data-kind="place"] .pl-areas { grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); }
+  .pl-app[data-kind="place"] .pl-planarea { display: flex !important; }
+  .pl-app[data-kind="place"] .pl-tabs { display: none !important; }
+}
+
+.pl-wall--pick { cursor: pointer; }
+.pl-wallbadge circle { fill: var(--paper); stroke: var(--sand); stroke-width: 1.2; }
+.pl-wallbadge text { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; fill: var(--ink-2); }
+.pl-wallbadge.is-selected circle { fill: var(--oak); stroke: var(--oak); }
+.pl-wallbadge.is-selected text { fill: var(--paper); }
+
+.pl-pc { cursor: grab; touch-action: none; outline: none; }
+.pl-pc * { touch-action: none; }
+.pl-pc__body {
+  fill: color-mix(in srgb, var(--wood) 34%, var(--paper)); stroke: var(--wood-deep); stroke-width: 1.6; stroke-linejoin: round;
+  transition: fill var(--dur-1) var(--ease-out), stroke var(--dur-1) var(--ease-out);
+}
+.pl-pc__front { stroke: var(--wood-deep); stroke-width: 3.2; stroke-linecap: round; fill: none; pointer-events: none; }
+.pl-pc__label { font-family: var(--font-body); font-size: 12px; font-weight: 700; fill: var(--ink); pointer-events: none; }
+.pl-pc__size { font-family: var(--font-mono); font-size: 10.5px; fill: var(--ink-2); pointer-events: none; }
+.pl-pc:hover .pl-pc__body { fill: color-mix(in srgb, var(--wood) 44%, var(--paper)); }
+.pl-pc.is-raised .pl-pc__body { fill: color-mix(in srgb, var(--wood) 20%, var(--paper)); stroke-dasharray: 6 3; }
+.pl-pc.is-selected .pl-pc__body { stroke: var(--oak-deep); stroke-width: 3; filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--ink) 28%, transparent)); }
+.pl-pc.is-selected .pl-pc__front { stroke: var(--oak-deep); }
+.pl-pc.is-warn .pl-pc__body { fill: color-mix(in srgb, var(--amber) 30%, var(--paper)); stroke: var(--amber); }
+.pl-pc.is-warn .pl-pc__front { stroke: var(--amber); }
+.pl-pc.is-clash .pl-pc__body { fill: color-mix(in srgb, var(--err) 26%, var(--paper)); stroke: var(--err); stroke-width: 2.4; }
+.pl-pc.is-clash .pl-pc__front { stroke: var(--err); }
+.pl-pc.is-clash.is-selected .pl-pc__body { stroke-width: 3.4; }
+.pl-pc:focus-visible .pl-pc__body { stroke: var(--focus); stroke-width: 3.4; stroke-dasharray: none; }
+.pl-placebox.is-dragging .pl-pc { cursor: grabbing; }
+
+.pl-rot { cursor: grab; touch-action: none; }
+.pl-rot__stem { stroke: var(--oak-deep); stroke-width: 1.6; stroke-dasharray: 3 3; fill: none; pointer-events: none; }
+.pl-rot__hit { fill: transparent; }
+.pl-rot__dot { fill: var(--paper); stroke: var(--oak-deep); stroke-width: 2; filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--ink) 25%, transparent)); transition: fill var(--dur-1) var(--ease-out); }
+.pl-rot__arrow { stroke: var(--oak-deep); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; fill: none; pointer-events: none; transform: scale(1.1); }
+.pl-rot:hover .pl-rot__dot, .pl-rot.is-active .pl-rot__dot { fill: var(--oak-deep); }
+.pl-rot:hover .pl-rot__arrow, .pl-rot.is-active .pl-rot__arrow { stroke: var(--paper); }
+
+/* sidebar */
+.pl-chip--piece.is-clash i { background: var(--err); color: var(--paper); }
+.pl-chip--piece.is-warn i { background: var(--amber); color: var(--ink); }
+.pl-chip--piece.is-clash { border-color: var(--err); }
+.pl-chip--piece.is-warn { border-color: var(--amber); }
+.pl-waiting { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pl-wait { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--bone); }
+.pl-wait.is-selected { border-color: var(--oak); background: var(--paper); box-shadow: inset 0 0 0 1px var(--oak); }
+.pl-wait__name { flex: 1 1 auto; min-width: 0; display: grid; gap: 1px; text-align: left; background: none; border: 0; padding: 6px 0; cursor: pointer; color: var(--ink); font-size: var(--step--1); }
+.pl-wait__name b { font-weight: 700; line-height: 1.2; }
+.pl-wait__name span { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
+.pl-wait__name:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: var(--radius-s); }
+.pl-btn--small { height: 36px; padding: 0 1em; font-size: 12.5px; }
+.pl-btn--small svg { width: 16px; height: 16px; }
+.pl-where { margin: 0 0 10px; font-size: var(--step--1); color: var(--ink-2); }
+.pl-chips--modes { margin-bottom: var(--space-3); }
+.pl-chips--modes .pl-chip { height: 36px; }
+.pl-row--buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.pl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pl-note--clash { background: color-mix(in srgb, var(--err) 9%, var(--paper)); box-shadow: inset 3px 0 0 var(--err); }
+.pl-note--clash .pl-note__icon { color: var(--err); }
+.pl-note__actions { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 899px) {
+  .pl-app[data-kind="place"] .pl-areas { height: 46dvh; }
+  .pl-placebox .pl-canvas-hint { display: none; }
+  .pl-wait__name { padding: 10px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-pc__body, .pl-rot__dot { transition: none; }
+}

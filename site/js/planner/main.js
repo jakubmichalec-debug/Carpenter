@@ -4,7 +4,9 @@ import { validateProject } from './validate.js';
 import { createRoomStep } from './steps/room.js';
 import { createFurnitureStep } from './steps/furniture.js';
 import { createInteriorStep } from './steps/interior.js';
+import { createPlaceStep } from './steps/place.js';
 import { createPlaceholderStep } from './steps/placeholder.js';
+import { clashesByPiece } from './place-geom.js';
 
 const LABELS = ['Room', 'Furniture', 'Interior', 'Place', 'Review'];
 const NEXT = ['Next: furniture', 'Next: interior', 'Next: place it', 'Next: review', ''];
@@ -48,7 +50,8 @@ const views = [
   createRoomStep({ side: panels[0], plan: $('#pl-plan'), elev: $('#pl-elev') }, { store, announce, confirmShape }),
   createFurnitureStep(panels[1], { store, announce, confirmAction }),
   createInteriorStep(panels[2], { insideBox: $('#pl-inside'), dock: $('#pl-dock'), store, announce, showInside }),
-  ...STEP_IDS.slice(3).map((id, i) => createPlaceholderStep(panels[i + 3], id, i + 3))
+  createPlaceStep(panels[3], { plan: $('#pl-place'), store, announce, confirmAction, showPlan: showInside }),
+  createPlaceholderStep(panels[4], STEP_IDS[4], 4)
 ];
 
 // validation is cached per project object
@@ -126,14 +129,14 @@ paneBtns.forEach((b) => b.addEventListener('click', () => store.dispatch({ type:
 function renderPane() {
   const app = $('.pl-app');
   const s = state.ui.step;
-  const kind = s === 0 ? 'room' : s === 2 ? 'interior' : 'other';
-  // on the Interior step "plan" is the front view of the piece and there is no wall view
-  const pane = kind === 'interior' && state.ui.pane === 'wall' ? 'plan' : state.ui.pane;
+  const kind = s === 0 ? 'room' : s === 2 ? 'interior' : s === 3 ? 'place' : 'other';
+  // only the Room step has a wall view; on the Interior step "plan" is the front view of the piece
+  const pane = kind !== 'room' && state.ui.pane === 'wall' ? 'plan' : state.ui.pane;
   app.dataset.pane = pane;
   app.dataset.kind = kind;
   paneBtns.forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.paneBtn === pane));
-    if (b.dataset.paneBtn === 'wall') b.hidden = kind === 'interior';
+    if (b.dataset.paneBtn === 'wall') b.hidden = kind !== 'room';
     if (b.dataset.paneBtn === 'plan') b.textContent = kind === 'interior' ? 'Inside' : 'Plan';
   });
 }
@@ -150,13 +153,19 @@ function pushProject() {
 const FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors ajar', hidden: 'Doors hidden' };
 let frontsMode = 'closed';
 const doorsBtn = $('#pl-doors');
+// on the Place step the selected piece is outlined and pieces with a blocking problem get a red mark on the floor
+function placeMarks() {
+  if (state.ui.step !== 3) return {};
+  const by = clashesByPiece(state.project, validated().errors);
+  return { selected: state.ui.pieceId, clashes: Object.keys(by).filter((id) => by[id].blocking.length) };
+}
 function pushPiece() {
   pendingRaf = 0;
   if (!viewer) return;
   const s = state.ui.step;
   const piece = s === 1 || s === 2 ? state.project.pieces.find((p) => p.id === state.ui.pieceId) : null;
   viewer.setPiece(piece || null, { fronts: frontsMode });
-  if (!piece) viewer.setProject(state.project);
+  if (!piece) viewer.setProject(state.project, placeMarks());
 }
 function syncViewer(before) {
   if (!viewer) return;
@@ -165,7 +174,10 @@ function syncViewer(before) {
   if (!before || before.ui.step !== s) {
     if (inPiece) frontsMode = s === 1 ? 'closed' : 'hidden';
     doorsBtn.hidden = !inPiece;
-    $('.pl-viewer__hint').textContent = inPiece ? 'Drag to orbit \u00b7 scroll to zoom' : 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a wall to select it';
+    $('.pl-viewer__hint').textContent = inPiece ? 'Drag to orbit \u00b7 scroll to zoom'
+      : s === 3 ? 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a piece to select it'
+        : 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a wall to select it';
+    viewer.setPiecePicking(s === 3);
     $('#pl-top').hidden = inPiece;
     $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
     doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
@@ -186,7 +198,10 @@ async function bootViewer() {
   const canvas = $('#pl-canvas');
   try {
     const { createViewer } = await import('./viewer.js');
-    viewer = createViewer(canvas, { onWallPick: (id) => store.dispatch({ type: 'ui/wall', wallId: id }) });
+    viewer = createViewer(canvas, {
+      onWallPick: (id) => store.dispatch({ type: 'ui/wall', wallId: id }),
+      onPiecePick: (id) => { if (state.ui.step === 3) store.dispatch({ type: 'ui/piece', id }); }
+    });
     viewer.setProject(state.project);
     viewer.highlightWall(state.ui.step === 0 ? state.ui.wallId : null);
     syncViewer(null);
