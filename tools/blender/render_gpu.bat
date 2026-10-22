@@ -17,7 +17,9 @@ echo.
 echo [1/5] Looking for Blender...
 if "%BLENDER%"=="" set "BLENDER=C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 if not exist "%BLENDER%" (
-  for /d %%D in ("C:\Program Files\Blender Foundation\Blender *") do if exist "%%D\blender.exe" set "BLENDER=%%D\blender.exe"
+  rem any install under Blender Foundation: "Blender 5.2", "blender-5.2.3-candidate+...-windows.amd64-release", ...
+  for /d %%D in ("C:\Program Files\Blender Foundation\*") do if exist "%%D\blender.exe" set "BLENDER=%%D\blender.exe"
+  for /d %%D in ("C:\Program Files\blender*") do if exist "%%D\blender.exe" set "BLENDER=%%D\blender.exe"
 )
 if not exist "%BLENDER%" (
   echo   Blender was not found. Install it from https://www.blender.org/download/
