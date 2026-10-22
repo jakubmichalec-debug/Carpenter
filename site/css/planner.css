@@ -616,7 +616,7 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
 .pl-placebox {
   position: relative; display: none; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--bone); overflow: hidden; min-height: 0;
 }
-.pl-placebox svg { position: absolute; inset: 0; display: block; user-select: none; -webkit-user-select: none; }
+.pl-placebox svg { position: absolute; inset: 0; display: block; user-select: none; -webkit-user-select: none; touch-action: none; } /* SVG groups ignore touch-action in Chrome, so the whole drawing takes the touches; the page scrolls from the sidebar */
 .pl-placebox.is-dragging { cursor: grabbing; }
 .pl-app[data-kind="place"] .pl-placebox { display: block; flex: 1 1 0; }
 .pl-app[data-kind="place"] .pl-plan, .pl-app[data-kind="place"] .pl-elev, .pl-app[data-kind="place"] .pl-inside { display: none !important; }
@@ -683,7 +683,9 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
 .pl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pl-note--clash { background: color-mix(in srgb, var(--err) 9%, var(--paper)); box-shadow: inset 3px 0 0 var(--err); }
 .pl-note--clash .pl-note__icon { color: var(--err); }
-.pl-note__actions { flex-wrap: wrap; justify-content: flex-end; }
+.pl-note--stack { flex-wrap: wrap; row-gap: 6px; }
+.pl-note--stack .pl-note__text { flex: 1 1 calc(100% - 40px); }
+.pl-note--stack .pl-note__actions { flex: 1 0 100%; padding-left: 32px; gap: 18px; }
 @media (max-width: 899px) {
   .pl-app[data-kind="place"] .pl-areas { height: 46dvh; }
   .pl-placebox .pl-canvas-hint { display: none; }

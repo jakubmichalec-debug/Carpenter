@@ -91,14 +91,23 @@ export function dragOnWalls(project, pieceId, pt, { grab = 0, wallId = null, dis
   const snapped = snapWallOffset(project, pieceId, wall.id, raw, { dist });
   const max = Math.max(0, Math.floor(wall.length - piece.width + EPS));
   const offset = snapped.snap ? snapped.offset : clamp(Math.round(raw / grid) * grid, 0, max);
-  return { wallId: wall.id, offset, grab: g, snap: snapped.snap };
+  // pushed against a wall end by the clamp counts as snapped to it
+  const snap = snapped.snap || (offset === 0 ? 'start' : offset === max ? 'end' : null);
+  return { wallId: wall.id, offset, grab: g, snap };
 }
 
 export function dragFree(project, pieceId, pt, { grab = { x: 0, z: 0 }, grid = 5 } = {}) {
+  const piece = pieceOf(project, pieceId), pl = placementOf(project, pieceId);
   const b = roomBounds(project.room);
-  const x = clamp(Math.round((pt.x - grab.x) / grid) * grid, b.minX, b.maxX);
-  const z = clamp(Math.round((pt.z - grab.z) / grid) * grid, b.minZ, b.maxZ);
-  return { x, z };
+  // keep the whole footprint inside the room's bounding box (the box of the turned piece, not just its centre)
+  const r = (((pl && pl.mode === 'free' ? pl.rotation : 0) || 0) * Math.PI) / 180;
+  const w = piece ? piece.width : 0, d = piece ? piece.depth : 0;
+  const hx = (Math.abs(Math.cos(r)) * w + Math.abs(Math.sin(r)) * d) / 2, hz = (Math.abs(Math.sin(r)) * w + Math.abs(Math.cos(r)) * d) / 2;
+  const fit = (v, lo, hi, half) => (hi - lo < half * 2 ? (lo + hi) / 2 : clamp(v, lo + half, hi - half));
+  return {
+    x: Math.round(fit(Math.round((pt.x - grab.x) / grid) * grid, b.minX, b.maxX, hx)),
+    z: Math.round(fit(Math.round((pt.z - grab.z) / grid) * grid, b.minZ, b.maxZ, hz))
+  };
 }
 
 // Arrow keys. (dx, dz) is the screen direction. A wall piece slides along its wall when the arrow points along it;

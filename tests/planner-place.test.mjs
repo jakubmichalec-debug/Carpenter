@@ -83,6 +83,11 @@ test('dragOnWalls follows the nearest wall and keeps the grab point', () => {
   assert.equal(r.wallId, 'w1');
   assert.equal(r.grab, 50);
   assert.equal(r.offset, 50);
+  // dragged past the end: clamped, and that counts as the end
+  r = G.dragOnWalls(p, 'a', { x: 480, z: 340 }, { grab: 30, wallId: 'w3' });
+  assert.deepEqual([r.offset, r.snap], [0, 'start']);
+  r = G.dragOnWalls(p, 'a', { x: -50, z: 340 }, { grab: 30, wallId: 'w3' });
+  assert.deepEqual([r.offset, r.snap], [320, 'end']);
   // hysteresis: nearly halfway between two walls it stays on its own wall
   r = G.dragOnWalls(p, 'a', { x: 200, z: 185 }, { grab: 30, wallId: 'w3' });
   assert.equal(r.wallId, 'w3');
@@ -93,7 +98,12 @@ test('dragFree snaps to a 5 cm grid and stays in the room box', () => {
   const p = withPiece(base(), 't', 'table');
   assert.deepEqual(G.dragFree(p, 't', { x: 203, z: 188 }), { x: 205, z: 190 });
   assert.deepEqual(G.dragFree(p, 't', { x: 203, z: 188 }, { grab: { x: 10, z: -10 } }), { x: 195, z: 200 });
-  assert.deepEqual(G.dragFree(p, 't', { x: 9000, z: -9000 }), { x: 420, z: 0 });
+  assert.deepEqual(G.dragFree(p, 't', { x: 9000, z: -9000 }), { x: 330, z: 45 }, 'the whole table stays in the room box');
+  const turned = M.placePiece(p, 't', { mode: 'free', x: 200, z: 200, rotation: 90 });
+  assert.deepEqual(G.dragFree(turned, 't', { x: 9000, z: -9000 }), { x: 375, z: 90 }, 'turned: the box swaps');
+  let small = M.setTemplate(withPiece(base(), 'w', 'table', { width: 300, depth: 120 }), 'rect', { width: 200, depth: 300 });
+  small = M.placePiece(small, 'w', { mode: 'free', x: 0, z: 0, rotation: 0 });
+  assert.equal(G.dragFree(small, 'w', { x: 10, z: 10 }).x, 100, 'wider than the room: centred');
 });
 
 test('nudge slides along the wall for arrows that point along it, moves free pieces in x and z', () => {

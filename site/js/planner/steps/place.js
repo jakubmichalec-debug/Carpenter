@@ -37,15 +37,15 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     <p class="pl-addnote" id="pl-p-status" role="status"></p>
     <ul class="pl-notes" id="pl-p-notes" aria-label="Placement checks"></ul>
 
+    <section class="pl-sec" aria-labelledby="pl-p-h-wait" id="pl-p-wait-sec" hidden>
+      <header class="pl-sec__row"><h3 id="pl-p-h-wait">Not placed yet</h3></header>
+      <ul class="pl-waiting" id="pl-p-waiting"></ul>
+    </section>
+
     <section class="pl-sec" aria-labelledby="pl-p-h-room" id="pl-p-room-sec">
       <header class="pl-sec__row"><h3 id="pl-p-h-room">In the room</h3></header>
       <div class="pl-chips" id="pl-p-placed" role="group" aria-label="Choose a placed piece"></div>
       <p class="pl-hint" id="pl-p-roomhint"></p>
-    </section>
-
-    <section class="pl-sec" aria-labelledby="pl-p-h-wait" id="pl-p-wait-sec" hidden>
-      <header class="pl-sec__row"><h3 id="pl-p-h-wait">Not placed yet</h3></header>
-      <ul class="pl-waiting" id="pl-p-waiting"></ul>
     </section>
 
     <section class="pl-sec" aria-labelledby="pl-p-h-pos" id="pl-p-pos-sec" hidden>
@@ -123,10 +123,11 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     const fp = pl && footprintOf(project(), pl);
     const elevation = pl ? pl.elevation : TYPES[piece.type].defaults.elevation;
     const prefer = fp ? G.projectOnWall(wall, { x: fp.cx, z: fp.cz }).u - piece.width / 2 : (wall.length - piece.width) / 2;
+    // a free spot when there is one; otherwise it goes where it was asked and the clash is shown (editing is never blocked)
     const off = G.freeSpotOnWall(project(), id, wallId, prefer, elevation);
-    if (off === null) { say(`There is no free space for ${nameOf(id)} on wall ${wallNo(wallId)}.`); return; }
-    placeIt(id, { mode: 'wall', wallId, offset: off, elevation });
-    announce(`${nameOf(id)} is on wall ${wallNo(wallId)}.`);
+    const max = Math.max(0, Math.floor(wall.length - piece.width));
+    placeIt(id, { mode: 'wall', wallId, offset: off === null ? clamp(Math.round(prefer), 0, max) : off, elevation });
+    announce(off === null ? `${nameOf(id)} is on wall ${wallNo(wallId)}, but there is no free space there.` : `${nameOf(id)} is on wall ${wallNo(wallId)}.`);
   }
   function setMode(id, mode) {
     const piece = pieceOf(id), pl = placementOf(id);
@@ -156,7 +157,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
   async function takeOut(id) {
     const name = nameOf(id);
     const ok = await confirmAction({
-      title: `Take ${name.toLowerCase()} out of the room?`,
+      title: `Take ${name} out of the room?`,
       text: `It stays in your list with its design, so you can place it again. Undo also brings it back.`,
       yes: 'Take it out', no: 'Keep it there'
     });
@@ -454,7 +455,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
       out.push(`<g class="pl-readout" aria-hidden="true" transform="translate(${f1(W - 12)} 12)"><rect x="${f1(-w)}" y="-2" width="${f1(w)}" height="26" rx="13"/><text x="${f1(-w / 2)}" y="12" text-anchor="middle">${esc(text)}</text></g>`);
     }
     if (!prj.placements.length) {
-      out.push(`<text class="pl-empty-text" x="${f1(W / 2)}" y="${f1(H - 16)}" text-anchor="middle">${prj.pieces.length ? 'Press Place next to a piece to put it in the room' : 'Design a piece first, then place it here'}</text>`);
+      out.push(`<text class="pl-empty-text" x="${f1(W / 2)}" y="26" text-anchor="middle">${prj.pieces.length ? 'Press Place next to a piece to put it in the room' : 'Design a piece first, then place it here'}</text>`);
     }
 
     const focused = document.activeElement && svg.contains(document.activeElement) ? document.activeElement.getAttribute('data-piece') : null;
@@ -604,8 +605,8 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
         <button type="button" class="pl-wait__name" data-pick="${esc(p.id)}"><b>${esc(nameOf(p.id))}</b><span>${p.width} × ${p.depth} cm</span></button>
         <button type="button" class="pl-btn pl-btn--accent pl-btn--small" data-place="${esc(p.id)}">Place<span class="visually-hidden"> ${esc(nameOf(p.id))} in the room</span></button></li>`).join('');
       $('#pl-p-room-sec').hidden = !placed.length && !!waiting.length;
-      $('#pl-p-roomhint').textContent = !placed.length ? 'Nothing is in the room yet.'
-        : waiting.length ? '' : 'Every piece you designed is in the room. Pick one to move it.';
+      $('#pl-p-roomhint').textContent = placed.length ? '' : 'Nothing is in the room yet.';
+      $('#pl-p-roomhint').hidden = !!placed.length;
     }
     placedEl.querySelectorAll('[data-piece]').forEach((b) => {
       const on = b.dataset.piece === state.ui.pieceId;
@@ -620,7 +621,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     const items = list.map((e) => {
       const id = e.ref.pieceId;
       const fix = MOVABLE.has(e.code) ? `<button type="button" class="pl-link" data-fix="${esc(id)}">Find a free spot</button>` : '';
-      return `<li class="pl-note ${e.blocking ? 'pl-note--clash' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>`
+      return `<li class="pl-note pl-note--stack${e.blocking ? ' pl-note--clash' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>`
         + `<span class="pl-note__actions"><button type="button" class="pl-link" data-show="${esc(id)}">Show</button>${fix}</span></li>`;
     });
     if (!items.length && placedIds.size) items.push(`<li class="pl-note pl-note--ok"><span class="pl-note__icon">${ICON_CHECK}</span><span class="pl-note__text">Everything fits where you put it. Nothing overlaps, covers a door or window, or blocks a door.</span></li>`);

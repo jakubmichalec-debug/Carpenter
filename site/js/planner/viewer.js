@@ -137,6 +137,7 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
     const az = -0.5, polar = 0.98;
     const to = new THREE.Vector3(Math.sin(az) * Math.sin(polar), Math.cos(polar), Math.cos(az) * Math.sin(polar)).multiplyScalar(dist).add(c);
     if (instant || reduced) {
+      tween = null; // a camera move that is still running (from the piece view, say) must not undo this
       persp.position.copy(to); orbit.target.copy(c); orbit.update();
       updateFades();
     } else tweenTo(to, c, 650);
