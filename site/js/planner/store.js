@@ -2,7 +2,8 @@
 // subscriptions and persistence. The reducer has no DOM, so Node can test it. Actions are listed in CONTRACTS.md.
 import {
   OPENING_TYPES, TYPES, createProject, clampProject, setTemplate, updateRoom, addOpening, updateOpening, removeOpening, wallsOf,
-  addPiece, updatePiece, removePiece, setBays, addItem, moveItem, updateItem, removeItem, applyPreset
+  addPiece, updatePiece, removePiece, setBays, addItem, moveItem, updateItem, removeItem, applyPreset,
+  placePiece, movePlacement, unplace
 } from './model.js';
 import { ceilingProfile, minCeiling } from './plan-geom.js';
 import { encodeProject, decodeProject, saveLocal, loadLocal } from './share.js';
@@ -34,7 +35,7 @@ export function initialState(project) {
     past: [], future: [],
     key: null, keyAt: 0,
     // UI state lives beside the project and is never part of undo, saving or sharing
-    ui: sanitizeUi({ step: 0, wallId: null, openingId: null, pieceId: null, bay: 0, item: null, fresh: null, pane: 'plan' }, p)
+    ui: sanitizeUi({ step: 0, wallId: null, openingId: null, pieceId: null, bay: 0, item: null, fresh: null, starting: false, pane: 'plan' }, p)
   };
 }
 
@@ -153,7 +154,7 @@ function pieceAction(project, action, ui) {
 // What the selection becomes after a piece action has changed the project.
 function pieceUi(action, before, next, ui) {
   const pid = action.id === undefined ? ui.pieceId : action.id;
-  const out = { ...ui, fresh: null };
+  const out = { ...ui, fresh: null, starting: false };
   const piece = next.pieces.find((p) => p.id === pid);
   switch (action.type) {
     case 'piece/add': {
@@ -186,6 +187,8 @@ function pieceUi(action, before, next, ui) {
   }
 }
 
+const placeId = (action, ui) => (action.id === undefined ? ui.pieceId : action.id);
+
 // Applies a project action. Returns the new project, or the same object when nothing applies.
 function projectAction(project, action, ui) {
   switch (action.type) {
@@ -216,6 +219,9 @@ function projectAction(project, action, ui) {
     }
     case 'room/opening/remove':
       return removeOpening(project, action.id);
+    case 'place/set': return placePiece(project, placeId(action, ui), action.spec);
+    case 'place/move': return movePlacement(project, placeId(action, ui), action.patch);
+    case 'place/remove': return unplace(project, placeId(action, ui));
     default:
       return pieceAction(project, action, ui);
   }
@@ -227,11 +233,14 @@ export function reduce(state, action) {
   switch (action.type) {
     case 'ui/step': {
       const step = Math.max(0, Math.min(STEP_IDS.length - 1, Math.round(Number(action.step))));
-      return Number.isFinite(step) && step !== ui.step ? { ...state, ui: { ...ui, step, fresh: null } } : state;
+      return Number.isFinite(step) && step !== ui.step ? { ...state, ui: { ...ui, step, fresh: null, starting: false } } : state;
     }
+    case 'ui/new-piece':
+      // Furniture step with nothing chosen yet: the next type picked adds a new piece
+      return ui.step === 1 && ui.starting && !ui.fresh ? state : { ...state, ui: { ...ui, step: 1, fresh: null, starting: true } };
     case 'ui/piece': {
       if (!project.pieces.some((p) => p.id === action.id)) return state;
-      return ui.pieceId === action.id && ui.item === null && !ui.fresh ? state : { ...state, ui: { ...ui, pieceId: action.id, bay: 0, item: null, fresh: null } };
+      return ui.pieceId === action.id && ui.item === null && !ui.fresh && !ui.starting ? state : { ...state, ui: { ...ui, pieceId: action.id, bay: 0, item: null, fresh: null, starting: false } };
     }
     case 'ui/bay': {
       const piece = project.pieces.find((p) => p.id === ui.pieceId);
@@ -294,6 +303,10 @@ export function reduce(state, action) {
         nextUi = { ...ui, openingId: null };
       } else if (action.type.startsWith('piece/')) {
         nextUi = pieceUi(action, project, next, ui);
+      } else if (action.type === 'place/set' || action.type === 'place/move') {
+        // placing or moving a piece selects it
+        const pid = placeId(action, ui);
+        nextUi = pid === ui.pieceId ? ui : { ...ui, pieceId: pid, bay: 0, item: null, fresh: null };
       }
       return {
         ...state, project: next, past, future: [], ui: sanitizeUi(nextUi, next),

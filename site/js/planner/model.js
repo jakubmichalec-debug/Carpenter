@@ -1223,13 +1223,16 @@ function resolvePlacement(project, pieceId, spec) {
   if (spec.mode === 'wall') {
     const wall = wallById(project.room, spec.wallId);
     if (!wall) return { pieceId, mode: 'wall', wallId: String(spec.wallId || ''), offset: toInt(spec.offset, 0), elevation };
-    const offset = snapOffset(project, piece, wall, wall.id, toInt(spec.offset, 0), elevation);
+    // `snap: false` keeps the offset as given (clamped to the wall): arrow keys and typed numbers must be able to move 1 cm
+    const offset = spec.snap === false
+      ? clamp(toInt(spec.offset, 0), 0, Math.max(0, Math.floor(wall.length - piece.width + EPS)))
+      : snapOffset(project, piece, wall, wall.id, toInt(spec.offset, 0), elevation);
     return { pieceId, mode: 'wall', wallId: wall.id, offset, elevation };
   }
   if (spec.mode === 'free') {
     let rot = ((toInt(spec.rotation, 0) % 360) + 360) % 360;
     const near = Math.round(rot / 90) * 90;
-    if (Math.abs(rot - near) <= SNAP) rot = near % 360;
+    if (spec.snap !== false && Math.abs(rot - near) <= SNAP) rot = near % 360;
     return { pieceId, mode: 'free', x: toInt(spec.x, 0), z: toInt(spec.z, 0), rotation: rot, elevation };
   }
   return null;
