@@ -116,3 +116,24 @@ export function itemsProblems(errors, pieceId) {
   }
   return out;
 }
+
+// The bays a piece would have with `count` bays, keeping what is there. Adding splits the widest bay in two (the
+// new bay sits to its right, with the same door side and nothing in it); removing drops the last bay and gives its
+// width, and the divider it freed, to its neighbour. Returns raw bays ({ width, door, items }) for `piece/update`.
+// Widths already add up to the new inside width.
+export function changeBayCount(piece, count) {
+  let bays = piece.bays.map((b) => ({ width: b.width, door: b.door, items: b.items.map((i) => ({ ...i })) }));
+  const target = Math.max(1, Math.round(count));
+  while (bays.length < target) {
+    let k = 0;
+    bays.forEach((b, i) => { if (b.width > bays[k].width) k = i; });
+    const w = bays[k].width - LAYOUT_T;
+    const a = Math.ceil(w / 2), b = w - a;
+    bays = [...bays.slice(0, k), { ...bays[k], width: a }, { width: b, door: bays[k].door, items: [] }, ...bays.slice(k + 1)];
+  }
+  while (bays.length > target && bays.length > 1) {
+    const last = bays.pop();
+    bays[bays.length - 1].width += last.width + LAYOUT_T;
+  }
+  return bays;
+}

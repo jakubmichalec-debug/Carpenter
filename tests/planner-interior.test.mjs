@@ -78,3 +78,24 @@ test('itemsProblems groups errors by piece, bay and item', () => {
   assert.equal(g.bays[2].length, 1);
   assert.equal(g.items['0:3'].length, 1);
 });
+
+test('changeBayCount keeps widths: adding splits the widest, removing feeds the neighbour', async () => {
+  const { changeBayCount } = await import('../site/js/planner/interior-geom.js');
+  const p = M.createPiece('wardrobe', 'flat-oak', { id: 'p1', bays: [{ width: 60, items: [{ kind: 'shelf', y: 32 }] }, { width: 110, items: [] }, { width: 54, items: [] }] });
+  const inner = (n) => M.pieceGeometry(p, n).innerW;
+  const four = changeBayCount(p, 4);
+  assert.equal(four.length, 4);
+  assert.equal(four.reduce((s, b) => s + b.width, 0), inner(4));
+  assert.equal(four[0].width, p.bays[0].width, 'untouched bays keep their width');
+  assert.equal(four[3].width, p.bays[2].width);
+  assert.ok(Math.abs(four[1].width - four[2].width) <= 1, 'the widest bay was split');
+  assert.deepEqual(four[0].items, p.bays[0].items);
+  assert.deepEqual(four[2].items, []);
+  const two = changeBayCount(p, 2);
+  assert.equal(two.reduce((s, b) => s + b.width, 0), inner(2));
+  assert.equal(two[0].width, p.bays[0].width);
+  assert.equal(two[1].width, p.bays[1].width + p.bays[2].width + M.LAYOUT_T);
+  const updated = M.updatePiece({ ...M.createProject(), pieces: [p], placements: [] }, 'p1', { bays: four }).pieces[0];
+  assert.deepEqual(updated.bays.map((b) => b.width), four.map((b) => b.width));
+  assert.equal(updated.bays[0].items.length, 1);
+});

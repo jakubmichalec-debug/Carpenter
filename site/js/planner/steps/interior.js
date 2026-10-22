@@ -4,7 +4,7 @@
 import {
   ITEMS, TYPES, LAYOUT_T, DOOR_SIDES, GRID, maxBaysFor, pieceGeometry, presetsFor, describeItem, normalizeItem, snapY, pieceLabel
 } from '../model.js';
-import { bayLayout, bayAt, suggestY, dragDivider, resizeBay, nudgeY, itemsProblems } from '../interior-geom.js';
+import { bayLayout, bayAt, suggestY, dragDivider, resizeBay, nudgeY, itemsProblems, changeBayCount } from '../interior-geom.js';
 import { esc, clamp, fieldHtml, wireFields, syncFields, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
 import { drawItem, thumbSvg } from './interior-draw.js';
 
@@ -21,7 +21,7 @@ const VALUE_LABEL = { '3x4': '3 × 4', '4x5': '4 × 5', 'pull-out': 'Pull-out', 
 const valueLabel = (v) => VALUE_LABEL[v] || (String(v).charAt(0).toUpperCase() + String(v).slice(1));
 const DOOR_LABEL = { left: 'Hinged on the left', right: 'Hinged on the right', double: 'Two doors', none: 'No door' };
 
-export function createInteriorStep(root, { insideBox, store, announce = () => {}, showInside = () => {} }) {
+export function createInteriorStep(root, { insideBox, dock, store, announce = () => {}, showInside = () => {} }) {
   let state = store.getState();
   let validation = { errors: [] };
   let chipsKey = '', baysKey = '', paletteKey = '', inspKey = '', notesKey = '', drawKey = '';
@@ -38,6 +38,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
       <h2 id="pl-h-interior">Inside</h2>
       <p class="pl-lede" id="pl-i-lede">Pick a bay, then add what goes in it. Drag items up and down, or select one and use the arrow keys (Shift moves ten steps). One step is 32 mm.</p>
     </header>
+    <p class="pl-skip"><button type="button" class="pl-link" id="pl-i-jump">Jump to the items you can add</button></p>
     <div id="pl-i-empty" hidden></div>
     <div id="pl-i-main">
       <ul class="pl-notes" id="pl-i-notes" aria-label="Interior checks"></ul>
@@ -60,14 +61,17 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
         <p class="pl-hint" id="pl-i-bayhint"></p>
       </section>
 
-      <section class="pl-sec" aria-labelledby="pl-i-h-add">
+      <section class="pl-sec pl-sec--add" id="pl-i-addsec" aria-labelledby="pl-i-h-add">
         <header class="pl-sec__row"><h3 id="pl-i-h-add">Add to <span id="pl-i-addbay">bay 1</span></h3></header>
-        <div class="pl-chips" id="pl-i-presets" role="group" aria-label="Start this bay from a preset"></div>
+        <div class="pl-presetrow">
+          <div class="pl-chips" id="pl-i-presets" role="group" aria-label="Start this bay from a preset"></div>
+          <label class="pl-check pl-check--small"><input type="checkbox" id="pl-i-all"><span>Apply to all bays</span></label>
+        </div>
         <div class="pl-palette" id="pl-i-palette" role="group" aria-label="Items you can add"></div>
         <p class="pl-hint" id="pl-i-palhint">Press an item to add it to the selected bay. On a computer you can also drag it into the drawing; on a phone drag it by its handle.</p>
       </section>
 
-      <section class="pl-sec" aria-labelledby="pl-i-h-items">
+      <section class="pl-sec" id="pl-i-itemssec" aria-labelledby="pl-i-h-items">
         <header class="pl-sec__row"><h3 id="pl-i-h-items">In <span id="pl-i-itemsbay">bay 1</span></h3></header>
         <div class="pl-itemlist" id="pl-i-list" role="group" aria-label="Items in this bay"></div>
         <div class="pl-inspector" id="pl-i-insp"></div>
@@ -76,9 +80,22 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
   insideBox.innerHTML = `<svg id="pl-in-svg" role="group" aria-label="Front view of the piece with the doors hidden" xmlns="http://www.w3.org/2000/svg"></svg>
     <p class="pl-canvas-hint" id="pl-in-hint">Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize bays.</p>`;
 
-  const $ = (sel) => root.querySelector(sel);
+  const $ = (sel) => root.querySelector(sel) || dock.querySelector(sel);
   const svg = insideBox.querySelector('#pl-in-svg');
   const palEl = $('#pl-i-palette');
+  // on wide screens the palette sits in a strip under the drawing, so it is always in reach; on phones it stays in the flow
+  const addSec = $('#pl-i-addsec'), itemsSec = $('#pl-i-itemssec');
+  const wide = matchMedia('(min-width: 1280px)');
+  const placePalette = () => {
+    if (wide.matches) { if (addSec.parentNode !== dock) dock.appendChild(addSec); }
+    else if (addSec.parentNode === dock) itemsSec.before(addSec);
+  };
+  wide.addEventListener('change', placePalette);
+  placePalette();
+  $('#pl-i-jump').addEventListener('click', () => {
+    const first = palEl.querySelector('.pl-tile__add');
+    if (first) { first.scrollIntoView({ block: 'nearest', inline: 'nearest' }); first.focus(); }
+  });
   const inspEl = $('#pl-i-insp');
   const cur = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
   const curBay = (p) => (p ? p.bays[clamp(state.ui.bay, 0, p.bays.length - 1)] : null);
@@ -152,10 +169,15 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
     const p = cur();
     if (!p) return;
     const n = p.bays.length + d;
-    store.dispatch({ type: 'piece/bays', bays: n });
+    store.dispatch({ type: 'piece/update', patch: { bays: changeBayCount(p, n) } });
     store.dispatch({ type: 'history/seal' });
     const q = cur();
-    announce(q.bays.length === p.bays.length ? 'The number of bays cannot change further.' : `${q.bays.length} bays, equal widths.`);
+    if (q.bays.length === p.bays.length) announce('The number of bays cannot change further.');
+    else if (d > 0) announce(`${q.bays.length} bays. The widest bay was split in two.`);
+    else {
+      const lost = p.bays[p.bays.length - 1].items.length;
+      announce(`${q.bays.length} bays. The last bay's width went to its neighbour${lost ? `, and its ${lost === 1 ? 'item was' : `${lost} items were`} removed. Undo brings ${lost === 1 ? 'it' : 'them'} back` : ''}.`);
+    }
   };
   $('#pl-i-less').addEventListener('click', () => stepBays(-1));
   $('#pl-i-more').addEventListener('click', () => stepBays(1));
@@ -178,9 +200,14 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
     const b = e.target.closest('[data-preset]');
     const p = cur();
     if (!b || !p) return;
-    store.dispatch({ type: 'piece/preset', bay: state.ui.bay, preset: b.dataset.preset });
+    const all = $('#pl-i-all').checked && p.bays.length > 1;
+    const keep = state.ui.bay;
+    if (all) {
+      for (let i = 0; i < p.bays.length; i++) store.dispatch({ type: 'piece/preset', bay: i, preset: b.dataset.preset, coalesce: 'preset:all' });
+      store.dispatch({ type: 'ui/bay', bay: keep });
+    } else store.dispatch({ type: 'piece/preset', bay: keep, preset: b.dataset.preset });
     store.dispatch({ type: 'history/seal' });
-    announce(`Bay ${state.ui.bay + 1} started from "${b.textContent.trim()}". Undo brings the old layout back.`);
+    announce(`${all ? 'Every bay' : `Bay ${keep + 1}`} started from "${b.textContent.trim()}". Undo brings the old layout back.`);
     showInside();
   });
   palEl.addEventListener('click', (e) => {
@@ -233,7 +260,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
   // ---------- drawing ----------
   function layoutFor(p, W, H) {
     const g = pieceGeometry(p);
-    const padL = W < 520 ? 40 : 56, padR = W < 520 ? 14 : 24, padT = 64, padB = 30;
+    const padL = W < 520 ? 40 : 56, padR = W < 520 ? 14 : 24, padT = 64, padB = 48;
     const total = p.height;
     const s = Math.max(0.2, Math.min((W - padL - padR) / p.width, (H - padT - padB) / total));
     const ox = padL + (W - padL - padR - p.width * s) / 2;
@@ -313,13 +340,24 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
         g2 += drawItem(it, { x, y: bodyTop, w, h: bodyH }, { zone: zr });
         g2 += `<rect class="pl-iv__hit" x="${f1(x)}" y="${f1(hitY)}" width="${f1(w)}" height="${f1(hitH)}"/>`;
         g2 += `<rect class="pl-iv__ring" x="${f1(x + 1)}" y="${f1(hitY - 1)}" width="${f1(w - 2)}" height="${f1(hitH + 2)}" rx="3"/>`;
-        if (selected) g2 += `<g class="pl-readout" transform="translate(${f1(x + 6)} ${f1(Math.max(Y(top - T) + 14, hitY - 8))})"><rect x="0" y="-9" width="${String(cm(it.y)).length * 7 + 36}" height="18" rx="9"/><text x="9" y="0">${cm(it.y)} cm</text></g>`;
         out.push(`<g class="pl-iv${selected ? ' is-selected' : ''}${ip ? ' is-warn' : ''}" data-item="${b.index}:${ii}" data-focus="item:${b.index}:${ii}" tabindex="0" role="slider" aria-orientation="vertical"`
           + ` aria-label="${esc(label)}" aria-valuemin="${f1(lo)}" aria-valuemax="${f1(hi)}" aria-valuenow="${cm(it.y)}" aria-valuetext="${esc(`${label}, ${cm(it.y)} cm above the bay floor`)}">`
           + `<title>${esc(describeItem(it))}${ip ? `: ${esc(ip.map((e) => e.message).join(' '))}` : ''}</title>${g2}</g>`);
       });
       out.push('</g>');
     });
+
+    // the height of the selected item, parked under the floor line so it never covers the item or a divider
+    const selB = p.bays[state.ui.bay], selIt = selB && state.ui.item !== null ? selB.items[state.ui.item] : null;
+    // where the canvas hint shows (wide screens) it already carries the height, so the pill would only collide with it
+    const hintShown = getComputedStyle(insideBox.querySelector('#pl-in-hint')).display !== 'none';
+    if (selIt && !hintShown) {
+      const lb = lay[state.ui.bay];
+      const label = `${itemName(selIt)}, ${cm(selIt.y)} cm up`;
+      const rw = label.length * 6.6 + 18;
+      const rx = clamp(X(lb.x0) + (lb.width * s) / 2 - rw / 2, 4, W - rw - 4);
+      out.push(`<g class="pl-readout" aria-hidden="true" transform="translate(${f1(rx)} ${f1(y0 + 17)})"><rect x="0" y="-9" width="${f1(rw)}" height="18" rx="9"/><text x="9" y="0">${esc(label)}</text></g>`);
+    }
 
     // drop preview while a palette tile is dragged in
     if (hint) {
@@ -577,7 +615,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
     if (key === baysKey) return;
     baysKey = key;
     const prob = problems();
-    $('#pl-i-baychips').innerHTML = p.bays.map((b, i) => `<button type="button" class="pl-chip pl-chip--bay${prob.bays[i] ? ' is-warn' : ''}" data-bay="${i}" aria-pressed="${i === state.ui.bay}"><b>${i + 1}</b><span>${b.width} cm</span><i>${b.items.length}</i><span class="visually-hidden"> items</span></button>`).join('');
+    $('#pl-i-baychips').innerHTML = p.bays.map((b, i) => `<button type="button" class="pl-chip pl-chip--bay${prob.bays[i] ? ' is-warn' : ''}" title="${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}" data-bay="${i}" aria-pressed="${i === state.ui.bay}"><b>${i + 1}</b><span>${b.width} cm</span><span class="visually-hidden">, ${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}</span></button>`).join('');
     const b = curBay(p), k = clamp(state.ui.bay, 0, p.bays.length - 1);
     const hingedKind = p.fronts.kind === 'hinged' || p.fronts.kind === 'glass';
     $('#pl-i-bayform').innerHTML = (p.bays.length > 1 ? fieldHtml(`bayw:${k}`, `Width of bay ${k + 1}`, b.width, { min: 20, max: 400, slider: false, id: 'bayw' }) : '')
@@ -704,9 +742,10 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
       if (html !== notesKey) { notesKey = html; $('#pl-i-notes').innerHTML = html; }
       const sel = selectedItem(p);
       insideBox.querySelector('#pl-in-hint').textContent = sel
-        ? 'Arrow up and down move it one step (Shift: ten steps), left and right change bay. Delete removes it.'
+        ? `${itemName(sel)}, ${cm(sel.y)} cm up. Arrow up and down move it one step (Shift: ten steps), left and right change bay. Delete removes it.`
         : 'Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize bays.';
     }
+    dock.hidden = !ok;
     const dk = JSON.stringify([p, state.ui.bay, state.ui.item, validation.errors.length, hint, insideBox.clientWidth, insideBox.clientHeight]);
     if (dk !== drawKey) { drawKey = dk; if (!root.hidden) renderInside(); }
   }
