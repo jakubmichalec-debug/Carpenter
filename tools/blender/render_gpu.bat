@@ -40,7 +40,7 @@ if errorlevel 1 (
 echo   Using %PY%
 
 echo [3/5] Textures...
-if not exist tex\oak_veneer_01_diff.jpg (
+if not exist tex\models\side_table_01\side_table_01.gltf (
   echo   Downloading the Poly Haven textures, about 1 minute...
   %PY% fetch_assets.py
   if errorlevel 1 ( echo   fetch_assets.py failed, see the message above. & goto :end )

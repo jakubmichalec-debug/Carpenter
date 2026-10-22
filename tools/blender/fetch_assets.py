@@ -16,6 +16,23 @@ hdri = json.loads(curl('https://api.polyhaven.com/files/small_empty_room_3'))['h
 curl('-o', os.path.join(TEX, 'room_2k.hdr'), hdri['2k']['hdr']['url'])
 curl('-o', os.path.join(TEX, 'room_1k.hdr'), hdri['1k']['hdr']['url'])
 
+# scanned furniture and plants for the room (Poly Haven, CC0) and a wool texture for the rug
+MODELS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'side_table_01', 'ceramic_vase_01',
+          'hanging_picture_frame_01', 'mid_century_lounge_chair']
+for model in MODELS:
+    dest = os.path.join(TEX, 'models', model)
+    if os.path.exists(os.path.join(dest, f'{model}.gltf')):
+        continue
+    gl = json.loads(curl(f'https://api.polyhaven.com/files/{model}'))['gltf']['1k']['gltf']
+    os.makedirs(dest, exist_ok=True)
+    curl('-o', os.path.join(dest, f'{model}.gltf'), gl['url'])
+    for rel, info in gl.get('include', {}).items():
+        os.makedirs(os.path.dirname(os.path.join(dest, rel)), exist_ok=True)
+        curl('-o', os.path.join(dest, rel), info['url'])
+rug = json.loads(curl('https://api.polyhaven.com/files/hessian_230'))
+for key, suffix in [('Diffuse', 'diff'), ('Rough', 'rough'), ('nor_gl', 'nor')]:
+    curl('-o', os.path.join(TEX, f'hessian_230_{suffix}.jpg'), rug[key]['1k']['jpg']['url'])
+
 # birch-ply interior: white oak veneer, brighter and a touch warmer
 im = Image.open(os.path.join(TEX, 'white_oak_veneer_diff.jpg')).convert('RGB')
 im = ImageEnhance.Color(ImageEnhance.Brightness(im).enhance(1.32)).enhance(0.8)

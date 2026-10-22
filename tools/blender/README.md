@@ -18,7 +18,8 @@ cp out/hero.glb out/lm_floor.jpg out/lm_walls.jpg tex/room_1k.hdr ../../site/ass
 ## Photoreal hero (image sequence)
 
 The Home hero plays a Cycles-rendered image sequence of the assembly, scrubbed by scroll (`site/js/hero-frames.js`).
-`film.py` builds on `build.py`'s scene (adds the window and sunlight, ceiling, softer linen, hangers, depth of field)
+`film.py` builds on `build.py`'s scene (adds the window and sunlight, a ceiling and depth of field) and `furnish.py` furnishes
+the room with scanned Poly Haven plants and furniture, a jute rug and a framed print, leaving the wardrobe empty;
 and replays the choreography and camera path of `createHero()` frame by frame.
 
 ```

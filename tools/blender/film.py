@@ -52,32 +52,9 @@ S.ao.location = B(0.5, 2.2, 9.0); S.look_at(S.ao, B(0, 1.2, 0))
 bpy.data.worlds['world'].node_tree.nodes['Background'].inputs['Strength'].default_value = 0.6
 scene.view_settings.exposure = 0.2
 
-# fabric: softer folded linen with a little wobble, shirts on wooden hangers
-noise = bpy.data.textures.new('cloth_noise', 'CLOUDS'); noise.noise_scale = 0.05
-for ob in list(S.props.objects):
-    if ob.name.startswith('fold'):
-        ob.modifiers['sub'].levels = 2; ob.modifiers['sub'].render_levels = 3
-        dm = ob.modifiers.new('wobble', 'DISPLACE'); dm.texture = noise; dm.strength = 0.004; dm.mid_level = 0.5
-    if ob.name.startswith('shirt'):
-        sub = ob.modifiers.new('soft', 'SUBSURF'); sub.levels = 1; sub.render_levels = 2
-        for p in ob.data.polygons: p.use_smooth = True
-hanger_mat = S.pbr('hanger', 'oak_veneer_01_diff.jpg', 'oak_veneer_01_rough.jpg', None)
-steel = S.STEEL
-for ob in [o for o in S.props.objects if o.name.startswith('shirt')]:
-    for side in (-1, 1):
-        bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.007, depth=0.21)
-        arm = bpy.context.object; arm.name = 'hanger'
-        for c in arm.users_collection: c.objects.unlink(arm)
-        S.props.objects.link(arm); arm.data.materials.append(hanger_mat)
-        arm.parent = ob
-        arm.location = (side * 0.1, 0.011, -0.04)
-        arm.rotation_euler = (0, math.pi / 2 + side * 0.33, 0)
-        for p in arm.data.polygons: p.use_smooth = True
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.02, minor_radius=0.0025, major_segments=24, minor_segments=8)
-    hook = bpy.context.object; hook.name = 'hook'
-    for c in hook.users_collection: c.objects.unlink(hook)
-    S.props.objects.link(hook); hook.data.materials.append(steel); hook.parent = ob
-    hook.location = (0, 0.011, 0.012); hook.rotation_euler = (math.pi / 2, 0, 0)
+# furnish the room (plants, side table, chair, rug, a print); the wardrobe itself stays empty
+import furnish
+furnish.populate(S)
 
 # camera depth of field
 scene.render.use_persistent_data = True
