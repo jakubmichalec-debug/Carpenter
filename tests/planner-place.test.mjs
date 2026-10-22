@@ -202,3 +202,17 @@ test('suggestPlacement keeps a tall piece off the low side of an attic', () => {
   assert.deepEqual(validateProject(placed).errors.filter((e) => e.ref.type === 'placement'), []);
   assert.notEqual(s.wallId, 'w1', 'not under the slope');
 });
+
+test('bestCorner picks the nearest corner that is free', () => {
+  let p = withPiece(base(), 'a', 'wardrobe', { width: 100 });
+  p = withPiece(p, 'b', 'wardrobe', { width: 100 });
+  const near = G.bestCorner(p, 'a', { x: 10, z: 10 });
+  assert.equal(near.corner, 0, 'top left corner');
+  assert.equal(near.bad, 0);
+  // take the top-left corner with another piece, the next nearest free corner wins
+  p = M.placePiece(p, 'b', { mode: 'wall', wallId: 'w1', offset: 0, snap: false });
+  const next = G.bestCorner(p, 'a', { x: 10, z: 10 });
+  assert.equal(next.bad, 0);
+  assert.ok(!(next.corner === 0 && next.wallId === 'w1'), 'not on top of b');
+  assert.equal(G.bestCorner(withPiece(base(), 'w', 'wardrobe', { width: 500 }), 'w', null), null, 'no corner holds a 500 cm piece');
+});

@@ -230,6 +230,23 @@ export function cornerSpots(project, pieceId) {
   return out;
 }
 
+// The corner spot nearest to `near` (a plan point) where the piece clashes with nothing; any nearest spot when every
+// one clashes; null when the room has no convex right-angle corner that holds the piece.
+export function bestCorner(project, pieceId, near) {
+  const spots = cornerSpots(project, pieceId);
+  if (!spots.length) return null;
+  const piece = pieceOf(project, pieceId);
+  const elevation = TYPES[piece.type].defaults.elevation;
+  const scored = spots.map((s) => {
+    const spec = { mode: 'wall', wallId: s.wallId, offset: s.offset, elevation };
+    const fp = footprintOf(placePiece(project, pieceId, { ...spec, snap: false }), { pieceId, ...spec });
+    const d = near && fp ? Math.hypot(fp.cx - near.x, fp.cz - near.z) : 0;
+    return { ...s, bad: problemsOf(project, pieceId, spec), d };
+  });
+  scored.sort((a, b) => (a.bad > 0) - (b.bad > 0) || a.d - b.d);
+  return scored[0];
+}
+
 function inPoly(p, poly) {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
