@@ -5,6 +5,8 @@
 import { wallsOf, FLOORS, WALL_COLORS } from './model.js';
 import { WALL_T, cornerOffsets, ceilingProfile, minCeiling } from './plan-geom.js';
 
+export { buildPiece, pieceSignature, FRONT_MODES } from './piece-geometry.js';
+
 const M = 0.01;
 const T = WALL_T * M;
 const AJAR = 0.72; // radians a door leaf stands open

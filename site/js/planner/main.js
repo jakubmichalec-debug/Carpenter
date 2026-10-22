@@ -2,9 +2,12 @@
 import { createStore, loadInitialProject, STEP_IDS } from './store.js';
 import { validateProject } from './validate.js';
 import { createRoomStep } from './steps/room.js';
+import { createFurnitureStep } from './steps/furniture.js';
+import { createInteriorStep } from './steps/interior.js';
 import { createPlaceholderStep } from './steps/placeholder.js';
 
 const LABELS = ['Room', 'Furniture', 'Interior', 'Place', 'Review'];
+const NEXT = ['Next: furniture', 'Next: interior', 'Next: place it', 'Next: review', ''];
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -24,20 +27,28 @@ function announce(msg) {
 
 // ---------- confirm dialog ----------
 const dlg = $('#pl-confirm');
-function confirmShape(text) {
+function confirmAction({ title, text, yes, no }) {
+  $('#pl-confirm-title').textContent = title;
   $('#pl-confirm-text').textContent = text;
+  $('#pl-confirm-yes').textContent = yes;
+  $('#pl-confirm-no').textContent = no;
   dlg.returnValue = '';
-  if (typeof dlg.showModal !== 'function') return Promise.resolve(window.confirm(`Change the room shape? ${text}`));
+  if (typeof dlg.showModal !== 'function') return Promise.resolve(window.confirm(`${title} ${text}`));
   dlg.showModal();
-  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'change'), { once: true }));
+  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'yes'), { once: true }));
 }
+const confirmShape = (text) => confirmAction({ title: 'Change the room shape?', text, yes: 'Change shape', no: 'Keep this room' });
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(''); });
 
 // ---------- steps ----------
 const panels = $$('[data-panel]').map((el) => el);
+const compact = matchMedia('(max-width: 1279px)');
+const showInside = () => { if (compact.matches && state.ui.pane !== 'plan') store.dispatch({ type: 'ui/pane', pane: 'plan' }); };
 const views = [
   createRoomStep({ side: panels[0], plan: $('#pl-plan'), elev: $('#pl-elev') }, { store, announce, confirmShape }),
-  ...STEP_IDS.slice(1).map((id, i) => createPlaceholderStep(panels[i + 1], id, i + 1))
+  createFurnitureStep(panels[1], { store, announce, confirmAction }),
+  createInteriorStep(panels[2], { insideBox: $('#pl-inside'), store, announce, showInside }),
+  ...STEP_IDS.slice(3).map((id, i) => createPlaceholderStep(panels[i + 3], id, i + 3))
 ];
 
 // validation is cached per project object
@@ -50,15 +61,16 @@ function validated() {
 const stepButtons = $$('.pl-step__btn');
 let maxReached = state.ui.step;
 const visited = new Set([state.ui.step]);
-const issueStep = (ref) => {
+const issueStep = (ref, code) => {
   const t = ref && ref.type;
+  if (code === 'piece-unplaced') return 3; // a piece that is not placed yet is the Place step's business
   return t === 'room' || t === 'opening' ? 0 : t === 'piece' || t === 'bay' ? 1 : t === 'item' ? 2 : t === 'placement' ? 3 : 0;
 };
 
 function renderStepper() {
   const v = validated();
   const issues = [0, 0, 0, 0, 0];
-  for (const e of v.errors) issues[issueStep(e.ref)]++;
+  for (const e of v.errors) issues[issueStep(e.ref, e.code)]++;
   stepButtons.forEach((b, i) => {
     const li = b.closest('.pl-step');
     const current = i === state.ui.step;
@@ -79,7 +91,7 @@ function renderFooter() {
   back.disabled = s === 0;
   const last = s === LABELS.length - 1;
   next.hidden = last;
-  $('#pl-next-label').textContent = last ? '' : `Next: ${LABELS[s + 1]}`;
+  $('#pl-next-label').textContent = NEXT[s];
   undoBtn.disabled = !state.past.length;
   redoBtn.disabled = !state.future.length;
 }
@@ -113,9 +125,17 @@ const paneBtns = $$('[data-pane-btn]');
 paneBtns.forEach((b) => b.addEventListener('click', () => store.dispatch({ type: 'ui/pane', pane: b.dataset.paneBtn })));
 function renderPane() {
   const app = $('.pl-app');
-  app.dataset.pane = state.ui.pane;
-  app.dataset.kind = state.ui.step === 0 ? 'room' : 'other';
-  paneBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.paneBtn === state.ui.pane)));
+  const s = state.ui.step;
+  const kind = s === 0 ? 'room' : s === 2 ? 'interior' : 'other';
+  // on the Interior step "plan" is the front view of the piece and there is no wall view
+  const pane = kind === 'interior' && state.ui.pane === 'wall' ? 'plan' : state.ui.pane;
+  app.dataset.pane = pane;
+  app.dataset.kind = kind;
+  paneBtns.forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.paneBtn === pane));
+    if (b.dataset.paneBtn === 'wall') b.hidden = kind === 'interior';
+    if (b.dataset.paneBtn === 'plan') b.textContent = kind === 'interior' ? 'Inside' : 'Plan';
+  });
 }
 
 // ---------- viewer ----------
@@ -126,11 +146,35 @@ function pushProject() {
   pendingRaf = 0;
   if (viewer) viewer.setProject(state.project);
 }
+// fronts shown on the piece: closed on the Furniture step, hidden on the Interior step, and the pill cycles them
+const FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors ajar', hidden: 'Doors hidden' };
+let frontsMode = 'closed';
+const doorsBtn = $('#pl-doors');
+function pushPiece() {
+  pendingRaf = 0;
+  if (!viewer) return;
+  const s = state.ui.step;
+  const piece = s === 1 || s === 2 ? state.project.pieces.find((p) => p.id === state.ui.pieceId) : null;
+  viewer.setPiece(piece || null, { fronts: frontsMode });
+  if (!piece) viewer.setProject(state.project);
+}
 function syncViewer(before) {
   if (!viewer) return;
-  if (!before || state.project !== before.project) {
-    if (!pendingRaf) pendingRaf = requestAnimationFrame(pushProject);
+  const s = state.ui.step;
+  const inPiece = s === 1 || s === 2;
+  if (!before || before.ui.step !== s) {
+    if (inPiece) frontsMode = s === 1 ? 'closed' : 'hidden';
+    doorsBtn.hidden = !inPiece;
+    $('.pl-viewer__hint').textContent = inPiece ? 'Drag to orbit \u00b7 scroll to zoom' : 'Drag to orbit \u00b7 scroll to zoom \u00b7 click a wall to select it';
+    $('#pl-top').hidden = inPiece;
+    $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
+    doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
+    if (inPiece && viewer.getView() === 'plan') viewer.setView('3d');
   }
+  if (!before || state.project !== before.project || before.ui.step !== s || before.ui.pieceId !== state.ui.pieceId) {
+    if (!pendingRaf) pendingRaf = requestAnimationFrame(pushPiece);
+  }
+  if (inPiece) return;
   const wall = state.ui.step === 0 ? state.ui.wallId : null;
   const was = before ? (before.ui.step === 0 ? before.ui.wallId : null) : undefined;
   if (wall !== was) {
@@ -145,6 +189,13 @@ async function bootViewer() {
     viewer = createViewer(canvas, { onWallPick: (id) => store.dispatch({ type: 'ui/wall', wallId: id }) });
     viewer.setProject(state.project);
     viewer.highlightWall(state.ui.step === 0 ? state.ui.wallId : null);
+    syncViewer(null);
+    doorsBtn.addEventListener('click', () => {
+      frontsMode = frontsMode === 'closed' ? 'ajar' : frontsMode === 'ajar' ? 'hidden' : 'closed';
+      doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
+      $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
+      pushPiece();
+    });
     const top = $('#pl-top');
     top.addEventListener('click', () => viewer.setView(viewer.getView() === 'plan' ? '3d' : 'plan'));
     viewer.onViewChange((m) => top.setAttribute('aria-pressed', String(m === 'plan')));
@@ -160,7 +211,7 @@ async function bootViewer() {
 // ---------- subscriptions ----------
 function render(before) {
   const v = validated();
-  views[0].update(state, { validation: v });
+  views.forEach((view) => view.update(state, { validation: v }));
   renderStepper();
   renderFooter();
   renderPane();

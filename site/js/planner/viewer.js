@@ -7,7 +7,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createMaterialLib } from '../configurator/materials.js';
 import { roomBounds } from './plan-geom.js';
 import {
-  buildFloor, buildWall, floorSignature, wallSignature, disposeGroup, setWallFade, setWallHighlight
+  buildFloor, buildWall, floorSignature, wallSignature, disposeGroup, setWallFade, setWallHighlight, buildPiece, pieceSignature
 } from './geometry.js';
 import { wallsOf } from './model.js';
 
@@ -100,6 +100,8 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
   const viewCbs = [];
   const roomGroup = new THREE.Group();
   scene.add(roomGroup);
+  // one piece shown alone (steps 2 and 3): the room is hidden while it is set
+  let pieceGroup = null, pieceSig = '', pieceId = null, pieceSize = null;
 
   const activeCam = () => (mode === 'plan' ? ortho : persp);
   const activeControls = () => (mode === 'plan' ? topControls : orbit);
@@ -145,10 +147,10 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
     request();
   }
 
-  function placeLights() {
-    if (!bounds) return;
-    const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
-    const r = fitRadius;
+  function placeLights(box = null) {
+    if (!bounds && !box) return;
+    const cx = box ? box.cx : (bounds.minX + bounds.maxX) / 2, cz = box ? box.cz : (bounds.minZ + bounds.maxZ) / 2;
+    const r = box ? box.r : fitRadius;
     sun.position.set(cx + r * 0.9, r * 2.1 + 2.2, cz + r * 0.55);
     sun.target.position.set(cx, 0, cz);
     fill.position.set(cx - r * 1.2, r * 1.2 + 1.5, cz - r * 1.4);
@@ -246,7 +248,9 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
     renderer.setSize(w, h, false);
     persp.aspect = w / h;
     persp.updateProjectionMatrix();
-    if (bounds) {
+    if (pieceGroup) {
+      if (first) fitPiece(true);
+    } else if (bounds) {
       if (first) { fit3D(true); fitPlan(); }
       else {
         const aspect = w / h;
@@ -265,7 +269,7 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
   let down = null;
   canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
   canvas.addEventListener('pointerup', (e) => {
-    if (!down || !onWallPick) return;
+    if (!down || !onWallPick || pieceGroup) return;
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     const quick = performance.now() - down.t < 600;
     down = null;
@@ -331,6 +335,7 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
     const refit = !bounds || tid !== templateId || Math.abs(radius - fitRadius) / Math.max(0.5, fitRadius) > 0.3;
     bounds = next;
     if (refit) { fitRadius = radius; templateId = tid; }
+    if (pieceGroup) { renderer.shadowMap.needsUpdate = true; request(); return; } // the room is hidden: the camera stays on the piece
     placeLights();
     if (refit && size.w > 0) { fit3D(!queuedFirstFit); fitPlan(); queuedFirstFit = true; }
     updateFades();
@@ -338,6 +343,56 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
     request();
   }
   let queuedFirstFit = false;
+
+  // ---------- one piece alone ----------
+  function pieceBox() {
+    const u = pieceGroup.userData;
+    return { cx: 0, cz: 0, r: Math.max(0.8, Math.hypot(u.width, u.height, u.depth) / 2), h: u.height };
+  }
+  function fitPiece(instant = true) {
+    if (!pieceGroup) return;
+    const b = pieceBox();
+    const c = new THREE.Vector3(0, b.h / 2, 0);
+    const aspect = Math.max(0.5, size.w / Math.max(1, size.h));
+    const dist = (b.r * 1.25) / Math.tan((FOV * Math.PI) / 360) / Math.min(1, aspect * 0.95 + 0.18);
+    const az = 0.5, polar = 1.22;
+    const to = new THREE.Vector3(Math.sin(az) * Math.sin(polar), Math.cos(polar), Math.cos(az) * Math.sin(polar)).multiplyScalar(dist).add(c);
+    orbit.minDistance = Math.max(0.3, b.r * 0.5);
+    if (instant || reduced || size.w === 0) { tween = null; persp.position.copy(to); orbit.target.copy(c); orbit.update(); }
+    else tweenTo(to, c, 650);
+    placeLights(b);
+    request();
+  }
+
+  function setPiece(piece, { fronts = 'closed' } = {}) {
+    if (!piece) {
+      if (!pieceGroup) return;
+      scene.remove(pieceGroup); disposeGroup(pieceGroup); pieceGroup = null; pieceSig = ''; pieceId = null; pieceSize = null;
+      roomGroup.visible = true;
+      orbit.minDistance = 1.2;
+      if (bounds) { placeLights(); if (size.w > 0) fit3D(true); }
+      renderer.shadowMap.needsUpdate = true;
+      request();
+      return;
+    }
+    const sig = pieceSignature(piece, fronts);
+    if (pieceGroup && sig === pieceSig) return;
+    const g = buildPiece(piece, THREE, lib, { fronts });
+    g.position.set(-piece.width / 200, 0, -piece.depth / 200);
+    const wasIn = !!pieceGroup;
+    if (pieceGroup) { scene.remove(pieceGroup); disposeGroup(pieceGroup); }
+    pieceGroup = g; pieceSig = sig;
+    scene.add(g);
+    roomGroup.visible = false;
+    const dim = [piece.width, piece.height, piece.depth];
+    const grown = pieceSize ? dim.some((v, i) => Math.abs(v - pieceSize[i]) / pieceSize[i] > 0.3) : true;
+    const refit = !wasIn || piece.id !== pieceId || grown;
+    pieceId = piece.id;
+    if (refit) pieceSize = dim;
+    if (refit) fitPiece(!wasIn); else placeLights(pieceBox());
+    renderer.shadowMap.needsUpdate = true;
+    request();
+  }
 
   // ---------- public API ----------
   function highlightWall(id) {
@@ -377,10 +432,10 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
   }
 
   return {
-    setProject, focusWall, highlightWall, setView,
+    setProject, setPiece, focusWall, highlightWall, setView,
     getView: () => mode,
     onViewChange(cb) { viewCbs.push(cb); },
-    resetView() { if (mode === 'plan') fitPlan(); else fit3D(false); },
+    resetView() { if (pieceGroup) fitPiece(false); else if (mode === 'plan') fitPlan(); else fit3D(false); },
     resize,
     stats,
     get idle() { return !queued && !tween; },
@@ -391,6 +446,7 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
       ro.disconnect();
       orbit.dispose(); topControls.dispose();
       walls.forEach((e) => disposeGroup(e.group));
+      if (pieceGroup) disposeGroup(pieceGroup);
       if (floor) disposeGroup(floor);
       ground.geometry.dispose(); ground.material.dispose();
       lib.dispose(); envTex.dispose(); pmrem.dispose(); renderer.dispose();

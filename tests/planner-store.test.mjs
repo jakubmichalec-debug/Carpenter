@@ -299,3 +299,87 @@ test('validate: an opening above a sloping ceiling is a blocking error', () => {
   const e = validateProject(p).errors.find((x) => x.code === 'opening-above-ceiling');
   assert.ok(e && e.blocking);
 });
+
+// ---------- piece actions (phase 3) ----------
+test('piece/add selects an unplaced piece and swaps a fresh one for the new type', () => {
+  let s = initialState(bare());
+  assert.equal(s.ui.pieceId, null);
+  s = act(s, { type: 'piece/add', pieceType: 'wardrobe' });
+  assert.equal(s.project.pieces.length, 1);
+  assert.equal(s.ui.pieceId, s.project.pieces[0].id);
+  assert.equal(s.ui.fresh, s.ui.pieceId);
+  assert.equal(s.project.placements.length, 0);
+  s = act(s, { type: 'piece/add', pieceType: 'desk' });
+  assert.equal(s.project.pieces.length, 1, 'untouched piece was replaced');
+  assert.equal(s.project.pieces[0].type, 'desk');
+  s = act(s, { type: 'piece/update', patch: { width: 150 } });
+  assert.equal(s.ui.fresh, null);
+  s = act(s, { type: 'piece/add', pieceType: 'wardrobe' });
+  assert.equal(s.project.pieces.length, 2);
+  assert.equal(s.project.pieces[1].type, 'wardrobe');
+  assert.equal(s.ui.pieceId, s.project.pieces[1].id);
+  s = act(s, { type: 'piece/add', pieceType: 'nope' });
+  assert.equal(s.project.pieces.length, 2);
+});
+
+test('piece update, remove and selection fall back sensibly', () => {
+  let s = initialState(M.createProject());
+  assert.equal(s.ui.pieceId, 'p1');
+  s = act(s, { type: 'ui/piece', id: 'p2' });
+  assert.equal(s.ui.pieceId, 'p2');
+  s = act(s, { type: 'piece/update', patch: { width: 160 } });
+  assert.equal(s.project.pieces[1].width, 160);
+  s = act(s, { type: 'piece/remove' });
+  assert.equal(s.project.pieces.length, 1);
+  assert.equal(s.ui.pieceId, 'p1');
+  assert.equal(s.project.placements.length, 1, 'only its own placement went');
+  s = act(s, { type: 'history/undo' });
+  assert.equal(s.project.pieces.length, 2);
+  s = act(s, { type: 'ui/piece', id: 'nope' });
+  assert.equal(s.ui.pieceId, 'p1');
+  s = act(s, { type: 'piece/remove', id: 'p1' });
+  s = act(s, { type: 'piece/remove', id: 'p2' });
+  assert.equal(s.ui.pieceId, null);
+});
+
+test('interior actions edit items and the selection follows', () => {
+  let s = initialState(bare());
+  s = act(s, { type: 'piece/add', pieceType: 'wardrobe', overrides: { bays: [{ width: 80, items: [] }, { width: 80, items: [] }, { width: 74, items: [] }] } });
+  assert.equal(s.project.pieces[0].bays.length, 3);
+  s = act(s, { type: 'piece/item/add', bay: 1, item: { kind: 'shelf', y: 100 } });
+  assert.equal(s.ui.bay, 1);
+  assert.equal(s.ui.item, 0);
+  s = act(s, { type: 'piece/item/add', bay: 1, item: { kind: 'drawers', y: 0, count: 2 } });
+  assert.equal(s.ui.item, 1);
+  s = act(s, { type: 'piece/item/move', bay: 1, index: 0, y: 140 });
+  assert.equal(s.project.pieces[0].bays[1].items[0].y, M.snapY(140));
+  assert.equal(s.ui.item, 0);
+  s = act(s, { type: 'piece/item/move', bay: 1, index: 0, toBay: 2, y: 50 });
+  assert.equal(s.ui.bay, 2);
+  assert.equal(s.ui.item, 0);
+  assert.equal(s.project.pieces[0].bays[2].items[0].kind, 'shelf');
+  assert.equal(s.project.pieces[0].bays[1].items.length, 1);
+  s = act(s, { type: 'piece/item/update', bay: 1, index: 0, patch: { count: 4 } });
+  assert.equal(s.project.pieces[0].bays[1].items[0].count, 4);
+  s = act(s, { type: 'piece/item/remove', bay: 1, index: 0 });
+  assert.equal(s.ui.item, null);
+  s = act(s, { type: 'piece/preset', bay: 0, preset: 'hanging-shelf' });
+  assert.ok(s.project.pieces[0].bays[0].items.length >= 2);
+  assert.equal(s.ui.bay, 0);
+  s = act(s, { type: 'piece/bays', bays: [60, 100, 72] });
+  assert.deepEqual(s.project.pieces[0].bays.map((b) => b.width), [60, 100, 72]);
+  s = act(s, { type: 'ui/item', bay: 0, index: 0 });
+  assert.equal(s.ui.item, 0);
+  s = act(s, { type: 'ui/bay', bay: 2 });
+  assert.equal(s.ui.bay, 2);
+  assert.equal(s.ui.item, null);
+});
+
+test('piece edits are coalesced like room edits and the reducer stays pure', () => {
+  let s = deepFreeze(initialState(M.createProject()));
+  s = reduce(s, { type: 'piece/update', patch: { width: 180 }, coalesce: 'k', at: 1 });
+  s = reduce(s, { type: 'piece/update', patch: { width: 190 }, coalesce: 'k', at: 2 });
+  assert.equal(s.past.length, 1);
+  s = reduce(s, { type: 'piece/item/add', bay: 0, item: { kind: 'shelf', y: 50 }, at: 3 });
+  assert.equal(s.past.length, 2);
+});
