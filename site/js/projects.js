@@ -245,14 +245,14 @@ function fillInfo(i, swap) {
   $('[data-lb-count]', lb).textContent = `${String(lbPos + 1).padStart(2, '0')} / ${String(lbList.length).padStart(2, '0')}`;
   lb.setAttribute('aria-label', `${p.title}, project details`);
   lbOpen.hidden = !p.preset;
-  lbOpen.href = 'configurator.html';
+  lbOpen.href = 'planner.html';
   lbQuote.href = 'contact.html';
   lbQuote.textContent = p.preset ? 'Get a quote for this design' : 'Discuss a project';
   $('[data-lb-timber]', lb).textContent = `${p.materials.split(',').slice(0, 2).join(',')} \u00b7 ${p.room.split(',').pop().trim()}`;
   if (p.preset) {
     presetHash(p.preset).then((h) => {
       if (!h || data[lbList[lbPos]] !== p) return;
-      lbOpen.href = `configurator.html#design=${h}`;
+      lbOpen.href = `planner.html#design=${h}`;
       lbQuote.href = `contact.html#design=${h}`;
     });
   }

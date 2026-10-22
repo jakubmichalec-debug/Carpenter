@@ -221,7 +221,7 @@ function openDialog(id, origin) {
   $('[data-dlg-care]', dlg).textContent = x.care;
   const cb = $('[data-dlg-compare]', dlg);
   cb.textContent = cmp.includes(id) ? 'In the compare tool' : 'Add to compare'; cb.disabled = cmp.includes(id);
-  const use = $('[data-dlg-use]', dlg); use.href = 'configurator.html';
+  const use = $('[data-dlg-use]', dlg); use.href = 'planner.html';
   configuratorLink(id).then((h) => { if (h && dlgId === id) use.href = h; });
   const l = lenis(); if (l) l.stop();
   dlg.showModal();
@@ -247,7 +247,7 @@ function configuratorLink(id) {
       const [M, S] = libs; let d = M.createDesign(); const m = MATERIALS[id];
       if (m.kind === 'stone') d = M.updateModule(d, 'm2', { worktop: id });
       else d = M.updateModule(d, 'm1', { front: id });
-      return `configurator.html#design=${S.encodeDesign(d)}`;
+      return `planner.html#design=${S.encodeDesign(d)}`;
     } catch (err) { return null; }
   });
 }

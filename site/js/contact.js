@@ -181,7 +181,7 @@ async function initDesign() {
   $('[data-design-mats]').textContent = `Materials: ${mats.join(', ')}.`;
   $('[data-design-total]').textContent = euro(quote.total);
   $('[data-design-weeks]').textContent = `${quote.leadTimeWeeks} weeks`;
-  $('[data-design-edit]').href = `configurator.html#design=${m[1]}`;
+  $('[data-design-edit]').href = `planner.html#design=${m[1]}`;
   $('[data-design-art]').innerHTML = elevation(design, MATERIALS);
 
   // prefill

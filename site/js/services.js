@@ -1,6 +1,6 @@
 // Services page: pinned horizontal galleries, tunable option chips, "Start from this" presets.
 // Everything here is progressive: without GSAP the galleries are native swipe carousels, and without the
-// configurator modules the CTA stays a plain link to configurator.html.
+// configurator modules the CTA stays a plain link to planner.html.
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s, r = document) => r.querySelector(s);
@@ -194,7 +194,7 @@ function initService(section, libs) {
       const d = compute();
       const q = P.quoteDesign(d);
       const rounded = Math.round(q.total / 50) * 50;
-      go.href = `configurator.html#design=${S.encodeDesign(d)}`;
+      go.href = `planner.html#design=${S.encodeDesign(d)}`;
       tweenNumber(priceEl, rounded, animate ? shown : null);
       shown = rounded;
       weeksEl.textContent = q.leadTimeWeeks;
@@ -205,7 +205,7 @@ function initService(section, libs) {
       }
     } catch (err) {
       console.warn('Could not build the preset for', id, err);
-      go.href = 'configurator.html';
+      go.href = 'planner.html';
     }
   };
 
