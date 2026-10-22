@@ -4,7 +4,7 @@ with the same choreography and camera path as site/js/hero3d.js (landscape frami
 Usage: python film.py [--frames 0:144] [--total 144] [--samples 48] [--res 1600x900] [--still P]
 Writes out/frames/f_###.png. --still P renders a single frame at progress P to out/film_still.png.
 """
-import math, os, sys, random
+import math, os, sys, random, time
 _args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 sys.argv = [sys.argv[0]] + [a for a in _args if a in ('--web', '--gpu')] + ['--samples', '0']  # build.py reads argv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -243,7 +243,8 @@ else:
         path = os.path.join(out_dir, f'f_{f:03d}.png')
         if os.path.exists(path) and '--force' not in _args:
             continue
+        t0 = time.time()
         apply(f / (total - 1))
         scene.render.filepath = path
         bpy.ops.render.render(write_still=True)
-        print(f'frame {f} done', flush=True)
+        print(f'frame {f} done in {time.time() - t0:.1f} s on {scene.cycles.device}', flush=True)

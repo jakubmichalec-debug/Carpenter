@@ -313,7 +313,12 @@ if '--gpu' in args:
         if gpus:
             for d in prefs.devices: d.use = d.type == backend
             scene.cycles.device = 'GPU'
-            print('Cycles on', backend, [d.name for d in gpus])
+            # denoise on the GPU too: by default Cycles runs OpenImageDenoise on the CPU after every frame
+            if backend == 'OPTIX':
+                scene.cycles.denoiser = 'OPTIX'
+            elif hasattr(scene.cycles, 'denoising_use_gpu'):
+                scene.cycles.denoiser = 'OPENIMAGEDENOISE'; scene.cycles.denoising_use_gpu = True
+            print('Cycles on', backend, [d.name for d in gpus], '| denoiser', scene.cycles.denoiser)
             break
     else:
         print('No GPU found, rendering on the CPU')
