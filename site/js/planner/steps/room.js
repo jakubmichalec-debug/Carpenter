@@ -57,39 +57,36 @@ const openingName = (room, o) => {
 const wallNo = (id) => String(id).replace(/^w/, '');
 const friendly = (msg) => msg.replace(/\b[Ww]all w(\d+)\b/g, (m, n) => `${m[0] === 'W' ? 'Wall' : 'wall'} ${n}`);
 
-export function createRoomStep(root, { store, announce = () => {}, confirmShape }) {
+export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { store, announce = () => {}, confirmShape }) {
   let state = store.getState();
   let validation = { errors: [] };
   let currentTemplate = null;
-  let planKey = '', inspectorKey = '', chipsKey = '';
+  let planKey = '', inspectorKey = '', chipsKey = '', noticeId = state.ui.notice ? state.ui.notice.id : 0, noticeTimer = 0;
   let frozen = null; // plan transform kept while a handle is dragged, so the drawing does not rescale under the pointer
   let drag = null;
 
+  const SHORT = { rect: 'Rectangle', 'l-shape': 'L-shape', alcoves: 'Alcoves', attic: 'Attic', hallway: 'Hallway', bay: 'Bay window' };
   root.innerHTML = `
-    <section class="pl-sec" aria-labelledby="pl-h-shape">
-      <header class="pl-sec__head">
-        <p class="eyebrow">Step 1 of 5</p>
-        <h2 id="pl-h-shape">Your room</h2>
-        <p class="pl-lede">Start from the shape that is closest to your room, then set its measurements. Everything updates in 3D as you go.</p>
-      </header>
+    <header class="pl-sec__head">
+      <p class="eyebrow">Step 1 of 5</p>
+      <h2 id="pl-h-shape">Your room</h2>
+      <p class="pl-lede">Pick the closest shape, then set its measurements. The plan and the 3D view update as you go.</p>
+    </header>
+    <ul class="pl-notes" id="pl-notes" aria-label="Room checks"></ul>
+
+    <section class="pl-sec" aria-labelledby="pl-h-tpl">
+      <header class="pl-sec__row"><h3 id="pl-h-tpl">Shape</h3></header>
       <div class="pl-cards" role="radiogroup" aria-label="Room shape" id="pl-cards">
         ${Object.entries(TEMPLATES).map(([id, t]) => `
-          <label class="pl-card"><input type="radio" name="pl-template" value="${id}"><span class="pl-card__body">${thumbSvg(id)}<span class="pl-card__name">${esc(t.label)}</span></span></label>`).join('')}
+          <label class="pl-card" title="${esc(t.label)}"><input type="radio" name="pl-template" value="${id}" aria-label="${esc(t.label)}"><span class="pl-card__body">${thumbSvg(id)}<span class="pl-card__name" aria-hidden="true">${esc(SHORT[id])}</span></span></label>`).join('')}
       </div>
     </section>
 
-    <section class="pl-sec" aria-labelledby="pl-h-plan">
-      <header class="pl-sec__row">
-        <h3 id="pl-h-plan">Plan</h3>
-        <p class="pl-stat" aria-live="polite"><span class="pl-stat__label">Floor area</span> <b id="pl-area">0.0 m²</b></p>
-      </header>
-      <div class="pl-plan" id="pl-plan"><svg id="pl-plan-svg" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <p class="pl-hint">Drag a round handle to move a wall, or focus it and use the arrow keys (1 cm, or 10 cm with Shift). Click a wall to work on it below.</p>
-      <ul class="pl-notes" id="pl-notes" aria-label="Room checks"></ul>
-    </section>
-
     <section class="pl-sec" aria-labelledby="pl-h-meas">
-      <header class="pl-sec__row"><h3 id="pl-h-meas">Measurements</h3></header>
+      <header class="pl-sec__row">
+        <h3 id="pl-h-meas">Measurements</h3>
+        <p class="pl-stat" aria-live="polite"><span class="pl-stat__label">Floor area</span> <b id="pl-area">0.0 m\u00b2</b></p>
+      </header>
       <div class="pl-form" id="pl-form"></div>
     </section>
 
@@ -105,9 +102,9 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
           </ul>
         </div>
       </header>
+      <p class="pl-addnote" id="pl-addnote" role="status"></p>
       <div class="pl-chips" id="pl-chips" role="group" aria-label="Choose a wall"></div>
-      <div class="pl-elev" id="pl-elev"><svg id="pl-elev-svg" role="group" aria-label="Elevation of the selected wall" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <p class="pl-hint" id="pl-elev-hint">Drag an opening along the wall or up and down, or focus it and use the arrow keys.</p>
+      <p class="pl-hint" id="pl-elev-hint"></p>
       <div class="pl-inspector" id="pl-inspector" aria-live="off"></div>
     </section>
 
@@ -129,10 +126,11 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
         <div class="pl-form pl-form--one" id="pl-skirt"></div>
       </div>
     </section>`;
+  planBox.innerHTML = '<svg id="pl-plan-svg" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg><p class="pl-canvas-hint">Drag a round handle to move a wall, or focus it and use the arrow keys (1 cm, 10 cm with Shift). Click a wall to select it.</p>';
+  elevBox.innerHTML = '<svg id="pl-elev-svg" role="group" aria-label="Elevation of the selected wall" xmlns="http://www.w3.org/2000/svg"></svg>';
 
   const $ = (sel) => root.querySelector(sel);
-  const planSvg = $('#pl-plan-svg'), planBox = $('#pl-plan');
-  const elevSvg = $('#pl-elev-svg'), elevBox = $('#pl-elev');
+  const planSvg = planBox.querySelector('#pl-plan-svg'), elevSvg = elevBox.querySelector('#pl-elev-svg');
   const formEl = $('#pl-form'), notesEl = $('#pl-notes'), chipsEl = $('#pl-chips'), inspEl = $('#pl-inspector');
   const addBtn = $('#pl-add-btn'), addMenu = $('#pl-add-menu');
 
@@ -239,21 +237,19 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
   }
 
   // ---------- plan ----------
-  function planLayout(room, W) {
-    if (frozen && frozen.W === W) return frozen;
+  function planLayout(room, W, Hb) {
+    if (frozen && frozen.W === W && frozen.H === Hb) return frozen;
     const b = roomBounds(room);
-    const pad = 62;
-    const maxH = Math.min(460, Math.max(300, window.innerHeight * 0.5));
-    const s = Math.min((W - 2 * pad) / Math.max(1, b.width), (maxH - 2 * pad) / Math.max(1, b.depth));
-    const H = Math.round(b.depth * s + 2 * pad);
-    return { W, H, s, ox: pad + (W - 2 * pad - b.width * s) / 2 - b.minX * s, oz: pad - b.minZ * s };
+    const pad = W < 520 ? 46 : 62;
+    const s = Math.max(0.05, Math.min((W - 2 * pad) / Math.max(1, b.width), (Hb - 2 * pad) / Math.max(1, b.depth)));
+    return { W, H: Hb, s, ox: (W - b.width * s) / 2 - b.minX * s, oz: (Hb - b.depth * s) / 2 - b.minZ * s };
   }
 
   function renderPlan() {
-    const W = Math.round(planBox.clientWidth);
-    if (W < 120) return;
+    const W = Math.round(planBox.clientWidth), Hb = Math.round(planBox.clientHeight);
+    if (W < 120 || Hb < 120) return;
     const room = state.project.room;
-    const L = planLayout(room, W);
+    const L = planLayout(room, W, Hb);
     const { s, ox, oz, H } = L;
     const X = (x) => x * s + ox, Z = (z) => z * s + oz;
     const pt = (p) => `${f1(X(p.x))} ${f1(Z(p.z))}`;
@@ -388,6 +384,10 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
     }
   }
 
+  // below 1280 px the plan and the wall are tabs: picking a wall in the plan opens its elevation
+  const compact = window.matchMedia('(max-width: 1279px)');
+  function showWallPane() { if (compact.matches) store.dispatch({ type: 'ui/pane', pane: 'wall' }); }
+
   // plan interaction
   function svgScale() {
     const r = planSvg.getBoundingClientRect();
@@ -400,8 +400,7 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
     const def = (PLAN_HANDLES[room.template.id] || []).find((x) => x.param === h.dataset.handle);
     if (!def) return;
     e.preventDefault();
-    const W = Math.round(planBox.clientWidth);
-    frozen = planLayout(room, W);
+    frozen = planLayout(room, Math.round(planBox.clientWidth), Math.round(planBox.clientHeight));
     const spec = TEMPLATE_PARAMS[room.template.id][def.param];
     drag = {
       ...def, label: spec.label.replace(/ \(.*\)$/, ''), spec, start: room.template.params[def.param],
@@ -434,9 +433,9 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
   planSvg.addEventListener('pointercancel', endDrag);
   planSvg.addEventListener('click', (e) => {
     const o = e.target.closest('[data-opening]');
-    if (o) { store.dispatch({ type: 'ui/opening', id: o.dataset.opening }); return; }
+    if (o) { store.dispatch({ type: 'ui/opening', id: o.dataset.opening }); showWallPane(); return; }
     const w = e.target.closest('[data-wall]');
-    if (w) store.dispatch({ type: 'ui/wall', wallId: w.dataset.wall });
+    if (w) { store.dispatch({ type: 'ui/wall', wallId: w.dataset.wall }); showWallPane(); }
   });
   planSvg.addEventListener('keydown', (e) => {
     const h = e.target.closest && e.target.closest('[data-handle]');
@@ -487,22 +486,22 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
 
   // ---------- wall elevation ----------
   const openDrag = { o: null };
-  function elevLayout(room, wall, W) {
-    const minPad = 54, padT = 44, padB = 38;
-    const maxH = 330;
+  function elevLayout(room, wall, W, Hb) {
+    const minPad = 46, padT = 40, padB = 34;
     const hMax = Math.max(...ceilingProfile(room, wall).map((p) => p[1]), 1);
-    const s = Math.min((W - 2 * minPad) / wall.length, (maxH - padT - padB) / hMax);
+    const s = Math.max(0.05, Math.min((W - 2 * minPad) / wall.length, (Hb - padT - padB) / hMax));
     const padL = Math.round((W - wall.length * s) / 2);
-    return { W, H: Math.round(hMax * s + padT + padB), s, padL, padT, padB, hMax };
+    const top = Math.round((Hb - (hMax * s + padT + padB)) / 2);
+    return { W, H: Hb, s, padL, padT: padT + top, padB: padB + top, hMax };
   }
 
   function renderElev() {
-    const W = Math.round(elevBox.clientWidth);
-    if (W < 120) return;
+    const W = Math.round(elevBox.clientWidth), Hb = Math.round(elevBox.clientHeight);
+    if (W < 120 || Hb < 100) return;
     const room = state.project.room;
     const wall = wallsOf(room).find((w) => w.id === state.ui.wallId);
     if (!wall) { elevSvg.innerHTML = ''; return; }
-    const L = elevLayout(room, wall, W);
+    const L = elevLayout(room, wall, W, Hb);
     const { s, padL, padT, H } = L;
     const X = (u) => padL + u * s, Y = (h) => H - L.padB - h * s;
     const profile = ceilingProfile(room, wall);
@@ -713,8 +712,7 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
     store.dispatch({ type: 'room/opening/add', opening: { type: b.dataset.add } });
     store.dispatch({ type: 'history/seal' });
     if (state.project.room.openings.length > before) announce(`${OPENING_TYPES[b.dataset.add].label} added to wall ${wallNo(state.ui.wallId)}.`);
-    else announce('There is no room for another opening.');
-    requestAnimationFrame(() => { const el = elevSvg.querySelector('.is-selected[data-opening]'); if (el) el.focus({ preventScroll: true }); });
+    if (state.project.room.openings.length > before) showWallPane();
   });
   addMenu.addEventListener('keydown', (e) => {
     const items = [...addMenu.querySelectorAll('button')];
@@ -770,7 +768,7 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
 
   // ---------- update ----------
   const ro = new ResizeObserver(() => { planKey = ''; elevKey = ''; renderPlan(); renderElev(); });
-  ro.observe(planBox);
+  ro.observe(planBox); ro.observe(elevBox);
   let elevKey = '';
 
   function update(next, info = {}) {
@@ -791,6 +789,15 @@ export function createRoomStep(root, { store, announce = () => {}, confirmShape 
     if (ek !== elevKey) { elevKey = ek; if (!root.hidden) renderElev(); }
     renderChips();
     renderInspector();
+    const nt = state.ui.notice;
+    if (nt && nt.id !== noticeId) {
+      noticeId = nt.id;
+      const el = $('#pl-addnote');
+      el.textContent = nt.text;
+      announce(nt.text);
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(() => { el.textContent = ''; }, 6000);
+    }
     renderNotes();
     $('#pl-elev-hint').textContent = state.ui.openingId
       ? 'Drag it along the wall or up and down. Arrow keys nudge by 1 cm, Shift by 10 cm. Delete removes it.'

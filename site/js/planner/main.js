@@ -36,7 +36,7 @@ dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(''); });
 // ---------- steps ----------
 const panels = $$('[data-panel]').map((el) => el);
 const views = [
-  createRoomStep(panels[0], { store, announce, confirmShape }),
+  createRoomStep({ side: panels[0], plan: $('#pl-plan'), elev: $('#pl-elev') }, { store, announce, confirmShape }),
   ...STEP_IDS.slice(1).map((id, i) => createPlaceholderStep(panels[i + 1], id, i + 1))
 ];
 
@@ -112,7 +112,9 @@ document.addEventListener('keydown', (e) => {
 const paneBtns = $$('[data-pane-btn]');
 paneBtns.forEach((b) => b.addEventListener('click', () => store.dispatch({ type: 'ui/pane', pane: b.dataset.paneBtn })));
 function renderPane() {
-  $('.pl-work').dataset.pane = state.ui.pane;
+  const app = $('.pl-app');
+  app.dataset.pane = state.ui.pane;
+  app.dataset.kind = state.ui.step === 0 ? 'room' : 'other';
   paneBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.paneBtn === state.ui.pane)));
 }
 
@@ -143,8 +145,9 @@ async function bootViewer() {
     viewer = createViewer(canvas, { onWallPick: (id) => store.dispatch({ type: 'ui/wall', wallId: id }) });
     viewer.setProject(state.project);
     viewer.highlightWall(state.ui.step === 0 ? state.ui.wallId : null);
-    $$('input[name="pl-view"]').forEach((r) => r.addEventListener('change', () => { if (r.checked) viewer.setView(r.value); }));
-    viewer.onViewChange((m) => $$('input[name="pl-view"]').forEach((r) => { r.checked = r.value === m; }));
+    const top = $('#pl-top');
+    top.addEventListener('click', () => viewer.setView(viewer.getView() === 'plan' ? '3d' : 'plan'));
+    viewer.onViewChange((m) => top.setAttribute('aria-pressed', String(m === 'plan')));
     $('#pl-reset').addEventListener('click', () => viewer.resetView());
     stage.classList.add('is-ready');
     window.gjPlanner = { store, viewer };

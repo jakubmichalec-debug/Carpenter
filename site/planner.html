@@ -117,14 +117,9 @@
       </div>
     </nav>
 
-    <div class="pl-toggle" role="group" aria-label="Show">
-      <button type="button" data-pane-btn="plan" aria-pressed="true">Plan</button>
-      <button type="button" data-pane-btn="3d" aria-pressed="false">3D</button>
-    </div>
-
-    <div class="pl-work" data-pane="plan">
-      <section class="pl-editor" aria-label="Step editor">
-        <div class="pl-editor__scroll" id="pl-scroll" data-lenis-prevent>
+    <div class="pl-app" data-pane="plan" data-kind="room">
+      <aside class="pl-side" aria-label="Step editor">
+        <div class="pl-side__scroll" id="pl-scroll" data-lenis-prevent>
           <div data-panel="0" class="pl-panel"></div>
           <div data-panel="1" hidden class="pl-panel"></div>
           <div data-panel="2" hidden class="pl-panel"></div>
@@ -132,22 +127,34 @@
           <div data-panel="4" hidden class="pl-panel"></div>
           <noscript><p class="pl-hint">The planner needs JavaScript. You can still <a href="contact.html">contact the workshop</a> directly.</p></noscript>
         </div>
-      </section>
+      </aside>
 
-      <section class="pl-viewer" id="pl-stage" aria-label="3D view of the room" data-lenis-prevent>
-        <canvas id="pl-canvas" class="pl-viewer__canvas" tabindex="0" role="img" aria-label="Live 3D view of your room. Drag to orbit, scroll to zoom, click a wall to select it."></canvas>
-        <div class="pl-viewer__bar">
-          <div class="pl-seg" role="radiogroup" aria-label="View">
-            <label><input type="radio" name="pl-view" value="3d" checked><span>3D</span></label>
-            <label><input type="radio" name="pl-view" value="plan"><span>Plan</span></label>
-          </div>
-          <button type="button" class="pl-icon pl-icon--glass" id="pl-reset" aria-label="Reset the view" title="Reset the view">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="pl-main">
+        <div class="pl-tabs" role="group" aria-label="Show">
+          <button type="button" data-pane-btn="plan" aria-pressed="true">Plan</button>
+          <button type="button" data-pane-btn="wall" aria-pressed="false">Wall</button>
+          <button type="button" data-pane-btn="3d" aria-pressed="false">3D</button>
         </div>
-        <p class="pl-viewer__hint">Drag to orbit &middot; scroll to zoom &middot; click a wall to select it</p>
-        <div class="pl-viewer__loading" role="status"><span class="pl-spinner" aria-hidden="true"></span><span>Loading the 3D view&hellip;</span></div>
-        <div class="pl-viewer__fallback"><p><strong>The 3D view is not available.</strong> Your browser could not start WebGL. You can still plan the room with the editor.</p></div>
-      </section>
+        <div class="pl-areas">
+          <div class="pl-planarea">
+            <div class="pl-plan" id="pl-plan"></div>
+            <div class="pl-elev" id="pl-elev"></div>
+          </div>
+          <section class="pl-viewer" id="pl-stage" aria-label="3D view of the room" data-lenis-prevent>
+            <canvas id="pl-canvas" class="pl-viewer__canvas" tabindex="0" role="img" aria-label="Live 3D view of your room. Drag to orbit, scroll to zoom, click a wall to select it."></canvas>
+            <div class="pl-viewer__bar">
+              <button type="button" class="pl-pill" id="pl-top" aria-pressed="false" title="Look straight down at the room">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7l8-3 8 3v10l-8 3-8-3zM4 7l8 3 8-3M12 10v10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Top view</button>
+              <button type="button" class="pl-icon pl-icon--glass" id="pl-reset" aria-label="Reset the view" title="Reset the view">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <p class="pl-viewer__hint">Drag to orbit &middot; scroll to zoom &middot; click a wall to select it</p>
+            <div class="pl-viewer__loading" role="status"><span class="pl-spinner" aria-hidden="true"></span><span>Loading the 3D view&hellip;</span></div>
+            <div class="pl-viewer__fallback"><p><strong>The 3D view is not available.</strong> Your browser could not start WebGL. You can still plan the room with the editor.</p></div>
+          </section>
+        </div>
+      </div>
+
       <div class="pl-foot" role="group" aria-label="Step navigation">
         <button type="button" class="pl-btn pl-btn--ghost" id="pl-back">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as M from '../site/js/planner/model.js';
+import { validateProject } from '../site/js/planner/validate.js';
 import { reduce, initialState, createStore, loadInitialProject, HISTORY_LIMIT, COALESCE_MS } from '../site/js/planner/store.js';
 import { WALL_T, cornerOffsets, wallQuads, ceilingProfile, minCeiling, PLAN_HANDLES } from '../site/js/planner/plan-geom.js';
 
@@ -240,14 +241,41 @@ test('every plan handle names a real parameter and wall', () => {
   }
 });
 
-test('an opening left on a vanished wall can be moved to another wall', () => {
-  let s = initialState(bare()); // alcoves, windows on w5 and w6
-  s = act(s, { type: 'room/template', id: 'rect' });
-  const orphan = s.project.room.openings.find((o) => !s.project.room.walls.some((w) => w.id === o.wallId));
-  assert.ok(orphan && orphan.flagged);
-  s = act(s, { type: 'room/opening/move', id: orphan.id, wallId: 'w2' });
-  const moved = s.project.room.openings.find((o) => o.id === orphan.id);
+test('an opening on a vanished wall can be moved to another wall', () => {
+  let s = initialState(bare());
+  s = { ...s, project: { ...s.project, room: { ...s.project.room, walls: M.roomFromTemplate('rect', {}).walls, openings: [{ id: 'o9', wallId: 'w9', type: 'window', offset: 10, bottom: 90, width: 120, height: 130, flagged: true }] } } };
+  s = act(s, { type: 'room/opening/move', id: 'o9', wallId: 'w2' });
+  const moved = s.project.room.openings[0];
   assert.equal(moved.wallId, 'w2');
   assert.ok(!moved.flagged);
   assert.ok(moved.offset >= 0 && moved.offset + moved.width <= 380);
+});
+
+test('adding an opening uses the largest free gap, and says so when nothing fits', () => {
+  let s = initialState(bare());
+  s = act(s, { type: 'room/template', id: 'rect', params: { width: 420, depth: 380 } });
+  s = { ...s, project: { ...s.project, room: { ...s.project.room, openings: [] } } };
+  s = act(s, { type: 'ui/wall', wallId: 'w1' });
+  s = act(s, { type: 'room/opening/add', opening: { type: 'window', offset: 0, width: 300 } });
+  s = act(s, { type: 'room/opening/add', opening: { type: 'window' } });
+  const b = s.project.room.openings[1];
+  assert.equal(b.offset, 300, 'only the 120 cm gap at the right is free');
+  const before = s.project;
+  s = act(s, { type: 'room/opening/add', opening: { type: 'window' } });
+  assert.equal(s.project, before);
+  assert.match(s.ui.notice.text, /No room on this wall for a 120 cm window/);
+  const n1 = s.ui.notice.id;
+  s = act(s, { type: 'room/opening/add', opening: { type: 'window' } });
+  assert.equal(s.ui.notice.id, n1 + 1);
+});
+
+test('a template change re-homes openings instead of leaving them flagged', () => {
+  for (const id of Object.keys(M.TEMPLATES)) {
+    let s = initialState(M.createProject()); // alcoves with a window on w5 and a door on w6
+    s = act(s, { type: 'room/template', id });
+    const bad = s.project.room.openings.filter((o) => o.flagged);
+    assert.equal(bad.length, 0, `${id}: nothing flagged`);
+    const v = validateProject(s.project).errors.filter((e) => e.ref.type === 'room' || e.ref.type === 'opening');
+    assert.deepEqual(v.map((e) => e.code), [], `${id}: no room warnings`);
+  }
 });

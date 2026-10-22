@@ -30,61 +30,104 @@ export function initialState(project) {
 
 const same = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
-// Finds an offset on a wall where a new opening does not overlap an existing one (searching outward from the middle).
-function freeOffset(room, wall, spec, width) {
-  const bottom = spec.bottom;
-  const height = spec.height;
-  const others = room.openings.filter((o) => o.wallId === wall.id);
-  const max = Math.max(0, Math.floor(wall.length - width));
-  const mid = Math.round((max / 2) / 5) * 5;
-  const clash = (off) => others.some((o) => off < o.offset + o.width && o.offset < off + width && bottom < o.bottom + o.height && o.bottom < bottom + height);
-  for (let d = 0; d <= max; d += 5) {
-    for (const off of d === 0 ? [mid] : [mid - d, mid + d]) {
-      if (off >= 0 && off <= max && !clash(off)) return off;
-    }
+// Free horizontal gaps on a wall for something that spans [bottom, bottom + height]. Openings that do not share
+// that height band do not get in the way (a socket under a window is fine).
+function gapsOn(room, wall, bottom, height, skipId) {
+  const busy = room.openings
+    .filter((o) => o.wallId === wall.id && o.id !== skipId && bottom < o.bottom + o.height && o.bottom < bottom + height)
+    .map((o) => [Math.max(0, o.offset), Math.min(wall.length, o.offset + o.width)])
+    .sort((a, b) => a[0] - b[0]);
+  const gaps = [];
+  let at = 0;
+  for (const [a, b] of busy) {
+    if (a > at) gaps.push([at, a]);
+    at = Math.max(at, b);
   }
-  return Math.min(max, Math.max(0, mid));
+  if (at < wall.length) gaps.push([at, wall.length]);
+  return gaps;
+}
+
+// Offset (multiple of 5 where it fits) that centres `width` in the largest free gap, or null when no gap is big enough.
+export function freeOffset(room, wall, spec, width, skipId) {
+  const gaps = gapsOn(room, wall, spec.bottom, spec.height, skipId).filter(([a, b]) => b - a >= width - 1e-6);
+  if (!gaps.length) return null;
+  gaps.sort((g, h) => (h[1] - h[0]) - (g[1] - g[0]));
+  const [a, b] = gaps[0];
+  let off = Math.round((a + (b - a - width) / 2) / 5) * 5;
+  off = Math.min(Math.max(off, Math.ceil(a)), Math.floor(b - width));
+  return Math.max(0, off);
 }
 
 function newOpening(project, spec, ui) {
   const room = project.room;
   const defs = OPENING_TYPES[spec && spec.type];
-  if (!defs) return null;
+  if (!defs) return { error: null, opening: null };
   const walls = wallsOf(room);
   const wall = walls.find((w) => w.id === (spec.wallId || ui.wallId)) || walls[0];
-  if (!wall) return null;
+  if (!wall) return { error: null, opening: null };
   const o = { ...defs.defaults, ...spec, type: spec.type, wallId: wall.id };
-  o.width = Math.min(o.width, Math.max(defs.width[0], Math.floor(wall.length)));
-  if (!Number.isFinite(o.offset)) o.offset = freeOffset(room, wall, o, o.width);
-  return o;
+  if (!Number.isFinite(o.offset)) {
+    const off = freeOffset(room, wall, o, o.width);
+    if (off === null) return { error: `No room on this wall for a ${o.width} cm ${defs.label.toLowerCase()}.`, opening: null };
+    o.offset = off;
+  }
+  return { error: null, opening: o };
+}
+
+// After a template or measurement change, gives every opening that no longer fits a free spot: first on its own
+// wall, then on the longest other walls. Only if nothing fits does it stay flagged (validation then reports it).
+function rehome(project) {
+  const bad = (room, o) => {
+    const w = room.walls.find((x) => x.id === o.wallId);
+    return !w || o.flagged || o.offset < 0 || o.offset + o.width > wallsOf(room).find((x) => x.id === o.wallId).length + 0.5;
+  };
+  let next = project;
+  for (const o of project.room.openings) {
+    const cur = next.room.openings.find((x) => x.id === o.id);
+    if (!cur || !bad(next.room, cur)) continue;
+    const walls = wallsOf(next.room);
+    const own = walls.find((w) => w.id === cur.wallId);
+    const order = [...(own ? [own] : []), ...walls.filter((w) => w !== own).sort((a, b) => b.length - a.length)];
+    const rest = { ...next.room, openings: next.room.openings.filter((x) => x.id !== cur.id) };
+    for (const w of order) {
+      const width = Math.min(cur.width, Math.floor(w.length));
+      if (width < OPENING_TYPES[cur.type].width[0]) continue;
+      const off = freeOffset(rest, w, { ...cur, width }, width);
+      if (off === null) continue;
+      next = updateOpening(next, cur.id, { wallId: w.id, width, offset: off });
+      break;
+    }
+  }
+  return next;
 }
 
 // Applies a project action. Returns the new project, or the same object when nothing applies.
 function projectAction(project, action, ui) {
   switch (action.type) {
     case 'room/template':
-      return setTemplate(project, action.id, action.params);
+      return rehome(setTemplate(project, action.id, action.params));
     case 'room/params': {
       const t = project.room.template;
-      return t ? setTemplate(project, t.id, action.params) : project;
+      return t ? rehome(setTemplate(project, t.id, action.params)) : project;
     }
     case 'room/update':
       return updateRoom(project, action.patch);
     case 'room/opening/add': {
-      const o = newOpening(project, action.opening || {}, ui);
-      return o ? addOpening(project, o) : project;
+      const { opening } = newOpening(project, action.opening || {}, ui);
+      return opening ? addOpening(project, opening) : project;
     }
     case 'room/opening/update':
       return updateOpening(project, action.id, action.patch);
     case 'room/opening/move': {
-      // puts an opening on another wall (default: the selected one) at a free spot; used to rescue an orphan
+      // puts an opening on another wall (default: the selected one) at a free spot
       const o = project.room.openings.find((x) => x.id === action.id);
       if (!o) return project;
       const wall = wallsOf(project.room).find((w) => w.id === (action.wallId || ui.wallId));
       if (!wall) return project;
-      const others = { ...project.room, openings: project.room.openings.filter((x) => x.id !== o.id) };
+      const rest = { ...project.room, openings: project.room.openings.filter((x) => x.id !== o.id) };
       const width = Math.min(o.width, Math.floor(wall.length));
-      return updateOpening(project, o.id, { wallId: wall.id, width, offset: freeOffset(others, wall, o, width) });
+      const off = freeOffset(rest, wall, { ...o, width }, width);
+      return updateOpening(project, o.id, { wallId: wall.id, width, offset: off === null ? 0 : off });
     }
     case 'room/opening/remove':
       return removeOpening(project, action.id);
@@ -112,7 +155,7 @@ export function reduce(state, action) {
       return { ...state, ui: { ...ui, wallId: o.wallId, openingId: o.id } };
     }
     case 'ui/pane':
-      return action.pane === 'plan' || action.pane === '3d' ? (ui.pane === action.pane ? state : { ...state, ui: { ...ui, pane: action.pane } }) : state;
+      return ['plan', 'wall', '3d'].includes(action.pane) ? (ui.pane === action.pane ? state : { ...state, ui: { ...ui, pane: action.pane } }) : state;
     case 'history/seal':
       return state.key === null ? state : { ...state, key: null };
     case 'history/undo': {
@@ -133,6 +176,10 @@ export function reduce(state, action) {
     }
     default: {
       const next = projectAction(project, action, ui);
+      if (action.type === 'room/opening/add' && same(next, project)) {
+        const { error } = newOpening(project, action.opening || {}, ui);
+        if (error) return { ...state, ui: { ...ui, notice: { id: (ui.notice ? ui.notice.id : 0) + 1, text: error } } };
+      }
       if (next === null || same(next, project)) return state;
       const at = Number.isFinite(action.at) ? action.at : 0;
       const merge = !!action.coalesce && state.key === action.coalesce && at - state.keyAt <= COALESCE_MS && state.past.length > 0;
