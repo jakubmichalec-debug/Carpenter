@@ -735,7 +735,8 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
   // ---------- notes ----------
   function renderNotes() {
     const list = (validation.errors || []).filter((e) => e.ref && (e.ref.type === 'room' || e.ref.type === 'opening'));
-    const placementIssues = (validation.errors || []).filter((e) => e.ref && (e.ref.type === 'placement' || e.ref.type === 'piece' || e.ref.type === 'bay' || e.ref.type === 'item')).length;
+    const placementIssues = new Set((validation.errors || []).filter((e) => e.ref && (e.ref.type === 'placement' || e.ref.type === 'piece' || e.ref.type === 'bay' || e.ref.type === 'item') && e.code !== 'piece-unplaced')
+      .map((e) => e.ref.pieceId || e.ref.id)).size;
     const room = state.project.room;
     const btn = (act, id, text) => `<button type="button" class="pl-link" data-${act}="${esc(id)}">${text}</button>`;
     const items = list.map((e) => {
@@ -744,13 +745,13 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
         const o = room.openings.find((x) => x.id === e.ref.id);
         const wallExists = o && room.walls.some((w) => w.id === o.wallId);
         if (o && !wallExists) actions = btn('move', o.id, `Move to wall ${wallNo(state.ui.wallId)}`) + btn('del', o.id, 'Remove');
-        else if (e.code === 'opening-off-wall' || e.code === 'opening-too-tall') actions = btn('fit', e.ref.id, 'Fit it') + btn('pick', e.ref.id, 'Show');
+        else if (e.code === 'opening-off-wall' || e.code === 'opening-too-tall' || e.code === 'opening-above-ceiling') actions = btn('fit', e.ref.id, 'Fit it') + btn('pick', e.ref.id, 'Show');
         else actions = btn('pick', e.ref.id, 'Show');
       }
       return `<li class="pl-note${e.blocking ? ' pl-note--block' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>${actions ? `<span class="pl-note__actions">${actions}</span>` : ''}</li>`;
     });
     if (placementIssues) {
-      items.push(`<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? 'One placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in step 4, Place.</span></li>`);
+      items.push(`<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? '1 placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in step 4, Place.</span></li>`);
     }
     if (!items.length) items.push(`<li class="pl-note pl-note--ok"><span class="pl-note__icon">${ICON_CHECK}</span><span class="pl-note__text">The room looks good. Nothing needs your attention.</span></li>`);
     const html = items.join('');

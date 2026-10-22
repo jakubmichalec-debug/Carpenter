@@ -3,6 +3,7 @@
 import {
   OPENING_TYPES, createProject, clampProject, setTemplate, updateRoom, addOpening, updateOpening, removeOpening, wallsOf
 } from './model.js';
+import { ceilingProfile, minCeiling } from './plan-geom.js';
 import { encodeProject, decodeProject, saveLocal, loadLocal } from './share.js';
 
 export const HISTORY_LIMIT = 100;   // undo steps kept
@@ -47,15 +48,29 @@ function gapsOn(room, wall, bottom, height, skipId) {
   return gaps;
 }
 
-// Offset (multiple of 5 where it fits) that centres `width` in the largest free gap, or null when no gap is big enough.
+// True when something spanning bottom..bottom+height stays under the ceiling along [off, off + width] of the wall
+// (an attic slope lowers the ceiling toward its knee wall).
+export function fitsUnderCeiling(room, wall, spec, off, width) {
+  const top = (spec.bottom || 0) + spec.height;
+  return minCeiling(ceilingProfile(room, wall), off, off + width) >= top - 0.5;
+}
+
+// Offset (multiple of 5 where it fits) that centres `width` in the largest free gap where the opening also fits under
+// the ceiling, or null when there is no such place.
 export function freeOffset(room, wall, spec, width, skipId) {
   const gaps = gapsOn(room, wall, spec.bottom, spec.height, skipId).filter(([a, b]) => b - a >= width - 1e-6);
-  if (!gaps.length) return null;
   gaps.sort((g, h) => (h[1] - h[0]) - (g[1] - g[0]));
-  const [a, b] = gaps[0];
-  let off = Math.round((a + (b - a - width) / 2) / 5) * 5;
-  off = Math.min(Math.max(off, Math.ceil(a)), Math.floor(b - width));
-  return Math.max(0, off);
+  for (const [a, b] of gaps) {
+    const lo = Math.ceil(a), hi = Math.floor(b - width);
+    const mid = Math.min(Math.max(Math.round((a + (b - a - width) / 2) / 5) * 5, lo), hi);
+    const cand = [];
+    for (let off = lo; off <= hi; off += off === lo && lo % 5 ? 5 - (lo % 5) : 5) cand.push(off);
+    cand.push(mid);
+    cand.sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid));
+    const ok = cand.find((off) => fitsUnderCeiling(room, wall, spec, off, width));
+    if (ok !== undefined) return Math.max(0, ok);
+  }
+  return null;
 }
 
 function newOpening(project, spec, ui) {
@@ -87,7 +102,9 @@ function rehome(project) {
     if (!cur || !bad(next.room, cur)) continue;
     const walls = wallsOf(next.room);
     const own = walls.find((w) => w.id === cur.wallId);
-    const order = [...(own ? [own] : []), ...walls.filter((w) => w !== own).sort((a, b) => b.length - a.length)];
+    const full = (w) => minCeiling(ceilingProfile(next.room, w), 0, w.length) >= next.room.height - 0.5;
+    const others = walls.filter((w) => w !== own).sort((a, b) => (full(b) - full(a)) || (b.length - a.length));
+    const order = [...(own ? [own] : []), ...others];
     const rest = { ...next.room, openings: next.room.openings.filter((x) => x.id !== cur.id) };
     for (const w of order) {
       const width = Math.min(cur.width, Math.floor(w.length));

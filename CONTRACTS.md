@@ -135,7 +135,7 @@ project = {
 | code | blocking | meaning |
 |---|---|---|
 | `room-too-few-walls`, `room-wall-degenerate`, `room-not-clockwise`, `room-self-intersects` | yes | outline problems |
-| `opening-off-wall`, `opening-overlap`, `opening-too-tall` | yes | opening does not fit |
+| `opening-off-wall`, `opening-overlap`, `opening-too-tall`, `opening-above-ceiling` | yes | opening does not fit (`opening-above-ceiling`: taller than the sloping ceiling along its width) |
 | `piece-type-unknown`, `piece-size`, `bays-count`, `bays-width` | yes | piece shape |
 | `item-unknown`, `item-outside-bay`, `item-clearance`, `item-needs-door` | yes | interior |
 | `item-not-allowed`, `item-off-grid` | no | interior advice |
@@ -163,7 +163,7 @@ State: `{ project, past[], future[], key, keyAt, ui }`. `ui = { step: 0..4, wall
 * History: at most `HISTORY_LIMIT` (100) steps. An action with a `coalesce` key joins the previous undo step when the previous action had the same key and is less than `COALESCE_MS` (1200) older; `history/seal` ends a run. Actions that change nothing add no history.
 * Actions. Project: `room/template { id, params? }`, `room/params { params }` (merged into the current template), `room/update { patch: { height, floor, wall, skirting } }`, `room/opening/add { opening: { type, wallId?, offset?, ... } }`, `room/opening/update { id, patch }` (an empty patch re-fits an opening), `room/opening/move { id, wallId? }`, `room/opening/remove { id }`. History: `history/undo`, `history/redo`, `history/seal`. Other: `project/load { project }` (clamped, history reset), `ui/step { step }`, `ui/wall { wallId }`, `ui/opening { id|null }`, `ui/pane { pane }`.
 * Adding an opening without an `offset` centres it in the largest free gap on the wall (openings that share no height band with it are ignored, so a socket may sit under a window). If no gap is wide enough the project is unchanged and `ui.notice = { id (increments), text: 'No room on this wall for a 120 cm window.' }`. `freeOffset(room, wall, spec, width, skipId)` is exported.
-* After `room/template` and `room/params`, every opening that no longer fits (flagged, off its wall or on a wall that is gone) is re-homed: first a free spot on its own wall, then on the longest other walls. Only if nothing fits does it stay flagged, and validation reports it.
+* After `room/template` and `room/params`, every opening that no longer fits (flagged, off its wall or on a wall that is gone) is re-homed: first a free spot on its own wall, then on the longest other walls. A spot must be free and the opening must fit under the ceiling profile along its full width (so not on an attic knee wall unless it is low enough); full-height walls are preferred. Only if nothing fits does it stay flagged, and validation reports it.
 
 ### `plan-geom.js` (pure)
 `WALL_T` = 10 (cm, walls grow outward from the room outline). `cornerOffsets(room, t)` gives the outward mitre vector per corner; `wallQuads(room, t) -> [{ id, index, wall, inner: [p, p], outer: [p, p], shift: [u0, u1] }]`; `wallPoint(wall, u, v)` (u along the wall from its start, v into the room); `ceilingProfile(room, wall) -> [[u, height], ...]` (bent by an attic slope); `minCeiling(profile, u0, u1)`; `roomBounds(room)`; `PLAN_HANDLES[templateId] -> [{ param, wall (0-based index), axis: 'x'|'z', sign, factor? }]`; `snapTo(v, step)`.

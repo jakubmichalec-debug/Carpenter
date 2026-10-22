@@ -2,6 +2,7 @@
 import {
   ITEMS, TYPES, GRID, MIN_BAY, wallsOf, signedArea, footprintOf, ceilingHeightAt, pieceGeometry, pieceLabel, describeItem
 } from './model.js';
+import { ceilingProfile, minCeiling } from './plan-geom.js';
 
 const TOL = 0.5;       // cm of touching we forgive
 const WALKWAY = 60;    // cm to walk past a free-standing piece
@@ -133,6 +134,9 @@ export function validateProject(project) {
       }
       if (isNum(room.height) && o.bottom + o.height > room.height + TOL) {
         add('opening-too-tall', `The ${o.type} reaches above the ${room.height} cm ceiling.`, ref);
+      } else if (wall && isNum(o.offset) && isNum(o.width) && isNum(o.bottom) && isNum(o.height) && o.offset >= -TOL && o.offset + o.width <= wall.length + TOL) {
+        const low = minCeiling(ceilingProfile(room, wall), Math.max(0, o.offset), Math.min(wall.length, o.offset + o.width));
+        if (o.bottom + o.height > low + TOL) add('opening-above-ceiling', `The ${o.type} on wall ${wall.id} is taller than the sloping ceiling there (${Math.round(low)} cm).`, ref);
       }
     });
     for (let i = 0; i < ops.length; i++) {

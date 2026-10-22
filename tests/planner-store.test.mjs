@@ -279,3 +279,23 @@ test('a template change re-homes openings instead of leaving them flagged', () =
     assert.deepEqual(v.map((e) => e.code), [], `${id}: no room warnings`);
   }
 });
+
+test('switching to the attic leaves no opening above the sloping ceiling', () => {
+  for (const wall of [1, 2, 3, 4]) {
+    let s = initialState(M.createProject());
+    s = act(s, { type: 'room/template', id: 'attic', params: { slopeWall: wall } });
+    const errs = validateProject(s.project).errors.filter((e) => e.ref.type === 'room' || e.ref.type === 'opening');
+    assert.deepEqual(errs.map((e) => e.code), [], `slope wall ${wall}`);
+    const slopeId = s.project.room.slope.wallId;
+    for (const o of s.project.room.openings) {
+      if (o.wallId === slopeId) assert.ok(o.bottom + o.height <= s.project.room.slope.lowHeight, 'on the knee wall only if it fits');
+    }
+  }
+});
+
+test('validate: an opening above a sloping ceiling is a blocking error', () => {
+  let p = M.setTemplate(bare(), 'attic', { slopeWall: 1 });
+  p = { ...p, room: { ...p.room, openings: [{ id: 'o1', wallId: 'w1', type: 'door', offset: 100, bottom: 0, width: 90, height: 210, swing: 'in-left' }] } };
+  const e = validateProject(p).errors.find((x) => x.code === 'opening-above-ceiling');
+  assert.ok(e && e.blocking);
+});
