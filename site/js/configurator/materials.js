@@ -86,6 +86,48 @@ function woodCanvas(mat, id, baseHex = mat.color, seedOffset = 0, over = null) {
   return c;
 }
 
+// Straight veneer for planner furniture: fine, nearly parallel growth lines along the canvas x axis, long soft tone
+// drift and short pores. No arches, so doors and boards read as sliced veneer. It is meant to be mapped with about
+// 1.6 m of texture along the grain and 0.6 m across (see planner/piece-geometry.js).
+const VENEER = {
+  oak:         { K: 44, rc: 0.10, e: 9,  fine: 0.06, pore: 0.20, tone: 0.035, seed: 101 },
+  walnut:      { K: 34, rc: 0.14, e: 8,  fine: 0.07, pore: 0.14, tone: 0.05,  seed: 113 },
+  ash:         { K: 50, rc: 0.08, e: 10, fine: 0.05, pore: 0.16, tone: 0.03,  seed: 127 },
+  'birch-ply': { K: 90, rc: 0.05, e: 12, fine: 0.035, pore: 0.03, tone: 0.025, seed: 141 }
+};
+function veneerCanvas(mat, id) {
+  const p = VENEER[id] || VENEER.oak;
+  const c = makeCanvas();
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(N, N);
+  const [br, bg, bb] = hexToRgb(mat.color);
+  const d = img.data;
+  let i = 0;
+  for (let y = 0; y < N; y++) {
+    const v = y / N;
+    for (let x = 0; x < N; x++) {
+      const u = x / N;
+      const h = v * p.K + (vnoise(u, v, 2, 5, p.seed) - 0.5) * 0.9 + (vnoise(u, v, 4, 24, p.seed + 3) - 0.5) * 0.35;
+      const f = h - Math.floor(h);
+      const dark = Math.pow(Math.abs(Math.cos(f * Math.PI)), p.e + 6 * vnoise(u, v, 2, 6, p.seed + 5));
+      const amp = 0.5 + 0.9 * vnoise(u, v, 2, 8, p.seed + 7);
+      const streak = (vnoise(u, v, 3, 260, p.seed + 2) - 0.5) * p.fine + (vnoise(u, v, 10, 420, p.seed + 9) - 0.5) * p.fine * 0.6;
+      const tone = (vnoise(u, v, 1, 3, p.seed + 20) - 0.5) * p.tone * 2;
+      let k = 1 - dark * p.rc * amp + streak + tone;
+      const pv = vnoise(u, v, 48, 460, p.seed + 4);
+      if (pv > 0.82) k -= p.pore * (pv - 0.82) * 5;
+      const dk = k - 1;
+      d[i] = clamp255(br * (1 + dk));
+      d[i + 1] = clamp255(bg * (1 + dk * 1.08));
+      d[i + 2] = clamp255(bb * (1 + dk * 1.25));
+      d[i + 3] = 255;
+      i += 4;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
 function terrazzoCanvas(mat) {
   const c = makeCanvas(256);
   const ctx = c.getContext('2d');
@@ -247,6 +289,18 @@ export function createMaterialLib(THREE) {
       }
       const mat = new THREE.MeshStandardMaterial(opts);
       cache.set(id, mat); disposables.push(mat);
+      return mat;
+    },
+
+    // Straight-grain veneer for furniture fronts and boards (falls back to get() for plain materials).
+    veneer(id) {
+      const def = MATERIALS[id];
+      if (!def || !def.grain) return lib.get(id);
+      const key = `veneer:${id}`;
+      if (cache.has(key)) return cache.get(key);
+      const map = tex(`veneer:${id}`, () => veneerCanvas(def, id));
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map, roughness: def.roughness, metalness: def.metalness, bumpMap: map, bumpScale: 0.25 });
+      cache.set(key, mat); disposables.push(mat);
       return mat;
     },
 

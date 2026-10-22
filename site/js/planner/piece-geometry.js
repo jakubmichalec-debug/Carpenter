@@ -26,7 +26,9 @@ function rngFor(id) {
 // Face order of BoxGeometry: +x, -x, +y, -y, +z, -z. Each face's two axes (u, v). Sizes are in metres here so the
 // wood grain keeps the same scale as in the room and in the old configurator.
 const FACE_AXES = [['z', 'y'], ['z', 'y'], ['x', 'z'], ['x', 'z'], ['x', 'y'], ['x', 'y']];
-function mapUV(geo, size, grain, tile, offU, offV) {
+// Veneer scale: 1.6 m of texture along the grain, 0.6 m across, so grain is never stretched whatever the board's shape.
+const TILE_ALONG = 1.6, TILE_ACROSS = 0.6;
+function mapUV(geo, size, grain, offU, offV) {
   const uv = geo.attributes.uv;
   for (let f = 0; f < 6; f++) {
     let [a, b] = FACE_AXES[f];
@@ -36,7 +38,7 @@ function mapUV(geo, size, grain, tile, offU, offV) {
       const i = f * 4 + k;
       const u0 = uv.getX(i), v0 = uv.getY(i);
       const ua = swap ? v0 : u0, vb = swap ? u0 : v0;
-      uv.setXY(i, (ua * size[a]) / tile + offU, (vb * size[b]) / tile + offV);
+      uv.setXY(i, (ua * size[a]) / TILE_ALONG + offU, (vb * size[b]) / TILE_ACROSS + offV);
     }
   }
   uv.needsUpdate = true;
@@ -54,7 +56,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   root.userData = { pieceId: piece.id, width: W / 100, height: H / 100, depth: D / 100 };
 
   // ----- primitives -----
-  const mat = (id) => lib.get(id);
+  const mat = (id) => (lib.veneer ? lib.veneer(id) : lib.get(id));
   const bodyMat = mat(piece.carcass.material);
   const frontMat = mat(piece.fronts.material);
   const shadow = (m, cast = true) => { m.castShadow = cast; m.receiveShadow = true; return m; };
@@ -63,7 +65,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
     const geo = new THREE.BoxGeometry(Math.max(0.01, w), Math.max(0.01, h), Math.max(0.01, d));
     const m = o.material || mat(o.id || piece.carcass.material);
     if (!o.material && lib.textured(o.id || piece.carcass.material)) {
-      mapUV(geo, { x: w / 100, y: h / 100, z: d / 100 }, o.grain || 'x', lib.tileSize, rnd(), rnd());
+      mapUV(geo, { x: w / 100, y: h / 100, z: d / 100 }, o.grain || 'x', rnd(), rnd());
     }
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x0 + w / 2, y0 + h / 2, z0 + d / 2);

@@ -47,7 +47,7 @@ const showInside = () => { if (compact.matches && state.ui.pane !== 'plan') stor
 const views = [
   createRoomStep({ side: panels[0], plan: $('#pl-plan'), elev: $('#pl-elev') }, { store, announce, confirmShape }),
   createFurnitureStep(panels[1], { store, announce, confirmAction }),
-  createInteriorStep(panels[2], { insideBox: $('#pl-inside'), store, announce, showInside }),
+  createInteriorStep(panels[2], { insideBox: $('#pl-inside'), dock: $('#pl-dock'), store, announce, showInside }),
   ...STEP_IDS.slice(3).map((id, i) => createPlaceholderStep(panels[i + 3], id, i + 3))
 ];
 
@@ -114,7 +114,7 @@ redoBtn.addEventListener('click', () => { store.dispatch({ type: 'history/redo' 
 document.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
   const t = e.target;
-  if (t && t.closest && t.closest('input:not([type=range]), textarea, select, [contenteditable]')) return;
+  if (t && t.closest && t.closest('input:not([type=range]):not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]')) return;
   const k = e.key.toLowerCase();
   if (k === 'z') { e.preventDefault(); store.dispatch({ type: e.shiftKey ? 'history/redo' : 'history/undo' }); }
   else if (k === 'y') { e.preventDefault(); store.dispatch({ type: 'history/redo' }); }
