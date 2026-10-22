@@ -68,6 +68,7 @@ function boot() {
   scanTilt(document);
   scanCounts(document);
   initMarquees();
+  initOffscreenPause();
   doc.classList.add('js-ready');
   window.addEventListener('load', () => site.refresh(), { once: true });
 }
@@ -510,20 +511,33 @@ function initMarquees() {
   const visible = new Set();
   const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)))) : null;
   items.forEach((it) => { if (io) io.observe(it.m); else visible.add(it.m); });
+  // runs only while the page scrolls and the speed is still settling, then sleeps until the next scroll
+  let raf = 0;
   const tick = () => {
     const y = window.scrollY; const dy = y - lastY; lastY = y;
     vel = lerp(vel, dy, 0.12);
     if (Math.abs(dy) > 0.5) dir = dy > 0 ? 1 : -1;
     const target = dir * (1 + Math.min(10, Math.abs(vel) * 0.45));
     rate = lerp(rate, target, 0.07);
+    const settled = Math.abs(vel) < 0.05 && Math.abs(rate - target) < 0.01;
+    if (settled) rate = target;
     items.forEach((it) => {
       if (!visible.has(it.m)) return;
       if (!it.anim) it.anim = it.track.getAnimations()[0] || null;
-      if (it.anim) it.anim.playbackRate = rate;
+      if (it.anim && Math.abs(it.anim.playbackRate - rate) > 0.005) it.anim.playbackRate = rate;
     });
-    requestAnimationFrame(tick);
+    raf = settled ? 0 : requestAnimationFrame(tick);
   };
-  requestAnimationFrame(tick);
+  window.addEventListener('scroll', () => { if (!raf) { lastY = window.scrollY; raf = requestAnimationFrame(tick); } }, { passive: true });
+}
+
+/* ------------------------------------------------------------------ Pause looping CSS animations off screen */
+// Infinite CSS animations keep ticking (and restyling) while scrolled away; pause the subtree until it is near view.
+function initOffscreenPause() {
+  const els = $$('.marquee, .cab, [data-pause-offscreen]');
+  if (!els.length || !('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('is-offscreen', !e.isIntersecting)), { rootMargin: '120px 0px' });
+  els.forEach((el) => io.observe(el));
 }
 
 /* start (at the end of the module so every const above is initialised) */

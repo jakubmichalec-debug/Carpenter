@@ -57,8 +57,10 @@ export async function createFramePlayer(canvas, opts = {}) {
     return pos - below <= above - pos ? below : above;
   };
 
-  // coarse to fine background loading; a newly loaded frame only causes a redraw if it is now the nearest one
-  (async () => {
+  // coarse to fine background loading; a newly loaded frame only causes a redraw if it is now the nearest one.
+  // `loaded` resolves once every frame has been tried; opts.onLoad(count) reports progress for a preloader.
+  let loadedCount = 2;
+  const loaded = (async () => {
     const order = [];
     const seen = new Set([0, FRAME_COUNT - 1]);
     for (const step of [16, 8, 4, 2, 1]) {
@@ -71,9 +73,12 @@ export async function createFramePlayer(canvas, opts = {}) {
           frames[i] = await loadImage(src(i));
           if (nearestTo(state.current * (FRAME_COUNT - 1)) !== drawn) invalidate();
         } catch { /* a missing frame falls back to its neighbours */ }
+        loadedCount++;
+        if (opts.onLoad) opts.onLoad(loadedCount);
       }
     };
-    await Promise.all([worker(), worker(), worker(), worker()]);
+    // six parallel requests: GitHub Pages serves HTTP/2, and the frames are small (about 23 KB each)
+    await Promise.all(Array.from({ length: opts.eager === false ? 2 : 6 }, worker));
   })();
 
   // Performance: one drawImage per change of frame, into a canvas no denser than the frames themselves
@@ -147,6 +152,7 @@ export async function createFramePlayer(canvas, opts = {}) {
     setVisible(v) { state.visible = v; if (v) invalidate(); },
     resize,
     get progress() { return state.current; },
+    loaded,
     mode: 'frames',
   };
 }

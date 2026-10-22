@@ -1,14 +1,31 @@
+<!doctype html>
 <!--
   Home page. Follows site/_shell.html. Unsplash photos are credited in credits.html and README.md
   (see tmp/credits-home.txt for the list of photos used here).
 -->
-<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Built-in furniture, made to measure · Grain &amp; Joint</title>
   <meta name="description" content="Grain &amp; Joint designs and builds wardrobes, kitchens, wall units, desks, tables and window seats that fit your walls to the millimetre. Design yours in 3D.">
+  <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Grain &amp; Joint">
+  <meta property="og:title" content="Built-in furniture, made to measure · Grain &amp; Joint">
+  <meta property="og:description" content="Grain &amp; Joint designs and builds wardrobes, kitchens, wall units, desks, tables and window seats that fit your walls to the millimetre. Design yours in 3D.">
+  <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/">
+  <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f6f6f3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <link rel="preload" as="image" href="assets/hero-frames/f_000.webp" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/hero-frames/f_119.webp">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -26,10 +43,24 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
   <script type="module" src="js/app.js"></script>
-  <script type="module" src="js/hero3d.js"></script>
+  <script type="module" src="js/hero.js"></script>
   <script type="module" src="js/home.js"></script>
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "WebSite", "name": "Grain & Joint", "url": "https://jakubmichalec-debug.github.io/Carpenter/",
+   "description": "Concept website for a fictional carpentry studio: built-in wardrobes, kitchens and wall units, with a 3D configurator."}
+  </script>
 </head>
 <body data-page="home">
+  <!-- Preloader: covers the page until the hero's frames have loaded (js/hero.js), so the first scroll is smooth -->
+  <div class="preloader" id="preloader" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="preloader__inner">
+      <svg class="preloader__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+      <p class="preloader__title">Setting up the workshop</p>
+      <div class="preloader__bar" aria-hidden="true"><i></i></div>
+      <p class="preloader__pct" aria-hidden="true">0%</p>
+    </div>
+  </div>
+  <noscript><style>.preloader{display:none}</style></noscript>
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="page-wipe" aria-hidden="true"></div>
   <header class="site-header">
@@ -281,22 +312,21 @@
           <p class="eyebrow" data-reveal="fade">Before &amp; after</p>
           <h2 class="section-head__title" data-split>A bare wall becomes the <em>best</em> wall.</h2>
           <div class="section-head__aside" data-reveal>
-            <p>Drag the handle, or focus it and use the arrow keys, to compare the same alcove bare and then fitted with an oak shelving unit, a desk and an LED strip.</p>
+            <p>Drag the handle, or focus it and use the arrow keys, to compare the same alcove empty and then fitted with a built-in oak wardrobe.</p>
           </div>
         </header>
         <div class="ba" data-ba data-cursor="Drag" data-reveal="scale">
-          <img class="ba__img" id="ba-after" alt="After: the same alcove fitted with a built-in oak shelving unit, a desk and a warm LED strip" width="1600" height="1000">
+          <img class="ba__img" id="ba-after" src="assets/3d/ba-after.webp" loading="lazy" decoding="async" alt="After: the same alcove fitted with a built-in oak wardrobe, doors open and lit by warm LED strips" width="1600" height="1000">
           <div class="ba__before">
-            <img class="ba__img" id="ba-before" alt="Before: the same alcove, a bare wall with a skirting board" width="1600" height="1000">
+            <img class="ba__img" id="ba-before" src="assets/3d/ba-before.webp" loading="lazy" decoding="async" alt="Before: the same alcove, empty, in a furnished room" width="1600" height="1000">
           </div>
-          <p class="ba__nogl">The before and after are drawn live with WebGL, which this browser has switched off.</p>
-          <span class="ba__tag ba__tag--before" aria-hidden="true">Before</span>
+                    <span class="ba__tag ba__tag--before" aria-hidden="true">Before</span>
           <span class="ba__tag ba__tag--after" aria-hidden="true">After</span>
           <div class="ba__handle" role="slider" tabindex="0" aria-label="Compare before and after" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="Showing 50% before">
             <span class="ba__grip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </div>
         </div>
-        <p class="ba__caption" data-reveal="fade">Both views are 3D renders of the same alcove from the same camera, drawn in your browser. Your own before and after starts with a tape measure.</p>
+        <p class="ba__caption" data-reveal="fade">Both views are path-traced renders of the same alcove from the same camera. Your own before and after starts with a tape measure.</p>
       </div>
     </section>
 

@@ -1,5 +1,5 @@
 /* Grain & Joint design tokens and base styles. Page CSS uses these variables only. */
-@import url('https://fonts.googleapis.com/css2?family=Young+Serif&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* fonts load from a <link> in each page head (with preconnect), not an @import: one round trip less before first paint */
 
 :root {
   /* Ash & Slate on light paper. --oak/--oak-deep/--oak-light keep their names but now hold the slate accent. */

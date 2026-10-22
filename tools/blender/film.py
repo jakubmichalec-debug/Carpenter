@@ -219,6 +219,19 @@ def apply(pRaw):
     cam_data.dof.focus_distance = (pos - Vector((0, 1.15, 0.6))).length
 
 out_dir = os.path.join(S.OUT, 'frames'); os.makedirs(out_dir, exist_ok=True)
+if '--ba' in _args:
+    # before/after pair for the Home slider: the same alcove from one camera, empty and then fitted
+    scene.render.resolution_x, scene.render.resolution_y = 1600, 1000
+    apply(1.0)
+    cam_data.angle_y = math.radians(38)
+    pos = Vector((0.75, 1.35, 4.6)); cam.location = B(*pos); S.look_at(cam, B(0.1, 1.15, 0.4))
+    cam_data.dof.focus_distance = (pos - Vector((0, 1.15, 0.6))).length
+    for name, show in (('ba-after', True), ('ba-before', False)):
+        for ob in list(S.wardrobe.objects) + list(S.leds) + list(S.led_lights):
+            ob.hide_render = not show
+        scene.render.filepath = os.path.join(S.OUT, f'{name}.png')
+        bpy.ops.render.render(write_still=True)
+    sys.exit(0)
 total = int(arg('--total', 144))
 if arg('--still') is not None:
     apply(float(arg('--still')))

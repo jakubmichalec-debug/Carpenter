@@ -34,6 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Leave out the page template
+        run: rm -f site/_shell.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

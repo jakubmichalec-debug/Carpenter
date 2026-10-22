@@ -3,7 +3,6 @@
  * testimonials carousel. Shared behaviour (Lenis, reveals, cursor, tilt, counters, marquee) is in app.js.
  */
 import { site } from './app.js';
-import { renderAlcovePair } from './alcove.js';
 
 const reduced = site.reduced;
 const $ = (s, r = document) => r.querySelector(s);
@@ -68,22 +67,12 @@ function initBeforeAfter() {
   const ba = $('[data-ba]');
   if (!ba) return;
   const handle = $('.ba__handle', ba);
-  // draw the two alcove renders when the slider is about to scroll into view
+  // the two Cycles renders (assets/3d/ba-*.webp) are plain lazy images; reveal the slider once both are decoded
   let renderDone;
   const rendered = new Promise((r) => { renderDone = r; });
-  const pre = new IntersectionObserver((es) => {
-    if (!es[0].isIntersecting) return;
-    pre.disconnect();
-    setTimeout(() => {
-      try {
-        const { before, after } = renderAlcovePair({ width: 1600, height: 1000 });
-        $('#ba-before').src = before; $('#ba-after').src = after;
-        ba.classList.add('is-rendered');
-      } catch (err) { console.warn('Alcove render unavailable', err); ba.classList.add('ba--nogl'); }
-      renderDone();
-    }, 60);
-  }, { rootMargin: '900px 0px' });
-  pre.observe(ba);
+  const imgs = [$('#ba-before'), $('#ba-after')];
+  Promise.all(imgs.map((im) => (im.complete && im.naturalWidth ? Promise.resolve() : new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); }))))
+    .then(() => { ba.classList.add('is-rendered'); renderDone(); });
   let pos = 50; let raf = 0; let userTouched = false;
   const set = (v, fromUser) => {
     pos = clamp(v, 0, 100);

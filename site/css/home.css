@@ -187,9 +187,6 @@
 .ba__handle:hover .ba__grip, .ba__handle:focus-visible .ba__grip { transform: scale(1.12); background: var(--oak); }
 .ba__handle:focus-visible .ba__grip { outline: 3px solid var(--focus); outline-offset: 3px; }
 .ba.is-dragging .ba__grip { transform: scale(.92); }
-.ba__nogl { display: none; position: absolute; inset: 0; z-index: 5; margin: 0; padding: 2rem; max-width: none; place-items: center; text-align: center; background: var(--paper-3); }
-.ba--nogl .ba__nogl { display: grid; }
-.ba--nogl .ba__handle, .ba--nogl .ba__tag { display: none; }
 .ba__caption { margin: var(--space-3) 0 0; font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-3); }
 @media (max-width: 700px) { .ba { aspect-ratio: 1.1 / 1; border-radius: var(--radius-m); } }
 
@@ -283,3 +280,21 @@
 /* ---------- Timber captions on the service cards (Dark Grain, light) ---------- */
 .service__timber { font-family: var(--font-body); font-size: .66rem; font-weight: 600; letter-spacing: .1em; line-height: 1.3; text-transform: uppercase; color: color-mix(in srgb, var(--paper) 88%, transparent); }
 .service__body { gap: .4rem; }
+
+/* ---------- Preloader (home): covers the page until the hero frames are in, see js/hero.js ---------- */
+html.is-preloading, html.is-preloading body { overflow: hidden; }
+.preloader {
+  position: fixed; inset: 0; z-index: 250; display: grid; place-items: center; background: var(--paper);
+  transition: opacity .7s var(--ease-out), transform .9s var(--ease-in-out), visibility 0s .9s;
+  /* safety net: never trap the page if the script fails */
+  animation: preloader-failsafe 0s 15s forwards;
+}
+.preloader.is-done { opacity: 0; transform: translate3d(0, -2%, 0); visibility: hidden; pointer-events: none; }
+.preloader__inner { display: grid; justify-items: center; gap: var(--space-3); width: min(320px, 80vw); text-align: center; }
+.preloader__mark { width: 40px; height: 40px; color: var(--ink); }
+.preloader__title { margin: 0; font-family: var(--font-display); font-size: var(--step-1); color: var(--ink); }
+.preloader__bar { width: 100%; height: 2px; background: var(--line); overflow: hidden; border-radius: 2px; }
+.preloader__bar i { display: block; height: 100%; background: var(--oak); transform: scaleX(0); transform-origin: left; transition: transform .25s var(--ease-out); }
+.preloader__pct { margin: 0; font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .12em; color: var(--ink-3); }
+@keyframes preloader-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+@media (prefers-reduced-motion: reduce) { .preloader { transition: none; } }

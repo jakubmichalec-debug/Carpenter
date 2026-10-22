@@ -20,10 +20,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { createFramePlayer } from './hero-frames.js';
 
-const root = document.querySelector('[data-hero]');
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -583,103 +580,4 @@ function createHero(canvas, opts = {}) {
   };
 }
 
-/* ------------------------------------------------------------ DOM wiring */
-async function initHero() {
-  const canvas = root.querySelector('.hero__canvas');
-  const track = root.querySelector('.hero__track');
-  const stage = root.querySelector('.hero__stage');
-  const stageEl = stage;
-  const copy = root.querySelector('.hero__copy');
-  const hint = root.querySelector('.hero__scroll');
-  const chapters = root.querySelector('.hero__chapters');
-  const chapterItems = [...root.querySelectorAll('[data-chapter]')];
-  const bar = root.querySelector('.hero__bar i');
-  const end = root.querySelector('.hero__end');
-
-  const showStill = () => { root.classList.add('hero--still'); };
-  let hero;
-  const ground = (getComputedStyle(document.documentElement).getPropertyValue('--paper-2') || '').trim() || '#e9e8e3';
-  try {
-    hero = await createFramePlayer(canvas, { still: reducedMotion, onFrame: reducedMotion ? null : onProgress, background: ground });
-    root.classList.add('hero--frames');
-  } catch (frameErr) {
-    console.warn('Hero frames unavailable, using the live 3D scene.', frameErr);
-    try {
-      hero = createHero(canvas, { still: reducedMotion, small: window.innerWidth < 700, onFrame: reducedMotion ? null : onProgress });
-    } catch (err) {
-      console.warn('Hero 3D unavailable, showing the still composition.', err);
-      showStill();
-      return;
-    }
-  }
-
-  let lastChapter = -1;
-  function onProgress(p) {
-    const pe = clamp(p / 0.97, 0, 1);
-    if (copy) {
-      const f = smooth(range(p, 0.025, 0.12));
-      copy.style.opacity = String(1 - f);
-      copy.style.transform = `translate3d(0, ${(-f * 48).toFixed(1)}px, 0)`;
-      copy.inert = f > 0.5;
-    }
-    stageEl.style.setProperty('--vig', String(1 - smooth(range(p, 0.02, 0.16))));
-    if (hint) hint.style.opacity = String(1 - smooth(range(p, 0.005, 0.04)));
-    if (chapters) {
-      const f = smooth(range(p, 0.1, 0.18)) * (1 - smooth(range(p, 0.86, 0.92)));
-      chapters.style.opacity = String(f);
-      if (bar) bar.parentElement.style.opacity = String(f);
-    }
-    if (end) {
-      const f = smooth(range(p, 0.88, 0.97));
-      end.style.opacity = String(f);
-      end.style.transform = `translate3d(0, ${((1 - f) * 36).toFixed(1)}px, 0)`;
-      end.inert = f < 0.5;
-    }
-    if (bar) bar.style.transform = `scaleY(${pe.toFixed(3)})`;
-    const ch = pe < 0.25 ? 0 : pe < 0.59 ? 1 : pe < 0.87 ? 2 : 3;
-    if (ch !== lastChapter) {
-      lastChapter = ch;
-      chapterItems.forEach((li, i) => { li.classList.toggle('is-active', i === ch); li.classList.toggle('is-done', i < ch); });
-    }
-  }
-
-  const ro = new ResizeObserver(() => hero.resize());
-  ro.observe(stage);
-  hero.resize();
-  root.classList.add('hero--ready');
-
-  if (reducedMotion) {
-    root.classList.add('hero--static');
-    hero.jump(1);
-    return;
-  }
-
-  const io = new IntersectionObserver((es) => es.forEach((e) => hero.setVisible(e.isIntersecting)), { rootMargin: '10% 0px' });
-  io.observe(track);
-
-  window.addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'touch') return;
-    hero.pointer((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
-  }, { passive: true });
-
-  const drive = () => {
-    const r = track.getBoundingClientRect();
-    const total = r.height - window.innerHeight;
-    hero.setTarget(total > 0 ? clamp(-r.top / total, 0, 1) : 0);
-  };
-  if (window.gsap && window.ScrollTrigger) {
-    window.gsap.registerPlugin(window.ScrollTrigger);
-    window.ScrollTrigger.create({ trigger: track, start: 'top top', end: 'bottom bottom', onUpdate: (self) => hero.setTarget(self.progress), onRefresh: (self) => hero.setTarget(self.progress) });
-  } else {
-    window.addEventListener('scroll', drive, { passive: true });
-    drive();
-  }
-  window.__hero = hero;
-}
-
-if (root) {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initHero, { once: true });
-  else initHero();
-}
-
-export { grainCanvas, rotated, floorCanvas, rng };
+export { createHero, grainCanvas, rotated, floorCanvas, rng };

@@ -105,3 +105,6 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
   .page-wipe { display: none !important; }
   .mobile-menu, .mobile-menu a { transition: none !important; }
 }
+
+/* app.js pauses looping animations that are scrolled out of view */
+.is-offscreen, .is-offscreen * { animation-play-state: paused !important; }

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jakubmichalec-debug.github.io/Carpenter/sitemap.xml

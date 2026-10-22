@@ -140,6 +140,7 @@
   transition: opacity var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3);
 }
 .cfg__loading.is-done { opacity: 0; visibility: hidden; pointer-events: none; }
+.cfg__loading.is-done .cfg__spinner { animation: none; } /* a hidden spinner still costs a style recalc every frame */
 .cfg__loading[hidden] { display: none; }
 .cfg__spinner { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--oak-deep); animation: cfg-spin .9s linear infinite; }
 @keyframes cfg-spin { to { transform: rotate(360deg); } }
