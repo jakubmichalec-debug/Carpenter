@@ -57,12 +57,15 @@ choice /M "Render all 120 frames now (about 30-60 minutes)"
 if errorlevel 2 goto :end
 
 echo [5/5] Rendering 120 frames. A line appears as each frame finishes; frames go to out\frames\
+echo   Frames that already exist are skipped. To redo them all, delete the out\frames folder first.
 "%BLENDER%" -b -P film.py -- --gpu --total 120 --samples 64 --res 1920x1080 | findstr /C:"Cycles on" /C:"done" /C:"Error" /C:"Traceback"
+echo Rendering the before/after pair for the Home slider...
+"%BLENDER%" -b -P film.py -- --gpu --ba --samples 128 | findstr /C:"Cycles on" /C:"Saved:" /C:"Error" /C:"Traceback"
 %PY% frames_to_web.py
 echo.
 echo Done. Now commit and push the frames:
 echo   cd ..\..
-echo   git add site/assets/hero-frames
+echo   git add site/assets
 echo   git commit -m "Hero frames: 1080p GPU render"
 echo   git push
 
