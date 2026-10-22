@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planner · Grain &amp; Joint</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Plan your room step by step: pick a shape, set its measurements, add doors, windows and radiators, and watch it appear in 3D.">
+  <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/planner.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Grain &amp; Joint">
+  <meta property="og:title" content="Planner · Grain &amp; Joint">
+  <meta property="og:description" content="Plan your room step by step: pick a shape, set its measurements, add doors, windows and radiators, and watch it appear in 3D.">
+  <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/planner.html">
+  <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f6f6f3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/planner.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/planner/main.js"></script>
+</head>
+<body data-page="planner">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-wipe" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="index.html" aria-label="Grain &amp; Joint home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 28V4h10v10h14v14z" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14v14" stroke="currentColor" stroke-width="2.2"/></svg>
+        <span class="brand__name">Grain <em>&amp;</em> Joint</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="process.html">Process</a></li>
+          <li><a href="materials.html">Materials</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn site-header__cta" href="configurator.html" data-magnetic>Design yours</a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"><span class="visually-hidden">Menu</span><i></i><i></i></button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" hidden>
+      <ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="projects.html">Projects</a></li>
+        <li><a href="process.html">Process</a></li>
+        <li><a href="materials.html">Materials</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="configurator.html">Design yours →</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main" class="pl">
+    <h1 class="visually-hidden">Room planner</h1>
+    <nav class="pl-stepper" aria-label="Planner steps">
+      <div class="container pl-stepper__inner">
+      <ol class="pl-stepper__list">
+        <li class="pl-step">
+          <button type="button" class="pl-step__btn">
+            <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">1</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 1: </span>Room</span>
+            <span class="pl-step__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="pl-step">
+          <button type="button" class="pl-step__btn">
+            <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">2</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 2: </span>Furniture</span>
+            <span class="pl-step__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="pl-step">
+          <button type="button" class="pl-step__btn">
+            <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">3</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 3: </span>Interior</span>
+            <span class="pl-step__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="pl-step">
+          <button type="button" class="pl-step__btn">
+            <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">4</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 4: </span>Place</span>
+            <span class="pl-step__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="pl-step">
+          <button type="button" class="pl-step__btn">
+            <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">5</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 5: </span>Review</span>
+            <span class="pl-step__state visually-hidden"></span>
+          </button>
+        </li>
+      </ol>
+      </div>
+    </nav>
+
+    <div class="pl-toggle" role="group" aria-label="Show">
+      <button type="button" data-pane-btn="plan" aria-pressed="true">Plan</button>
+      <button type="button" data-pane-btn="3d" aria-pressed="false">3D</button>
+    </div>
+
+    <div class="pl-work" data-pane="plan">
+      <section class="pl-editor" aria-label="Step editor">
+        <div class="pl-editor__scroll" id="pl-scroll" data-lenis-prevent>
+          <div data-panel="0" class="pl-panel"></div>
+          <div data-panel="1" hidden class="pl-panel"></div>
+          <div data-panel="2" hidden class="pl-panel"></div>
+          <div data-panel="3" hidden class="pl-panel"></div>
+          <div data-panel="4" hidden class="pl-panel"></div>
+          <noscript><p class="pl-hint">The planner needs JavaScript. You can still <a href="contact.html">contact the workshop</a> directly.</p></noscript>
+        </div>
+      </section>
+
+      <section class="pl-viewer" id="pl-stage" aria-label="3D view of the room" data-lenis-prevent>
+        <canvas id="pl-canvas" class="pl-viewer__canvas" tabindex="0" role="img" aria-label="Live 3D view of your room. Drag to orbit, scroll to zoom, click a wall to select it."></canvas>
+        <div class="pl-viewer__bar">
+          <div class="pl-seg" role="radiogroup" aria-label="View">
+            <label><input type="radio" name="pl-view" value="3d" checked><span>3D</span></label>
+            <label><input type="radio" name="pl-view" value="plan"><span>Plan</span></label>
+          </div>
+          <button type="button" class="pl-icon pl-icon--glass" id="pl-reset" aria-label="Reset the view" title="Reset the view">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <p class="pl-viewer__hint">Drag to orbit &middot; scroll to zoom &middot; click a wall to select it</p>
+        <div class="pl-viewer__loading" role="status"><span class="pl-spinner" aria-hidden="true"></span><span>Loading the 3D view&hellip;</span></div>
+        <div class="pl-viewer__fallback"><p><strong>The 3D view is not available.</strong> Your browser could not start WebGL. You can still plan the room with the editor.</p></div>
+      </section>
+      <div class="pl-foot" role="group" aria-label="Step navigation">
+        <button type="button" class="pl-btn pl-btn--ghost" id="pl-back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>
+        <div class="pl-foot__hist">
+          <button type="button" class="pl-icon" id="pl-undo" aria-label="Undo" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4 12l5 5M4 12h10a6 6 0 010 12" transform="translate(0 -4)" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="pl-icon" id="pl-redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5M20 12H10a6 6 0 000 12" transform="translate(0 -4)" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <button type="button" class="pl-btn pl-btn--primary" id="pl-next"><span id="pl-next-label">Next: Furniture</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+
+    <p class="visually-hidden" id="pl-live" role="status" aria-live="polite"></p>
+    <dialog class="pl-dialog" id="pl-confirm" aria-labelledby="pl-confirm-title">
+      <form method="dialog">
+        <h2 id="pl-confirm-title">Change the room shape?</h2>
+        <p id="pl-confirm-text"></p>
+        <div class="pl-dialog__actions">
+          <button type="submit" value="keep" class="pl-btn pl-btn--ghost">Keep this room</button>
+          <button type="submit" value="change" class="pl-btn pl-btn--primary">Change shape</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div>
+        <p class="site-footer__big">Joinery workshop<br>in Antwerp.</p>
+        <a class="btn btn--ghost" href="configurator.html">Start a design</a>
+      </div>
+      <div class="site-footer__cols">
+        <div><p class="eyebrow">Studio</p><p>Workshop 4, Timber Lane<br>Antwerp, Belgium</p></div>
+        <div><p class="eyebrow">Talk</p><p>hello@grainandjoint.example<br>+32 3 000 00 00<br><a href="contact.html#samples">Order a sample box</a></p></div>
+        <div><p class="eyebrow">Site</p><p><a href="credits.html">Image credits</a><br>A concept project, not a real company.</p></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
