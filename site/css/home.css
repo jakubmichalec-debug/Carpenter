@@ -29,8 +29,9 @@
 .hero__eyebrow { margin: 0 0 var(--space-3); display: flex; align-items: center; gap: .8rem; color: var(--ink-2); }
 .hero__eyebrow::before { content: ""; width: 2.4rem; height: 1px; background: currentColor; }
 .hero__title {
-  margin: 0 0 var(--space-4); max-width: 11ch;
-  font-size: var(--title-hero); font-weight: 400; line-height: .93; letter-spacing: -.02em;
+  margin: 0 0 var(--space-4); max-width: 15ch;
+  /* sized by height too, so a short laptop screen never pushes the headline up into the header */
+  font-size: clamp(2.6rem, min(1.1rem + 4.4vw, 11.5vh), 6.4rem); font-weight: 400; line-height: .93; letter-spacing: -.02em;
 }
 .hero__title em { font-style: normal; color: var(--oak); }
 .hero__lede { max-width: 34ch; margin: 0 0 var(--space-4); font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); }
