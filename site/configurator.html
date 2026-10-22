@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Design Studio · Grain &amp; Joint</title>
-  <meta name="description" content="Design your built-in furniture in 3D, see the live price and send it to the workshop.">
+  <title>Planner · Grain &amp; Joint</title>
+  <meta name="description" content="Plan built-in furniture for your room in 3D, see the price as you go and send the design to us for a quote.">
   <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/configurator.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Grain &amp; Joint">
   <meta property="og:title" content="Design Studio · Grain &amp; Joint">
-  <meta property="og:description" content="Design your built-in furniture in 3D, see the live price and send it to the workshop.">
+  <meta property="og:description" content="Plan built-in furniture for your room in 3D, see the price as you go and send the design to us for a quote.">
   <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/configurator.html">
   <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -73,7 +73,7 @@
   </header>
 
   <main id="main" class="cfg" data-lighting="day">
-    <h1 class="visually-hidden">Furniture design studio</h1>
+    <h1 class="visually-hidden">Furniture planner</h1>
     <section class="cfg__stage" aria-label="3D preview">
       <canvas id="cfg-canvas" class="cfg__canvas" tabindex="0" role="img" aria-label="Interactive 3D preview of your room. Drag to orbit, scroll to zoom, click a piece to select it. Arrow keys nudge the selected piece, Delete removes it."></canvas>
       <div class="cfg__bar" role="toolbar" aria-label="View controls">
@@ -103,7 +103,7 @@
       <div class="cfg__dim" id="cfg-dim" hidden aria-hidden="true"><b data-dim-w>0 cm</b><small data-dim-s></small></div>
       <button type="button" class="cfg__issues" id="cfg-issues" hidden></button>
       <p class="cfg__hint" id="cfg-hint">Drag to orbit &middot; scroll to zoom &middot; click a piece to edit &middot; click a door to open it</p>
-      <div class="cfg__loading" id="cfg-loading" role="status"><span class="cfg__spinner" aria-hidden="true"></span><span>Setting up the workshop&hellip;</span></div>
+      <div class="cfg__loading" id="cfg-loading" role="status"><span class="cfg__spinner" aria-hidden="true"></span><span>Loading the planner&hellip;</span></div>
       <div class="cfg__fallback" id="cfg-fallback" hidden>
         <p><strong>3D preview unavailable.</strong> Your browser could not start WebGL, but you can still design and price your furniture with the panel.</p>
       </div>
@@ -132,7 +132,7 @@
         <div role="tabpanel" id="pane-room" aria-labelledby="tab-room" hidden></div>
         <div role="tabpanel" id="pane-furniture" aria-labelledby="tab-furniture"></div>
         <div role="tabpanel" id="pane-quote" aria-labelledby="tab-quote" hidden></div>
-        <noscript><p class="note">The configurator needs JavaScript. You can still <a href="contact.html">contact the workshop</a> directly.</p></noscript>
+        <noscript><p class="note">The planner needs JavaScript. You can still <a href="contact.html">contact the workshop</a> directly.</p></noscript>
       </div>
     </aside>
     <div class="cfg__toast" id="cfg-toast" role="status" aria-live="polite"></div>
@@ -142,7 +142,7 @@
   <footer class="site-footer">
     <div class="container site-footer__inner">
       <div>
-        <p class="site-footer__big">Made to measure.<br>Made to last.</p>
+        <p class="site-footer__big">Joinery workshop<br>in Antwerp.</p>
         <a class="btn btn--ghost" href="configurator.html">Start a design</a>
       </div>
       <div class="site-footer__cols">
