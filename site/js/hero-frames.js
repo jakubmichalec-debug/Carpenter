@@ -11,18 +11,16 @@
  */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-export const FRAME_COUNT = 120;
 const BASE = 'assets/hero-frames/';
-// bump V whenever the frames are re-rendered, so browsers fetch the new set instead of their cached copies
-// (and the two preload links in index.html with it)
-const V = 4;
+// tools/blender/frames_to_web.py writes manifest.json next to the frames: { count, width, height, v }. Its `v`
+// changes with every export, so a new render never shows up as the browser's cached copy of the old one.
+const FALLBACK = { count: 120, v: 4 };
 // every ANCHOR-th frame stays decoded (a fast scroll blends between these while nearer frames decode);
 // the preloader waits for exactly these
 const ANCHOR = 8;
 const WINDOW = 6; // decoded frames kept either side of the scroll position
 const DECODERS = 2; // decodes in flight at once
 const BLEND_STEPS = 24; // the blend is quantised so a slow scroll does not redraw on every pixel
-const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp?v=${V}`;
 // the pointer parallax moves the canvas by up to this many whole pixels; the canvas overscans the stage by a
 // little more (home.css), so the move never bares an edge and no CSS scale resamples (and softens) the frame
 const PARALLAX = { x: 8, y: 6 };
@@ -50,7 +48,9 @@ function transparentOf(hex) {
 
 /** Resolves with a player once the first and last frames have loaded; rejects if they cannot. */
 export async function createFramePlayer(canvas, opts = {}) {
-  const N = FRAME_COUNT;
+  const manifest = await fetch(`${BASE}manifest.json`).then((r) => (r.ok ? r.json() : FALLBACK), () => FALLBACK);
+  const N = Math.max(2, manifest.count | 0);
+  const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp?v=${manifest.v}`;
   const blobs = new Array(N).fill(null);
   const frames = new Array(N).fill(null);
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('frames timed out')), opts.timeout || 6000));
@@ -74,7 +74,7 @@ export async function createFramePlayer(canvas, opts = {}) {
   const pairAt = (pos) => {
     let a = -1; let b = -1;
     for (let k = Math.floor(pos); k >= 0; k--) if (frames[k]) { a = k; break; }
-    for (let k = Math.ceil(pos); k < FRAME_COUNT; k++) if (frames[k]) { b = k; break; }
+    for (let k = Math.ceil(pos); k < N; k++) if (frames[k]) { b = k; break; }
     if (a < 0) return { a: b, b, t: 0 };
     if (b < 0 || b === a) return { a, b: a, t: 0 };
     const t = Math.round(((pos - a) / (b - a)) * BLEND_STEPS) / BLEND_STEPS;
@@ -124,9 +124,9 @@ export async function createFramePlayer(canvas, opts = {}) {
   let loadedCount = 2;
   const loaded = (async () => {
     const order = [];
-    const seen = new Set([0, FRAME_COUNT - 1]);
+    const seen = new Set([0, N - 1]);
     for (const step of [16, 8, 4, 2, 1]) {
-      for (let i = 0; i < FRAME_COUNT; i += step) if (!seen.has(i)) { seen.add(i); order.push(i); }
+      for (let i = 0; i < N; i += step) if (!seen.has(i)) { seen.add(i); order.push(i); }
     }
     const worker = async () => {
       while (order.length) {

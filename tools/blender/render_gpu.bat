@@ -10,6 +10,15 @@ if not "%~1"=="--inner" (
 
 setlocal
 cd /d "%~dp0"
+
+rem ---- Render settings. Change these, then delete out\frames so every frame is rendered again. ----
+rem RES     1920x1080 is sharp on most screens; 2560x1440 for 1440p and high-DPI laptops (about 1.8x the time
+rem         and the download size).
+rem FRAMES  more frames = smoother scroll (240 is twice as smooth as 120, and twice the time and download).
+rem SAMPLES more samples = less grain before the denoiser (128 is about twice the time of 64).
+if not defined RES set "RES=1920x1080"
+if not defined FRAMES set "FRAMES=120"
+if not defined SAMPLES set "SAMPLES=64"
 echo Grain and Joint - GPU render of the hero frames
 echo Folder: %CD%
 echo.
@@ -31,10 +40,10 @@ echo   Using "%BLENDER%"
 echo [2/5] Looking for Python...
 set "PY=python"
 where python >nul 2>nul || set "PY=py"
-%PY% -c "import PIL" >nul 2>nul
+%PY% -c "import PIL, numpy" >nul 2>nul
 if errorlevel 1 (
-  echo   Python with Pillow was not found. Install Python from https://www.python.org/downloads/
-  echo   ^(tick "Add python.exe to PATH"^), then run:  pip install pillow
+  echo   Python with Pillow and numpy was not found. Install Python from https://www.python.org/downloads/
+  echo   ^(tick "Add python.exe to PATH"^), then run:  pip install pillow numpy
   goto :end
 )
 echo   Using %PY%
@@ -49,16 +58,17 @@ if not exist tex\models\side_table_01\side_table_01.gltf (
 )
 
 echo [4/5] Test frame. The next lines should say "Cycles on OPTIX" or "Cycles on CUDA"...
-"%BLENDER%" -b -P film.py -- --gpu --still 0.5 --samples 64 --res 1920x1080 | findstr /C:"Cycles on" /C:"No GPU" /C:"Saved:" /C:"Error" /C:"Traceback"
+"%BLENDER%" -b -P film.py -- --gpu --still 0.5 --samples %SAMPLES% --res %RES% | findstr /C:"Cycles on" /C:"No GPU" /C:"Saved:" /C:"Error" /C:"Traceback"
 if not exist out\film_still_0.5.png ( echo   The test frame was not written, see the message above. & goto :end )
 echo   Test frame saved: %CD%\out\film_still_0.5.png
 start "" "out\film_still_0.5.png"
-choice /M "Render all 120 frames now (about 30-60 minutes)"
+echo   Settings: %FRAMES% frames at %RES%, %SAMPLES% samples ^(change them at the top of render_gpu.bat^)
+choice /M "Render all %FRAMES% frames now (120 at 1080p and 64 samples take about 30-60 minutes)"
 if errorlevel 2 goto :end
 
-echo [5/5] Rendering 120 frames. A line appears as each frame finishes; frames go to out\frames\
+echo [5/5] Rendering %FRAMES% frames. A line appears as each frame finishes; frames go to out\frames\
 echo   Frames that already exist are skipped. To redo them all, delete the out\frames folder first.
-"%BLENDER%" -b -P film.py -- --gpu --total 120 --samples 64 --res 1920x1080 | findstr /C:"Cycles on" /C:"done" /C:"Error" /C:"Traceback"
+"%BLENDER%" -b -P film.py -- --gpu --total %FRAMES% --samples %SAMPLES% --res %RES% | findstr /C:"Cycles on" /C:"done" /C:"Error" /C:"Traceback"
 echo Rendering the before/after pair for the Home slider...
 "%BLENDER%" -b -P film.py -- --gpu --ba --samples 128 | findstr /C:"Cycles on" /C:"Saved:" /C:"Error" /C:"Traceback"
 %PY% frames_to_web.py
@@ -66,7 +76,7 @@ echo.
 echo Done. Now commit and push the frames:
 echo   cd ..\..
 echo   git add site/assets
-echo   git commit -m "Hero frames: 1080p GPU render"
+echo   git commit -m "Hero frames: %FRAMES% frames at %RES%"
 echo   git push
 
 :end
