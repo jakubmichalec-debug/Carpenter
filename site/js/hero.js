@@ -2,11 +2,11 @@
  * Home hero: wires the scroll track, chapters and copy to the wardrobe assembly.
  *
  * Preferred: hero-frames.js plays the Cycles-rendered image sequence. A preloader (#preloader in index.html)
- * covers the page until every frame has loaded, so the first scroll is smooth instead of scrubbing through
- * a half-loaded sequence; it gives up waiting after PRELOAD_MAX_MS and lets the rest stream in.
+ * covers the page until every 4th frame has loaded (the player blends across the gaps while the rest streams
+ * in), so the first scroll is smooth; it gives up waiting after PRELOAD_MAX_MS.
  * Fallbacks: the live Three.js scene (hero3d.js, imported only when needed), then the still render.
  */
-import { createFramePlayer, FRAME_COUNT } from './hero-frames.js';
+import { createFramePlayer } from './hero-frames.js';
 
 const root = document.querySelector('[data-hero]');
 const preloader = document.getElementById('preloader');
@@ -117,11 +117,11 @@ async function initHero() {
       background: ground,
       // reduced motion only ever shows the last frame, which is already loaded
       eager: !reducedMotion,
-      onLoad: (n) => preload.progress(0.08 + 0.92 * (n / FRAME_COUNT)),
+      onLoad: (n, readyFraction) => preload.progress(0.08 + 0.92 * readyFraction),
     });
     root.classList.add('hero--frames');
-    preload.progress(0.08 + 0.92 * (2 / FRAME_COUNT));
-    if (!reducedMotion) await Promise.race([hero.loaded, new Promise((r) => setTimeout(r, PRELOAD_MAX_MS))]);
+    preload.progress(0.08);
+    if (!reducedMotion) await Promise.race([hero.ready, new Promise((r) => setTimeout(r, PRELOAD_MAX_MS))]);
   } catch (frameErr) {
     console.warn('Hero frames unavailable, using the live 3D scene.', frameErr);
     try {

@@ -3,15 +3,19 @@
  * tools/blender/film.py) on the hero canvas, scrubbed by scroll. Same API as createHero() in hero3d.js
  * (setTarget, jump, pointer, setVisible, resize, progress), so the page wiring does not change.
  *
- * Frames load coarse to fine (every 16th, 8th, 4th, 2nd, then all); the player draws the nearest loaded frame,
- * redrawing only when that frame changes.
+ * Frames load coarse to fine (every 16th, 8th, 4th, 2nd, then all). The player cross-fades between the two
+ * loaded frames either side of the scroll position, so the motion reads as continuous instead of stepping
+ * frame by frame; it redraws only when that pair or the blend changes.
  */
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 export const FRAME_COUNT = 120;
 const BASE = 'assets/hero-frames/';
 // bump V whenever the frames are re-rendered, so browsers fetch the new set instead of their cached copies
-const V = 2;
+const V = 3;
+// the preloader waits for every READY_STEP-th frame; blending covers the gaps while the rest streams in
+export const READY_STEP = 4;
+const BLEND_STEPS = 24; // the blend is quantised so a slow scroll does not redraw on every pixel
 const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp?v=${V}`;
 // the canvas is scaled up this much and moved by the pointer parallax; the scale hides the edges the move would bare
 const PARALLAX = { x: 8, y: 6, scale: 1.03 };
@@ -46,22 +50,29 @@ export async function createFramePlayer(canvas, opts = {}) {
   const bg = opts.background || '#e9e8e3';
   const bgClear = transparentOf(bg);
   const state = { target: 0, current: 0, mx: 0, my: 0, cmx: 0, cmy: 0, w: 1, h: 1, scale: 1, visible: true, raf: 0, last: performance.now() };
-  let drawn = -1;
+  let drawn = '';
   let transform = '';
 
-  const nearestTo = (pos) => {
-    const lo = Math.floor(pos); const hi = Math.ceil(pos);
-    let below = -1; let above = -1;
-    for (let k = lo; k >= 0; k--) if (frames[k]) { below = k; break; }
-    for (let k = hi; k < FRAME_COUNT; k++) if (frames[k]) { above = k; break; }
-    if (below < 0) return above;
-    if (above < 0) return below;
-    return pos - below <= above - pos ? below : above;
+  // the loaded frames either side of pos and how far pos lies between them (0 = all `a`, 1 = all `b`)
+  const pairAt = (pos) => {
+    let a = -1; let b = -1;
+    for (let k = Math.floor(pos); k >= 0; k--) if (frames[k]) { a = k; break; }
+    for (let k = Math.ceil(pos); k < FRAME_COUNT; k++) if (frames[k]) { b = k; break; }
+    if (a < 0) return { a: b, b, t: 0 };
+    if (b < 0 || b === a) return { a, b: a, t: 0 };
+    const t = Math.round(((pos - a) / (b - a)) * BLEND_STEPS) / BLEND_STEPS;
+    return t <= 0 ? { a, b: a, t: 0 } : t >= 1 ? { a: b, b, t: 0 } : { a, b, t };
   };
+  const keyOf = (q) => `${q.a}|${q.b}|${q.t}`;
 
-  // coarse to fine background loading; a newly loaded frame only causes a redraw if it is now the nearest one.
-  // `loaded` resolves once every frame has been tried; opts.onLoad(count) reports progress for a preloader.
+  // coarse to fine background loading; a newly loaded frame only causes a redraw if it changes what is drawn.
+  // `ready` resolves once every READY_STEP-th frame is in, `loaded` once every frame has been tried;
+  // opts.onLoad(count, readyFraction) reports progress for a preloader.
   let loadedCount = 2;
+  const readyTotal = Math.ceil((FRAME_COUNT - 1) / READY_STEP) + 1;
+  let readyCount = 2;
+  let markReady;
+  const ready = new Promise((r) => { markReady = r; });
   const loaded = (async () => {
     const order = [];
     const seen = new Set([0, FRAME_COUNT - 1]);
@@ -73,14 +84,16 @@ export async function createFramePlayer(canvas, opts = {}) {
         const i = order.shift();
         try {
           frames[i] = await loadImage(src(i));
-          if (nearestTo(state.current * (FRAME_COUNT - 1)) !== drawn) invalidate();
+          if (keyOf(pairAt(state.current * (FRAME_COUNT - 1))) !== drawn) invalidate();
         } catch { /* a missing frame falls back to its neighbours */ }
         loadedCount++;
-        if (opts.onLoad) opts.onLoad(loadedCount);
+        if (i % READY_STEP === 0 && ++readyCount >= readyTotal) markReady();
+        if (opts.onLoad) opts.onLoad(loadedCount, Math.min(1, readyCount / readyTotal));
       }
     };
     // six parallel requests: GitHub Pages serves HTTP/2, and the frames are small (about 40 KB each)
     await Promise.all(Array.from({ length: opts.eager === false ? 2 : 6 }, worker));
+    markReady();
   })();
 
   // Performance: one drawImage per change of frame, into a canvas no denser than the frames themselves
@@ -95,18 +108,19 @@ export async function createFramePlayer(canvas, opts = {}) {
     return { portrait, dw, dh, dx: clamp(w / 2 - dw * (portrait ? 0.62 : 0.5), w - dw, 0), dy: portrait ? 0 : (h - dh) / 2 };
   };
 
-  function draw(i) {
+  function draw(q) {
     const { portrait, dw, dh, dx, dy } = layout();
     ctx.fillStyle = bg;
     if (portrait) ctx.fillRect(0, 0, state.w, state.h);
-    ctx.drawImage(frames[i], dx, dy, dw, dh);
+    ctx.drawImage(frames[q.a], dx, dy, dw, dh);
+    if (q.t > 0) { ctx.globalAlpha = q.t; ctx.drawImage(frames[q.b], dx, dy, dw, dh); ctx.globalAlpha = 1; }
     if (portrait) {
       // fade the render's lower edge into the page ground under the text
       const g = ctx.createLinearGradient(0, dh * 0.72, 0, dh);
       g.addColorStop(0, bgClear); g.addColorStop(1, bg);
       ctx.fillStyle = g; ctx.fillRect(0, dh * 0.72 - 1, state.w, dh * 0.28 + 2);
     }
-    drawn = i;
+    drawn = keyOf(q);
   }
 
   // Lenis already smooths the scroll, so follow it closely; without it, ease more so wheel steps do not show
@@ -124,8 +138,8 @@ export async function createFramePlayer(canvas, opts = {}) {
     const km = 1 - Math.exp(-dt * 3.5);
     state.cmx += (state.mx - state.cmx) * km; state.cmy += (state.my - state.cmy) * km;
 
-    const i = nearestTo(state.current * (FRAME_COUNT - 1));
-    if (i >= 0 && i !== drawn) draw(i);
+    const q = pairAt(state.current * (FRAME_COUNT - 1));
+    if (q.a >= 0 && keyOf(q) !== drawn) draw(q);
     const t = `translate3d(${(state.cmx * -PARALLAX.x).toFixed(1)}px, ${(state.cmy * -PARALLAX.y).toFixed(1)}px, 0) scale(${PARALLAX.scale})`;
     if (t !== transform) { canvas.style.transform = t; transform = t; }
     if (opts.onFrame) opts.onFrame(state.current);
@@ -143,7 +157,7 @@ export async function createFramePlayer(canvas, opts = {}) {
     canvas.width = Math.round(state.w * state.scale); canvas.height = Math.round(state.h * state.scale);
     ctx.setTransform(state.scale, 0, 0, state.scale, 0, 0);
     ctx.imageSmoothingQuality = 'medium';
-    drawn = -1;
+    drawn = '';
     invalidate();
   }
 
@@ -155,6 +169,7 @@ export async function createFramePlayer(canvas, opts = {}) {
     resize,
     get progress() { return state.current; },
     loaded,
+    ready,
     mode: 'frames',
   };
 }
