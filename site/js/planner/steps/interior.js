@@ -349,7 +349,9 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
 
     // the height of the selected item, parked under the floor line so it never covers the item or a divider
     const selB = p.bays[state.ui.bay], selIt = selB && state.ui.item !== null ? selB.items[state.ui.item] : null;
-    if (selIt) {
+    // where the canvas hint shows (wide screens) it already carries the height, so the pill would only collide with it
+    const hintShown = getComputedStyle(insideBox.querySelector('#pl-in-hint')).display !== 'none';
+    if (selIt && !hintShown) {
       const lb = lay[state.ui.bay];
       const label = `${itemName(selIt)}, ${cm(selIt.y)} cm up`;
       const rw = label.length * 6.6 + 18;
@@ -740,7 +742,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       if (html !== notesKey) { notesKey = html; $('#pl-i-notes').innerHTML = html; }
       const sel = selectedItem(p);
       insideBox.querySelector('#pl-in-hint').textContent = sel
-        ? 'Arrow up and down move it one step (Shift: ten steps), left and right change bay. Delete removes it.'
+        ? `${itemName(sel)}, ${cm(sel.y)} cm up. Arrow up and down move it one step (Shift: ten steps), left and right change bay. Delete removes it.`
         : 'Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize bays.';
     }
     dock.hidden = !ok;
