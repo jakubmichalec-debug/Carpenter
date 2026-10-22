@@ -10,7 +10,9 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 export const FRAME_COUNT = 120;
 const BASE = 'assets/hero-frames/';
-const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp`;
+// bump V whenever the frames are re-rendered, so browsers fetch the new set instead of their cached copies
+const V = 2;
+const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp?v=${V}`;
 // the canvas is scaled up this much and moved by the pointer parallax; the scale hides the edges the move would bare
 const PARALLAX = { x: 8, y: 6, scale: 1.03 };
 
