@@ -383,3 +383,93 @@ test('piece edits are coalesced like room edits and the reducer stays pure', () 
   s = reduce(s, { type: 'piece/item/add', bay: 0, item: { kind: 'shelf', y: 50 }, at: 3 });
   assert.equal(s.past.length, 2);
 });
+
+// ---------- Place step ----------
+const placeBase = () => {
+  let p = M.setTemplate(M.createProject(), 'rect', { width: 420, depth: 380 });
+  p = { ...p, pieces: [], placements: [], room: { ...p.room, openings: [] } };
+  p = M.addPiece(p, 'wardrobe', 'flat-oak', { id: 'a', width: 100 });
+  p = M.addPiece(p, 'table', 'flat-oak', { id: 't' });
+  return p;
+};
+
+test('place/set, place/move and place/remove go through the model and select the piece', () => {
+  let s = deepFreeze(initialState(placeBase()));
+  assert.equal(s.ui.pieceId, 'a');
+  s = act(s, { type: 'place/set', id: 't', spec: { mode: 'free', x: 200, z: 190, rotation: 0 } });
+  assert.deepEqual(s.project.placements, [{ pieceId: 't', mode: 'free', x: 200, z: 190, rotation: 0, elevation: 0 }]);
+  assert.equal(s.ui.pieceId, 't', 'the placed piece becomes the selection');
+  s = act(s, { type: 'place/set', id: 'a', spec: { mode: 'wall', wallId: 'w1', offset: 30 } });
+  assert.equal(s.ui.pieceId, 'a');
+  s = act(s, { type: 'place/move', patch: { offset: 31, snap: false } });
+  assert.equal(s.project.placements.find((x) => x.pieceId === 'a').offset, 31, 'id defaults to the selected piece; snap: false keeps 1 cm');
+  s = act(s, { type: 'place/move', patch: { wallId: 'w2', offset: 100, snap: false } });
+  assert.equal(s.project.placements.find((x) => x.pieceId === 'a').wallId, 'w2');
+  s = act(s, { type: 'place/move', id: 't', patch: { rotation: 45, snap: false } });
+  assert.equal(s.project.placements.find((x) => x.pieceId === 't').rotation, 45);
+  assert.equal(s.ui.pieceId, 't');
+  s = act(s, { type: 'place/remove' });
+  assert.deepEqual(s.project.placements.map((x) => x.pieceId), ['a'], 'un-placed');
+  assert.equal(s.project.pieces.length, 2, 'the piece stays in the list');
+  assert.equal(s.ui.pieceId, 't', 'selection stays');
+  // unknown ids and un-placed moves change nothing
+  const same = s;
+  assert.equal(act(s, { type: 'place/move', id: 't', patch: { x: 5 } }), same);
+  assert.equal(act(s, { type: 'place/set', id: 'nope', spec: { mode: 'free', x: 1, z: 1 } }), same);
+  assert.equal(act(s, { type: 'place/remove', id: 't' }), same);
+});
+
+test('placement edits coalesce into one undo step, and undo restores the selection safely', () => {
+  let s = initialState(placeBase());
+  s = reduce(s, { type: 'place/set', id: 'a', spec: { mode: 'wall', wallId: 'w1', offset: 0 }, at: 1000 });
+  s = reduce(s, { type: 'history/seal' });
+  const before = s.past.length;
+  for (let i = 1; i <= 5; i++) s = reduce(s, { type: 'place/move', patch: { offset: i * 10, snap: false }, coalesce: 'drag:a', at: 5000 + i * 100 });
+  assert.equal(s.past.length, before + 1, 'a drag is one step');
+  assert.equal(s.project.placements[0].offset, 50);
+  s = reduce(s, { type: 'history/undo' });
+  assert.equal(s.project.placements[0].offset, 0);
+  s = reduce(s, { type: 'history/undo' });
+  assert.equal(s.project.placements.length, 0);
+  assert.equal(s.ui.pieceId, 'a');
+  s = reduce(s, { type: 'history/redo' });
+  assert.equal(s.project.placements.length, 1);
+});
+
+test('editing a placed piece keeps its placement; a clash shows up in validation', () => {
+  let s = initialState(placeBase());
+  s = act(s, { type: 'place/set', id: 'a', spec: { mode: 'wall', wallId: 'w1', offset: 300 } });
+  assert.equal(s.project.placements[0].offset, 300);
+  s = act(s, { type: 'ui/piece', id: 'a' });
+  s = act(s, { type: 'piece/update', patch: { width: 200 } });
+  assert.deepEqual(s.project.placements.map((x) => [x.pieceId, x.wallId, x.offset]), [['a', 'w1', 300]], 'placement untouched');
+  const codes = validateProject(s.project).errors.map((e) => e.code);
+  assert.ok(codes.includes('placement-off-wall'), codes.join());
+});
+
+test('ui/new-piece opens Furniture with nothing chosen until a type is picked', () => {
+  let s = initialState(placeBase());
+  s = act(s, { type: 'ui/step', step: 3 });
+  s = act(s, { type: 'ui/new-piece' });
+  assert.equal(s.ui.step, 1);
+  assert.equal(s.ui.starting, true);
+  assert.equal(act(s, { type: 'ui/new-piece' }), s, 'repeating it changes nothing');
+  s = act(s, { type: 'piece/add', pieceType: 'desk' });
+  assert.equal(s.ui.starting, false);
+  assert.equal(s.project.pieces.length, 3, 'a new piece, not a replacement');
+  assert.equal(s.ui.pieceId, s.project.pieces[2].id);
+  // leaving the step or picking a piece also ends it
+  s = act(s, { type: 'ui/new-piece' });
+  assert.equal(act(s, { type: 'ui/step', step: 2 }).ui.starting, false);
+  assert.equal(act(s, { type: 'ui/piece', id: 'a' }).ui.starting, false);
+  assert.equal(initialState(placeBase()).ui.starting, false);
+});
+
+test('a piece deleted while placed drops its placement and the selection falls back', () => {
+  let s = initialState(placeBase());
+  s = act(s, { type: 'place/set', id: 'a', spec: { mode: 'wall', wallId: 'w1', offset: 0 } });
+  s = act(s, { type: 'place/set', id: 't', spec: { mode: 'free', x: 200, z: 190, rotation: 0 } });
+  s = act(s, { type: 'piece/remove', id: 't' });
+  assert.equal(s.project.placements.length, 1);
+  assert.equal(s.ui.pieceId, 'a');
+});

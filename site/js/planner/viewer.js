@@ -9,7 +9,7 @@ import { roomBounds } from './plan-geom.js';
 import {
   buildFloor, buildWall, floorSignature, wallSignature, disposeGroup, setWallFade, setWallHighlight, buildPiece, pieceSignature
 } from './geometry.js';
-import { wallsOf } from './model.js';
+import { wallsOf, footprintOf } from './model.js';
 
 const M = 0.01;
 const FOV = 36;
@@ -18,7 +18,7 @@ const cssColor = (name, fallback) => {
 };
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-export function createViewer(canvas, { onWallPick = null } = {}) {
+export function createViewer(canvas, { onWallPick = null, onPiecePick = null } = {}) {
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -37,6 +37,7 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
 
   const lib = createMaterialLib(THREE);
   const accent = new THREE.Color(cssColor('--oak', '#4f6f85'));
+  const alert = new THREE.Color(cssColor('--err', '#b2452f'));
 
   // ---------- lights ----------
   const hemi = new THREE.HemisphereLight(0xfff6e8, 0xb5ad9e, 0.55);
@@ -100,6 +101,15 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
   const viewCbs = [];
   const roomGroup = new THREE.Group();
   scene.add(roomGroup);
+  // the placed pieces (step 4 and the room views): one entry per piece, rebuilt only when its design changes
+  const piecesGroup = new THREE.Group();
+  roomGroup.add(piecesGroup);
+  const placed = new Map(); // id -> { geoSig, tSig, wrapper, lift, inner, outline, mark, sel, clash }
+  const selMat = new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.3, depthWrite: false });
+  const clashMat = new THREE.MeshBasicMaterial({ color: alert, transparent: true, opacity: 0.4, depthWrite: false });
+  const outlineMat = new THREE.LineBasicMaterial({ color: accent });
+  const noRay = () => {};
+  let pickPieces = false; // clicking a piece selects it (only on the Place step)
   // one piece shown alone (steps 2 and 3): the room is hidden while it is set
   let pieceGroup = null, pieceSig = '', pieceId = null, pieceSize = null;
 
@@ -269,17 +279,20 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
   let down = null;
   canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
   canvas.addEventListener('pointerup', (e) => {
-    if (!down || !onWallPick || pieceGroup) return;
+    if (!down || (!onWallPick && !onPiecePick) || pieceGroup) return;
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     const quick = performance.now() - down.t < 600;
     down = null;
     if (moved > 5 || !quick) return;
     const r = canvas.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), activeCam());
-    const bodies = [];
-    for (const en of walls.values()) if (en.group.visible) bodies.push(en.group.userData.body);
-    const hit = ray.intersectObjects(bodies, false)[0];
-    if (hit) onWallPick(hit.object.userData.wallId);
+    const targets = [];
+    for (const en of walls.values()) if (en.group.visible) targets.push(en.group.userData.body);
+    if (onPiecePick && pickPieces) for (const en of placed.values()) targets.push(en.wrapper);
+    const hit = ray.intersectObjects(targets, true)[0];
+    if (!hit) return;
+    if (hit.object.userData.wallId) { if (onWallPick) onWallPick(hit.object.userData.wallId); return; }
+    for (let o = hit.object; o; o = o.parent) if (o.userData && o.userData.pieceId) { onPiecePick(o.userData.pieceId); return; }
   });
 
   // ---------- project ----------
@@ -287,10 +300,87 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
     for (const [id, e] of walls) setWallHighlight(e.group, accent, id === highlightId);
   }
 
-  function setProject(project) {
+  // ---------- placed pieces ----------
+  function dropEntry(e) {
+    piecesGroup.remove(e.wrapper);
+    disposeGroup(e.inner);
+    e.outline.geometry.dispose();
+    e.mark.geometry.dispose();
+  }
+  function buildEntry(piece, geoSig) {
+    const w = piece.width * M, h = piece.height * M, d = piece.depth * M;
+    const wrapper = new THREE.Group();
+    wrapper.userData = { pieceId: piece.id };
+    const lift = new THREE.Group();
+    const inner = buildPiece(piece, THREE, lib, { fronts: 'closed' });
+    inner.userData = { ...inner.userData, pieceId: piece.id };
+    const edge = 0.015;
+    const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w + edge * 2, h + edge * 2, d + edge * 2)), outlineMat);
+    outline.position.set(w / 2, h / 2, d / 2);
+    outline.raycast = noRay;
+    outline.visible = false;
+    const quad = new THREE.PlaneGeometry(w + 0.06, d + 0.06);
+    quad.rotateX(-Math.PI / 2);
+    quad.translate(w / 2, 0.006, d / 2);
+    const mark = new THREE.Mesh(quad, selMat);
+    mark.raycast = noRay;
+    mark.visible = false;
+    mark.renderOrder = 2;
+    lift.add(inner, outline);
+    wrapper.add(lift, mark);
+    return { geoSig, tSig: '', wrapper, lift, inner, outline, mark, sel: false, clash: false };
+  }
+  // Brings the placed pieces in line with the project. A move only repositions the group; the meshes are rebuilt when
+  // the piece itself changes. Returns true when anything changed.
+  function syncPieces(project, selected, clashes) {
+    let changed = false;
+    const seen = new Set();
+    for (const pl of project.placements || []) {
+      const piece = project.pieces.find((p) => p.id === pl.pieceId);
+      const fp = piece && footprintOf(project, pl);
+      if (!fp) continue;
+      seen.add(piece.id);
+      const geoSig = pieceSignature(piece, 'closed');
+      let e = placed.get(piece.id);
+      if (!e || e.geoSig !== geoSig) {
+        if (e) dropEntry(e);
+        e = buildEntry(piece, geoSig);
+        placed.set(piece.id, e);
+        piecesGroup.add(e.wrapper);
+        changed = true;
+      }
+      const c = fp.corners[0];
+      const elev = pl.elevation || 0;
+      const tSig = `${c.x.toFixed(1)}|${c.z.toFixed(1)}|${fp.rotation.toFixed(2)}|${elev}`;
+      if (e.tSig !== tSig) {
+        e.wrapper.position.set(c.x * M, 0, c.z * M);
+        e.wrapper.rotation.y = (-fp.rotation * Math.PI) / 180;
+        e.lift.position.y = elev * M;
+        e.tSig = tSig;
+        changed = true;
+      }
+      const sel = piece.id === selected, clash = clashes.has(piece.id);
+      if (e.sel !== sel || e.clash !== clash) {
+        e.sel = sel; e.clash = clash;
+        e.outline.visible = sel;
+        e.mark.visible = sel || clash;
+        e.mark.material = clash ? clashMat : selMat;
+        changed = true;
+      }
+    }
+    for (const [id, e] of [...placed]) {
+      if (seen.has(id)) continue;
+      dropEntry(e); placed.delete(id); changed = true;
+    }
+    return changed;
+  }
+
+  // `selected` gets an outline and a floor mark; `clashes` (piece ids) a red floor mark
+  function setProject(project, { selected = null, clashes = [] } = {}) {
     const room = project && project.room;
     if (!room) return;
     let rebuilt = false;
+    const movedPieces = syncPieces(project, selected, new Set(clashes));
 
     const fs = floorSignature(room);
     if (fs !== floorSig) {
@@ -325,7 +415,10 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
       if (seen.has(id)) continue;
       roomGroup.remove(e.group); disposeGroup(e.group); walls.delete(id); rebuilt = true;
     }
-    if (!rebuilt) return;
+    if (!rebuilt) {
+      if (movedPieces) { renderer.shadowMap.needsUpdate = true; request(); }
+      return;
+    }
     applyHighlight();
 
     const b = roomBounds(room);
@@ -433,6 +526,7 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
 
   return {
     setProject, setPiece, focusWall, highlightWall, setView,
+    setPiecePicking(on) { pickPieces = !!on; },
     getView: () => mode,
     onViewChange(cb) { viewCbs.push(cb); },
     resetView() { if (pieceGroup) fitPiece(false); else if (mode === 'plan') fitPlan(); else fit3D(false); },
@@ -446,6 +540,8 @@ export function createViewer(canvas, { onWallPick = null } = {}) {
       ro.disconnect();
       orbit.dispose(); topControls.dispose();
       walls.forEach((e) => disposeGroup(e.group));
+      placed.forEach(dropEntry);
+      selMat.dispose(); clashMat.dispose(); outlineMat.dispose();
       if (pieceGroup) disposeGroup(pieceGroup);
       if (floor) disposeGroup(floor);
       ground.geometry.dispose(); ground.material.dispose();
