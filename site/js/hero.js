@@ -2,7 +2,7 @@
  * Home hero: wires the scroll track, chapters and copy to the wardrobe assembly.
  *
  * Preferred: hero-frames.js plays the Cycles-rendered image sequence. A preloader (#preloader in index.html)
- * covers the page until every 4th frame has loaded (the player blends across the gaps while the rest streams
+ * covers the page until every 8th frame is decoded (the player blends across the gaps while the rest streams
  * in), so the first scroll is smooth; it gives up waiting after PRELOAD_MAX_MS.
  * Fallbacks: the live Three.js scene (hero3d.js, imported only when needed), then the still render.
  */

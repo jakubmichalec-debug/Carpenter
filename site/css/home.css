@@ -4,13 +4,13 @@
 .hero { position: relative; background: var(--paper-2); }
 .hero__track { position: relative; height: 480vh; }
 .hero__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: var(--paper-2); }
-.hero__canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.4s var(--ease-out); }
+.hero__canvas { position: absolute; inset: -8px -10px; width: calc(100% + 20px); height: calc(100% + 16px); max-width: none; opacity: 0; transition: opacity 1.4s var(--ease-out); }
 .hero--ready .hero__canvas { opacity: 1; }
 .hero__vignette {
   position: absolute; inset: 0; pointer-events: none; opacity: var(--vig, 1);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--paper-2) 78%, transparent) 0%, transparent 46%),
-    linear-gradient(0deg, color-mix(in srgb, var(--paper-2) 70%, transparent) 0%, transparent 34%),
+    linear-gradient(90deg, color-mix(in srgb, var(--paper-2) 58%, transparent) 0%, transparent 40%),
+    linear-gradient(0deg, color-mix(in srgb, var(--paper-2) 45%, transparent) 0%, transparent 28%),
     radial-gradient(120% 90% at 50% 40%, transparent 55%, color-mix(in srgb, var(--ink) 12%, transparent) 100%);
 }
 
@@ -34,7 +34,9 @@
   font-size: clamp(2.6rem, min(1.1rem + 4.4vw, 11.5vh), 6.4rem); font-weight: 400; line-height: .93; letter-spacing: -.02em;
 }
 .hero__title em { font-style: normal; color: var(--oak); }
-.hero__lede { max-width: 34ch; margin: 0 0 var(--space-4); font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); }
+.hero__lede { max-width: 34ch; margin: 0 0 var(--space-4); font-size: var(--step-1); line-height: 1.45; color: var(--ink);
+  /* a soft halo keeps it readable over the busy left of the render (the chair) now the overlay is lighter */
+  text-shadow: 0 0 14px color-mix(in srgb, var(--paper-2) 90%, transparent), 0 0 3px color-mix(in srgb, var(--paper-2) 80%, transparent); }
 .hero__cta { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
 .hero__chapters {

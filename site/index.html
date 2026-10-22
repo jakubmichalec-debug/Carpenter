@@ -24,8 +24,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
-  <link rel="preload" as="image" href="assets/hero-frames/f_000.webp" fetchpriority="high">
-  <link rel="preload" as="image" href="assets/hero-frames/f_119.webp">
+  <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/hero-frames/f_000.webp?v=4" fetchpriority="high">
+  <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/hero-frames/f_119.webp?v=4">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -103,7 +103,7 @@
 
           <!-- Fallback when WebGL is unavailable: the finished wardrobe, rendered in Blender (Cycles) -->
           <div class="hero__still" aria-hidden="true">
-            <img src="assets/3d/hero-still.webp?v=2" width="1920" height="1080" alt="" decoding="async">
+            <img src="assets/3d/hero-still.webp?v=3" width="1920" height="1080" alt="" decoding="async">
           </div>
 
           <div class="hero__vignette" aria-hidden="true"></div>
@@ -316,9 +316,9 @@
           </div>
         </header>
         <div class="ba" data-ba data-cursor="Drag" data-reveal="scale">
-          <img class="ba__img" id="ba-after" src="assets/3d/ba-after.webp?v=2" loading="lazy" decoding="async" alt="After: the same alcove fitted with a built-in oak wardrobe, doors open and lit by warm LED strips" width="1600" height="1000">
+          <img class="ba__img" id="ba-after" src="assets/3d/ba-after.webp?v=3" loading="lazy" decoding="async" alt="After: the same alcove fitted with a built-in oak wardrobe, doors open and lit by warm LED strips" width="1600" height="1000">
           <div class="ba__before">
-            <img class="ba__img" id="ba-before" src="assets/3d/ba-before.webp?v=2" loading="lazy" decoding="async" alt="Before: the same alcove, empty, in a furnished room" width="1600" height="1000">
+            <img class="ba__img" id="ba-before" src="assets/3d/ba-before.webp?v=3" loading="lazy" decoding="async" alt="Before: the same alcove, empty, in a furnished room" width="1600" height="1000">
           </div>
                     <span class="ba__tag ba__tag--before" aria-hidden="true">Before</span>
           <span class="ba__tag ba__tag--after" aria-hidden="true">After</span>
