@@ -1,7 +1,7 @@
 // The scene the path tracer renders. It is made from the same builders as the live viewer (buildFloor, buildWall,
 // buildPiece), so the two cannot disagree about what the room holds. On top of that it adds what a photograph needs:
-// a ceiling when the camera stands inside the room, a ground plane when it looks in from outside, the HDRI for daylight,
-// a sun that can only reach the room through its windows, a lamp, and a light for every LED strip.
+// a ceiling when the camera stands inside the room, the HDRI for daylight, a glowing ceiling panel and the LED strips
+// as emissive surfaces.
 // Browser only (three is passed in). Loaded on demand by render.js.
 import { buildFloor, buildWall, buildPiece, disposeGroup } from './geometry.js';
 import { wallsOf, ceilingHeightAt } from './model.js';
@@ -89,62 +89,25 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
   scene.updateMatrixWorld(true);
 
   // ----- light -----
-  const lights = [];
-  const dbg = (typeof window !== 'undefined' && window.gjRenderDebug) || {}; // TEMP
-  const addLight = (l) => { if (dbg.noLights) return l; scene.add(l); lights.push(l); return l; };
-
-  // LED strips: a thin area light under each, as bright as the glowing strip itself
+  // Area lights (RectAreaLight) are left out on purpose: in three-gpu-pathtracer 0.0.23 they left patches of the room black
+  // when tried here, while emissive surfaces render cleanly. So the light comes from the HDRI (daylight at the windows, and
+  // all of the light when looking in from outside), a glowing ceiling panel, and the glowing LED strips.
+  const glowers = [];
   const ledMat = lib.led();
-  ledMat.emissiveIntensity = 5;
-  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  const flip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-  for (const mesh of dbg.noLed ? [] : ledMeshes) {
-    mesh.matrixWorld.decompose(p, q, s);
-    const par = mesh.geometry.parameters || { width: 20, height: 1, depth: 1.4 };
-    const len = Math.max(0.05, par.width * s.x), wid = Math.max(0.02, par.depth * s.z);
-    const light = new THREE.RectAreaLight(0xffd7a0, 22, len, wid * 1.5);
-    light.position.copy(p).add(new THREE.Vector3(0, -(par.height * s.y) / 2 - 0.004, 0).applyQuaternion(q));
-    light.quaternion.copy(q).multiply(flip);
-    addLight(light);
+  ledMat.emissiveIntensity = 9;
+  if (interior) {
+    let cx = 0, cz = 0;
+    for (const c of room.walls) { cx += c.x; cz += c.z; }
+    cx /= room.walls.length; cz /= room.walls.length;
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff0dc, emissiveIntensity: 5, roughness: 1, side: THREE.FrontSide });
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), panelMat);
+    panel.rotation.x = Math.PI / 2; // faces down
+    panel.position.set(cx * M, ceilingHeightAt(room, cx, cz) * M - 0.02, cz * M);
+    panel.name = 'ceiling-lamp';
+    root.add(panel);
+    glowers.push(panel.geometry, panelMat);
   }
-
-  // a lamp in the middle of the ceiling, so a room without windows is still readable
-  let cx = 0, cz = 0;
-  for (const c of room.walls) { cx += c.x; cz += c.z; }
-  cx /= room.walls.length; cz /= room.walls.length;
-  if (interior && !dbg.noLamp) {
-    const lamp = new THREE.RectAreaLight(0xfff0dc, 3, 0.9, 0.9);
-    lamp.position.set(cx * M, ceilingHeightAt(room, cx, cz) * M - 0.03, cz * M);
-    lamp.rotation.x = -Math.PI / 2;
-    addLight(lamp);
-  }
-
-  // the sun: a soft-edged area light far outside, aimed at the biggest window, so it can only enter through openings
-  const walls = wallsOf(room);
-  let target = null, dir = null;
-  const wins = (room.openings || []).filter((o) => o.type === 'window' && walls.some((w) => w.id === o.wallId));
-  if (interior && wins.length) {
-    wins.sort((a, b) => b.width * b.height - a.width * a.height);
-    const o = wins[0], w = walls.find((x) => x.id === o.wallId);
-    const u = o.offset + o.width / 2;
-    target = new THREE.Vector3((w.start.x + w.dir.x * u) * M, (o.bottom + o.height / 2) * M, (w.start.z + w.dir.z * u) * M);
-    // towards the sun: it stands outside, on the side the wall's inward normal points away from
-    dir = new THREE.Vector3(-w.normal.x * Math.cos(SUN_ELEVATION), Math.sin(SUN_ELEVATION), -w.normal.z * Math.cos(SUN_ELEVATION));
-  } else if (!interior) {
-    // looking in from outside (the walls toward us are gone): sun from above and to one side, like the live view
-    target = new THREE.Vector3(cx * M, 0.6, cz * M);
-    // from the camera's side and a little to the left, high up, so the walls and fronts we can see are the lit ones
-    let hx = camPos.x - cx * M, hz = camPos.z - cz * M;
-    const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
-    const rot = (-30 * Math.PI) / 180, rx = hx * Math.cos(rot) - hz * Math.sin(rot), rz = hx * Math.sin(rot) + hz * Math.cos(rot);
-    dir = new THREE.Vector3(rx * Math.cos(1), Math.sin(1), rz * Math.cos(1));
-  }
-  if (target && !dbg.noSun) {
-    const sun = new THREE.RectAreaLight(0xfff0d6, 130, 1.7, 1.7);
-    sun.position.copy(target).addScaledVector(dir, 14);
-    sun.lookAt(target);
-    addLight(sun);
-  }
+  const lights = [];
 
   // ----- sky -----
   // The HDRI is an indoor photograph: it is the daylight at the windows, so it lights the room from inside and is what you
@@ -159,10 +122,10 @@ export function buildRenderScene({ project, THREE, lib, fronts = 'closed', camer
   return {
     scene, interior, ledCount: ledMeshes.length, lightCount: lights.length,
     dispose() {
-      lights.forEach((l) => { scene.remove(l); l.dispose && l.dispose(); });
       disposeGroup(root);
       root.traverse((o) => { if (o.isMesh && o.userData && o.userData.part === 'floor' && o.material) o.material.dispose(); });
       extras.forEach((e) => e.dispose());
+      glowers.forEach((e) => e.dispose());
       lib.dispose();
       scene.clear();
     }
