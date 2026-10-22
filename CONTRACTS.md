@@ -85,3 +85,74 @@ Exports:
 
 ## Design tokens (`site/css/base.css`)
 Use the CSS custom properties only, never raw hex values, in page CSS.
+
+## Planner v2 (`site/js/planner/`)
+Design: `docs/PLANNER.md`. All four logic modules are pure (no DOM, no Three.js) and run in Node 22 and the browser. Lengths are cm. Plan coordinates: x right, z down, so a clockwise outline has a positive shoelace area. Money is EUR, computed in integer cents.
+
+### Project shape (`model.js`)
+```js
+project = {
+  v: 2,
+  room: {
+    walls: [{ id: 'w1', x: 0, z: 0 }, ...],  // 3..24 corners, clockwise. Corner i starts wall i, which ends at corner i+1 (wraps). Ids are 'w' + (index + 1)
+    height: 260,                              // 220..400; for an attic this is the ridge
+    slope: null,                              // or { wallId, lowHeight, depth }: ceiling is lowHeight at that wall, rises linearly to `height` over `depth` cm
+    openings: [{ id: 'o1', wallId: 'w1', type: 'door'|'window'|'radiator'|'socket', offset, bottom, width, height,
+                 swing?: 'in-left'|'in-right'|'out-left'|'out-right' /* door; left = hinge nearer the wall's start, seen from the room */,
+                 depth?: 10 /* radiator */, flagged?: true /* a template change could not keep it where it was */ }],
+    floor: 'oak-floor', wall: 'chalk', skirting: 7,
+    template: { id: 'rect'|'l-shape'|'alcoves'|'attic'|'hallway'|'bay', params: {...} } | null
+  },
+  pieces: [{ id: 'p1', type, style, width, height, depth,
+             carcass: { material }, fronts: { kind: 'hinged'|'sliding'|'open'|'glass'|'none', material, handle, grainVertical },
+             plinth: 10 /* cm, 0 = none */, worktop: null | materialId, radiatorCutout: false,
+             bays: [{ width, door: 'left'|'right'|'double'|'none', items: [{ kind, y, ...params }] }] }],
+  placements: [{ pieceId, mode: 'wall', wallId, offset, elevation } | { pieceId, mode: 'free', x, z, rotation, elevation }]
+}
+```
+* Bay widths are clear widths: `sum(bay.width) = width - 2*LAYOUT_T - (bays-1)*LAYOUT_T` with `LAYOUT_T = 2` (18 mm board, 2 cm layout module). Inner height = height - plinth - slab - 2*LAYOUT_T (`pieceGeometry`).
+* Item `y` is cm from the bay floor to the item's reference line (shelf: its underside; drawers: bottom of the stack; rail: the rail tube). It is snapped to the 32 mm system: multiples of 3.2 cm, rounded to 0.1.
+* Wall placement: the piece's back sits on the wall; `offset` runs along the wall from its start corner; the piece faces the wall's inward normal. Free placement: `x, z` is the footprint centre, `rotation` in degrees; rotation 0 faces +z (the same as a piece on a top wall), local width axis is `(cos r, sin r)`.
+* Room templates (all corners clockwise from the top-left): `rect {width, depth}` 4 walls; `l-shape {lengthA, widthA, lengthB, widthB}` 6 walls (top bar lengthA x widthA, left arm widthB x lengthB, notch bottom right); `alcoves {width, depth, breastWidth, breastDepth, breastOffset}` 8 walls, chimney breast stepping into the room from the top side, `breastOffset` from the left; `attic {width, depth, kneeHeight, slopeAngle, slopeWall}` 4 walls and `slope` set, `slopeWall` is 1..4; `hallway {length, width}` 4 walls with end doors; `bay {width, depth, bayWidth, bayDepth}` 8 walls, a 3-sided 45 degree bay on the top side (the room body starts at z = bayDepth).
+
+### Exports of `model.js`
+* Constants: `LAYOUT_T`, `GRID` (3.2), `FRONT_KINDS`, `DOOR_SIDES`, `OPENING_TYPES`, `LIMITS`, `TYPES`, `STYLES`, `ITEMS`, `PRESETS`, `TEMPLATES`, `TEMPLATE_PARAMS`, and `MATERIALS`, `FLOORS`, `WALL_COLORS`, `HANDLES` re-exported from the configurator model.
+* `TYPES[type] = { label, icon, freestanding, defaultStyle, defaults: { width, height, depth, elevation, plinth, worktop, fronts, bays }, limits: { width, height, depth, elevation, bays }, allowedFronts, allowPlinth, allowWorktop, palette: [item kinds] }`. Types: `wardrobe, kitchen-base, kitchen-wall, tall-cabinet, wall-unit, desk, table, window-seat, under-stairs, island`.
+* `STYLES[id] = { label, fronts: { kind, material, handle, grainVertical }, carcass, plinth, worktop }`.
+* `ITEMS[kind] = { label, params: { name: { type: 'int'|'enum'|'bool', min, max, values, default } }, body(item) -> [lo, hi], zone(item) -> [lo, hi] | null, needsDoor(item), minBay: { width, height }, minDepth, hardware(item, ctx) -> [{ key, qty }], boards(item, ctx) -> [{ part, w, h, t, qty, use: 'body'|'front' }], minutes }`. `body` is the physical extent and `zone` the space the item claims, both in cm relative to `y`. Two zones may not overlap; a zone may not reach below the bay floor (hanging space); a body may not leave the bay.
+* `TEMPLATE_PARAMS[id][name] = { label, min, max, default }`; `clampTemplateParams(id, params)`; `roomFromTemplate(id, params, base?)` returns a room (`base` may carry `height, floor, wall, skirting, openings`); it throws on an unknown id.
+* Room helpers: `wallsOf(room) -> [{ id, index, start, end, length, angle, dir, normal }]` (normal points into the room), `perimeter(room)`, `area(room)`, `wallById(room, id)`, `ceilingHeightAt(room, x, z)`, `footprintOf(project, placement) -> { corners, cx, cz, rotation, wall? } | null`.
+* Also exported: `MIN_BAY` (20), `SWINGS`, `clampPiece(raw)`, `clampRoom(raw)`, `clampTemplateParams`, `maxBaysFor(type, width)`, `signedArea(room)`, `itemBody(item)`, `itemZone(item)`, `visibleFrontHeight(items)` (drawer fronts a door is cut around).
+* Piece helpers: `pieceGeometry(piece, bays?) -> { slab, plinth, Hc, innerH, innerW, outerBayW }`, `normalizeItem(item, { bayWidth, innerH })`, `describeItem(item)`, `presetsFor(type)`, `snapY`, `snapUp`, `snapDown`, `pieceLabel(project, pieceId)`.
+* Pure edits (each returns a new project, never mutates, and never throws on unknown ids; it returns the project unchanged): `createProject()`, `createPiece(type, style, overrides)`, `updateRoom(p, patch)`, `setTemplate(p, id, params)`, `addOpening(p, opening)`, `updateOpening(p, id, patch)`, `removeOpening(p, id)`, `addPiece(p, type, style, overrides)`, `updatePiece(p, id, patch)`, `removePiece(p, id)` (also removes its placement), `setBays(p, id, countOrWidths)`, `addItem(p, pieceId, bay, item)`, `moveItem(p, pieceId, bay, index, { y?, bay? })`, `updateItem(p, pieceId, bay, index, patch)`, `removeItem(p, pieceId, bay, index)`, `applyPreset(p, pieceId, bay, presetId)`, `placePiece(p, pieceId, spec)`, `movePlacement(p, pieceId, patch)`, `unplace(p, pieceId)`.
+* `setTemplate` keeps each opening on the wall with the same index and the same offset if it still fits; otherwise it keeps the opening and sets `flagged: true` (validation then reports `opening-off-wall`). Nothing is deleted silently.
+* Snapping: item `y` to the 32 mm system; wall placement to the wall's ends and to neighbouring pieces on the same wall (vertical ranges overlapping) within 5 cm; free rotation to a multiple of 90 within 5 degrees.
+* `clampProject(raw)` returns a valid project from any object (ranges, ids, snapping; relations such as "opening fits on its wall" are left to validation). `migrate(v1Design)` converts a v1 design (`site/js/configurator/model.js`) to a v2 project. `cloneProject(p)`.
+
+### `validate.js`
+`validateProject(project) -> { ok, errors, blocking, warnings }`. `errors: [{ code, message, ref, blocking }]`; `ok` is true when no error has `blocking: true`; `blocking` / `warnings` are the filtered lists. `ref` is `{ type: 'room' } | { type: 'opening', id } | { type: 'piece', id } | { type: 'bay', pieceId, bay } | { type: 'item', pieceId, bay, index } | { type: 'placement', pieceId }`. It never throws.
+
+| code | blocking | meaning |
+|---|---|---|
+| `room-too-few-walls`, `room-wall-degenerate`, `room-not-clockwise`, `room-self-intersects` | yes | outline problems |
+| `opening-off-wall`, `opening-overlap`, `opening-too-tall` | yes | opening does not fit |
+| `piece-type-unknown`, `piece-size`, `bays-count`, `bays-width` | yes | piece shape |
+| `item-unknown`, `item-outside-bay`, `item-clearance`, `item-needs-door` | yes | interior |
+| `item-not-allowed`, `item-off-grid` | no | interior advice |
+| `placement-unknown-piece`, `placement-wall-missing`, `placement-off-wall`, `wall-too-short`, `placement-outside-room`, `placement-overlap`, `placement-covers-opening`, `placement-door-swing`, `placement-under-slope`, `placement-too-tall` | yes | placement |
+| `walkway`, `piece-unplaced` | no | advice (a free piece leaves less than 60 cm to walk past; a piece is not placed yet). Sockets under a piece are a non-blocking `placement-covers-opening` |
+
+### `pricing.js`
+`PRICES_V2` (new item prices, hardware table, labour) on top of the configurator `PRICES`. `cutListFor(piece) -> [{ part, w, h, t, qty, material, ref }]`.
+`quoteProject(project, { vat = true } = {})` returns
+```js
+{ pieces: [{ id, label, lines: [{ ref, label, path, group, qty, unit, amount, cents }], items: [{ ref, label, path, amount, cents }], total, cents }],
+  lines: [{ label, amount, cents }],   // Materials, Hardware, Workshop labour, Fitting, Design fee
+  subtotal, vat, total, cents: { subtotal, vat, total },
+  cutList, boardM2ByMaterial, leadTimeWeeks,   // 4 + ceil(workshop hours / 40)
+  unplaced: [pieceId] }
+```
+`group` is one of Materials, Hardware, Workshop labour, Fitting. A line `ref` is `{ pieceId, part?, bay?, item? }`. `path` reads "Wardrobe 1 > Bay 2 > 3 drawers". Every amount is `cents / 100`, and all sums are taken on the integer cents, so `sum(piece lines) = piece total`, `sum(lines) = subtotal` and `subtotal + vat = total` exactly. Fitting is charged only for placed pieces.
+
+### `share.js`
+`async encodeProject(project) -> string`: compact JSON (the room's walls are left out when the template regenerates them), deflate-raw through `CompressionStream`, base64url. The first character says which: `z` deflated, `u` plain base64url JSON (no `CompressionStream`). `async decodeProject(str) -> project | null`: accepts `#p=...`, `p=...` or the bare string; a `#design=...` string or a bare string starting with `e` is an old v1 link and goes through `configurator/share.js` `decodeDesign` and `migrate`; the result is passed through `clampProject`; any error gives `null`. `saveLocal(project)` / `loadLocal()` use the key `gj.project.v2` (plain JSON, synchronous, try/catch).
