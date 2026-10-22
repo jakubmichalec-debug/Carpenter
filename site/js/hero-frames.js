@@ -11,6 +11,8 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const FRAME_COUNT = 120;
 const BASE = 'assets/hero-frames/';
 const src = (i) => `${BASE}f_${String(i).padStart(3, '0')}.webp`;
+// the canvas is scaled up this much and moved by the pointer parallax; the scale hides the edges the move would bare
+const PARALLAX = { x: 8, y: 6, scale: 1.03 };
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -20,6 +22,13 @@ function loadImage(url) {
     img.onerror = reject;
     img.src = url;
   });
+}
+
+function transparentOf(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 'rgba(233,232,227,0)';
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},0)`;
 }
 
 /** Resolves with a player once the first and last frames have loaded; rejects if they cannot. */
@@ -32,54 +41,69 @@ export async function createFramePlayer(canvas, opts = {}) {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('2D canvas unavailable');
 
-  const state = { target: 0, current: 0, mx: 0, my: 0, cmx: 0, cmy: 0, w: 1, h: 1, dpr: 1, visible: true, raf: 0, last: performance.now() };
+  const bg = opts.background || '#e9e8e3';
+  const bgClear = transparentOf(bg);
+  const state = { target: 0, current: 0, mx: 0, my: 0, cmx: 0, cmy: 0, w: 1, h: 1, scale: 1, visible: true, raf: 0, last: performance.now() };
+  let drawn = -1;
+  let transform = '';
 
-  // coarse to fine background loading
+  const nearestTo = (pos) => {
+    const lo = Math.floor(pos); const hi = Math.ceil(pos);
+    let below = -1; let above = -1;
+    for (let k = lo; k >= 0; k--) if (frames[k]) { below = k; break; }
+    for (let k = hi; k < FRAME_COUNT; k++) if (frames[k]) { above = k; break; }
+    if (below < 0) return above;
+    if (above < 0) return below;
+    return pos - below <= above - pos ? below : above;
+  };
+
+  // coarse to fine background loading; a newly loaded frame only causes a redraw if it is now the nearest one
   (async () => {
     const order = [];
     const seen = new Set([0, FRAME_COUNT - 1]);
     for (const step of [16, 8, 4, 2, 1]) {
       for (let i = 0; i < FRAME_COUNT; i += step) if (!seen.has(i)) { seen.add(i); order.push(i); }
     }
-    const queue = order.slice();
     const worker = async () => {
-      while (queue.length) {
-        const i = queue.shift();
-        try { frames[i] = await loadImage(src(i)); drawn = -1; invalidate(); } catch { /* a missing frame falls back to its neighbours */ }
+      while (order.length) {
+        const i = order.shift();
+        try {
+          frames[i] = await loadImage(src(i));
+          if (nearestTo(state.current * (FRAME_COUNT - 1)) !== drawn) invalidate();
+        } catch { /* a missing frame falls back to its neighbours */ }
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
   })();
 
-  const nearest = (i, dir) => {
-    for (let k = i; k >= 0 && k < FRAME_COUNT; k += dir) if (frames[k]) return k;
-    return -1;
+  // Performance: one drawImage per change of frame, into a canvas no denser than the frames themselves
+  // (more device pixels than the 1280-wide source adds no detail, only fill cost). Parallax is a CSS transform.
+  const layout = () => {
+    const { w, h } = state;
+    const iw = first.naturalWidth; const ih = first.naturalHeight;
+    const portrait = w / h < 1;
+    // cover the stage; on phones the render fills the top part and keeps the wardrobe (right of centre) in view
+    const s = Math.max(w / iw, (portrait ? h * 0.62 : h) / ih);
+    const dw = iw * s; const dh = ih * s;
+    return { portrait, dw, dh, dx: clamp(w / 2 - dw * (portrait ? 0.62 : 0.5), w - dw, 0), dy: portrait ? 0 : (h - dh) / 2 };
   };
 
-  // Performance: draw one frame at 1x (the frames are 1280 wide, so a denser canvas adds no detail, only fill cost),
-  // only when the frame index or the size changes, and do the pointer parallax with a CSS transform on the canvas.
-  let drawn = -1;
   function draw(i) {
-    const img = frames[i];
-    const { w, h } = state;
-    const iw = img.naturalWidth; const ih = img.naturalHeight;
-    const portrait = w / h < 1;
-    // cover the canvas, slightly oversized for the parallax; on phones keep the wardrobe (right of centre) in view
-    const scale = Math.max(w / iw, (portrait ? h * 0.62 : h) / ih) * 1.04;
-    const dw = iw * scale; const dh = ih * scale;
-    const dx = clamp(w / 2 - dw * (portrait ? 0.62 : 0.5), w - dw, 0);
-    const dy = portrait ? 0 : (h - dh) / 2;
-    ctx.fillStyle = opts.background || '#e9e8e3';
-    if (portrait) ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, dx, dy, dw, dh);
+    const { portrait, dw, dh, dx, dy } = layout();
+    ctx.fillStyle = bg;
+    if (portrait) ctx.fillRect(0, 0, state.w, state.h);
+    ctx.drawImage(frames[i], dx, dy, dw, dh);
     if (portrait) {
-      // phones: fade the render's lower edge into the page ground under the text
+      // fade the render's lower edge into the page ground under the text
       const g = ctx.createLinearGradient(0, dh * 0.72, 0, dh);
-      g.addColorStop(0, 'rgba(233,232,227,0)'); g.addColorStop(1, opts.background || '#e9e8e3');
-      ctx.fillStyle = g; ctx.fillRect(0, dh * 0.72 - 1, w, dh * 0.28 + 2);
+      g.addColorStop(0, bgClear); g.addColorStop(1, bg);
+      ctx.fillStyle = g; ctx.fillRect(0, dh * 0.72 - 1, state.w, dh * 0.28 + 2);
     }
     drawn = i;
   }
+
+  // Lenis already smooths the scroll, so follow it closely; without it, ease more so wheel steps do not show
+  const followRate = () => (window.site && window.site.lenis ? 16 : 7);
 
   function frame() {
     state.raf = 0;
@@ -87,16 +111,16 @@ export async function createFramePlayer(canvas, opts = {}) {
     const now = performance.now();
     const dt = Math.min(0.12, (now - state.last) / 1000 || 0.016);
     state.last = now;
-    const k = 1 - Math.exp(-dt * 16); // Lenis already smooths the scroll; a second slow ease made the hero trail behind
+    const k = 1 - Math.exp(-dt * followRate());
     const dp = state.target - state.current;
     state.current = Math.abs(dp) < 0.0002 ? state.target : state.current + dp * k;
     const km = 1 - Math.exp(-dt * 3.5);
     state.cmx += (state.mx - state.cmx) * km; state.cmy += (state.my - state.cmy) * km;
 
-    let i = nearest(Math.round(state.current * (FRAME_COUNT - 1)), -1);
-    if (i < 0) i = nearest(0, 1);
+    const i = nearestTo(state.current * (FRAME_COUNT - 1));
     if (i >= 0 && i !== drawn) draw(i);
-    canvas.style.transform = `translate3d(${(state.cmx * -8).toFixed(2)}px, ${(state.cmy * -6).toFixed(2)}px, 0)`;
+    const t = `translate3d(${(state.cmx * -PARALLAX.x).toFixed(1)}px, ${(state.cmy * -PARALLAX.y).toFixed(1)}px, 0) scale(${PARALLAX.scale})`;
+    if (t !== transform) { canvas.style.transform = t; transform = t; }
     if (opts.onFrame) opts.onFrame(state.current);
     const moving = Math.abs(state.target - state.current) > 0.0002 || Math.abs(state.mx - state.cmx) > 0.002 || Math.abs(state.my - state.cmy) > 0.002;
     if (moving && !opts.still) state.raf = requestAnimationFrame(frame);
@@ -106,7 +130,11 @@ export async function createFramePlayer(canvas, opts = {}) {
   function resize() {
     const r = canvas.parentElement.getBoundingClientRect();
     state.w = Math.max(1, Math.round(r.width)); state.h = Math.max(1, Math.round(r.height));
-    canvas.width = state.w; canvas.height = state.h;
+    // device pixels up to the screen's density, but never more than the source frame provides
+    const { dw } = layout();
+    state.scale = clamp(Math.min(window.devicePixelRatio || 1, first.naturalWidth / dw), 1, 3);
+    canvas.width = Math.round(state.w * state.scale); canvas.height = Math.round(state.h * state.scale);
+    ctx.setTransform(state.scale, 0, 0, state.scale, 0, 0);
     ctx.imageSmoothingQuality = 'medium';
     drawn = -1;
     invalidate();
