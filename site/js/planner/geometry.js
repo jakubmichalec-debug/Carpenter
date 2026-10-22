@@ -256,7 +256,9 @@ export function buildWall(room, index, THREE, lib) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
     g.computeVertexNormals();
-    const plane = new THREE.Mesh(g, own(lib.plain('#ece9e2', 0.95)));
+    const slopeMat = own(lib.plain('#efece5', 0.95));
+    slopeMat.emissive.set('#d8d3c8'); slopeMat.emissiveIntensity = 0.45; // it faces down, away from the sun, so lift it a little
+    const plane = new THREE.Mesh(g, slopeMat);
     plane.name = 'slope';
     plane.castShadow = true;
     plane.userData = { wallId: w.id, part: 'slope' };

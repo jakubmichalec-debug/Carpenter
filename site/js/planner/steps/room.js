@@ -70,7 +70,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
     <header class="pl-sec__head">
       <p class="eyebrow">Step 1 of 5</p>
       <h2 id="pl-h-shape">Your room</h2>
-      <p class="pl-lede">Pick the closest shape, then set its measurements. The plan and the 3D view update as you go.</p>
+      <p class="pl-lede">Pick the closest shape, then set its measurements or drag the round handles on the plan (arrow keys nudge by 1 cm, Shift by 10). Click a wall to work on it.</p>
     </header>
     <ul class="pl-notes" id="pl-notes" aria-label="Room checks"></ul>
 
@@ -126,7 +126,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
         <div class="pl-form pl-form--one" id="pl-skirt"></div>
       </div>
     </section>`;
-  planBox.innerHTML = '<svg id="pl-plan-svg" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg><p class="pl-canvas-hint">Drag a round handle to move a wall, or focus it and use the arrow keys (1 cm, 10 cm with Shift). Click a wall to select it.</p>';
+  planBox.innerHTML = '<svg id="pl-plan-svg" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>';
   elevBox.innerHTML = '<svg id="pl-elev-svg" role="group" aria-label="Elevation of the selected wall" xmlns="http://www.w3.org/2000/svg"></svg>';
 
   const $ = (sel) => root.querySelector(sel);
@@ -750,7 +750,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
       return `<li class="pl-note${e.blocking ? ' pl-note--block' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>${actions ? `<span class="pl-note__actions">${actions}</span>` : ''}</li>`;
     });
     if (placementIssues) {
-      items.push(`<li class="pl-note"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? 'One placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in step 4, Place.</span></li>`);
+      items.push(`<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? 'One placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in step 4, Place.</span></li>`);
     }
     if (!items.length) items.push(`<li class="pl-note pl-note--ok"><span class="pl-note__icon">${ICON_CHECK}</span><span class="pl-note__text">The room looks good. Nothing needs your attention.</span></li>`);
     const html = items.join('');
