@@ -330,7 +330,7 @@ test('setBays redistributes widths so they always add up to the inside width', (
 test('updatePiece: style bundle, nested merge, bad input', () => {
   let p = M.createProject();
   p = M.updatePiece(p, 'p1', { style: 'charcoal-sliding' });
-  assert.deepEqual([p.pieces[0].fronts.kind, p.pieces[0].fronts.material, p.pieces[0].style], ['sliding', 'lacquer-charcoal', 'charcoal-sliding']);
+  assert.deepEqual([p.pieces[0].fronts.kind, p.pieces[0].fronts.material, p.pieces[0].style], ['sliding', 'black', 'charcoal-sliding']);
   assert.ok(p.pieces[0].bays.every((b) => b.door === 'none'));
   p = M.updatePiece(p, 'p1', { fronts: { handle: 'knob' } });
   assert.deepEqual([p.pieces[0].fronts.handle, p.pieces[0].fronts.kind], ['knob', 'sliding']);
@@ -342,7 +342,7 @@ test('updatePiece: style bundle, nested merge, bad input', () => {
   assert.equal(M.updatePiece(p, 'zz', { width: 100 }).pieces.length, 2);
   assert.equal(M.updatePiece(p, 'p1', { worktop: 'terrazzo' }).pieces[0].worktop, null, 'wardrobes take no worktop');
   const k = M.addPiece(p, 'kitchen-base', 'sage-kitchen');
-  assert.equal(M.updatePiece(k, 'p3', { worktop: 'terrazzo' }).pieces[2].worktop, 'terrazzo');
+  assert.equal(M.updatePiece(k, 'p3', { worktop: 'terrazzo' }).pieces[2].worktop, 'quartz-white', 'the old terrazzo becomes white quartz');
 });
 
 test('addPiece / removePiece: unique ids, removal drops the placement', () => {

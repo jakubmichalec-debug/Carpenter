@@ -117,7 +117,7 @@ test('a 3 m kitchen run (five base and five wall cabinets) is priced sensibly', 
   assert.deepEqual(q.pieces.slice(0, 2).map((x) => x.label), ['Base cabinet 1', 'Wall cabinet 1']);
   assert.ok(q.pieces.every((x) => x.lines.some((l) => l.group === 'Fitting')));
   assert.ok(q.boardM2ByMaterial.oak > 0, 'oak worktop');
-  assert.ok(q.boardM2ByMaterial['lacquer-sage'] > 0);
+  assert.ok(q.boardM2ByMaterial['sage'] > 0);
 });
 
 test('every line points at a piece, bay or item: "Wardrobe 1 > Bay 2 > 3 drawers"', () => {

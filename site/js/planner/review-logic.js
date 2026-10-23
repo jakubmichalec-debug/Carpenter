@@ -67,7 +67,7 @@ export function adviceList(errors = []) {
 // ---------- the quote, shaped for the panel ----------
 const PART_TITLES = {
   carcass: 'Carcass boards', frame: 'Frame', worktop: 'Top', plinth: 'Plinth', sliding: 'Sliding doors', base: 'Workshop time',
-  bays: 'Extra bays', fitting: 'Fitting', doors: 'Doors, hinges and handles'
+  bays: 'Extra bays', fitting: 'Fitting', doors: 'Doors, hinges and handles', trim: 'Top and trim', look: 'Front design and finish'
 };
 const sumCents = (a) => a.reduce((s, x) => s + x.cents, 0);
 

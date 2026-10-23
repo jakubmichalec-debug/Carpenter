@@ -2,7 +2,7 @@
 // to its neighbours and clear of doors and windows), or use the arrow keys and the boxes in the sidebar. Problems show
 // in red on the plan and in plain words in the list; nothing here ever blocks editing. The loop back to steps 2 and 3
 // lives here too: add another piece, or edit one that is already in the room.
-import { TYPES, OPENING_TYPES, wallsOf, wallById, footprintOf, pieceLabel } from '../model.js';
+import { TYPES, OPENING_TYPES, wallsOf, wallById, footprintOf, pieceLabel, defaultElevation } from '../model.js';
 import { WALL_T, wallQuads, wallPoint, roomBounds } from '../plan-geom.js';
 import * as G from '../place-geom.js';
 import { esc, clamp, fieldHtml, wireFields, syncFields, ICON_NOTE, ICON_TRASH } from './shared.js';

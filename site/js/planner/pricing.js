@@ -2,8 +2,9 @@
 import { PRICES } from '../configurator/pricing.js';
 import {
   ITEMS, TYPES, MATERIALS, LAYOUT_T, pieceGeometry, describeItem, pieceLabel, visibleFrontHeight,
-  footprintOf, ceilingHeightAt, wallById
+  footprintOf, ceilingHeightAt, wallById, surfacesOf, roleSegments, legCount, SCRIBE, TOP_CAP
 } from './model.js';
+import { pricePerM2, canonicalId, isStone } from './materials.js';
 
 export { PRICES };
 
@@ -59,7 +60,18 @@ export const PRICES_V2 = {
     slope: 85,                       // scribing to a sloping ceiling
     radiator: 60                     // cutting around a radiator
   },
-  slabThickness: { desk: 3.8, table: 3.8, 'window-seat': 3.2 }
+  slabThickness: { desk: 3.8, table: 3.8, 'window-seat': 3.2 },
+  // Looks: handle by style (EUR each, medium size, black), multiplied by size and finish; legs; extra workshop time per front.
+  handle: { bar: 14, knob: 9, cup: 16, edge: 0, push: 22 },
+  handleSize: { short: 0.8, medium: 1, long: 1.5 },
+  leg: { wood: 24, metal: 16 },
+  look: {
+    designHours: { slab: 0, shaker: 0.6, ribbed: 0.9, glass: 0 },   // per front
+    edgeHours: { square: 0, chamfer: 0.2, round: 0.35 },            // per front
+    routedPullHours: 0.15,                                            // per front with a routed finger pull
+    overhangHours: 0.5, corniceHours: 0.9, corniceMetre: 36, scribeHours: 0.4, twoToneHours: 0.6, gableHours: 0.3, legHours: 0.3,
+    interiorHours: 0.5                                                // a separate inside material: extra edging and sorting
+  }
 };
 
 // ---------- helpers ----------
@@ -69,8 +81,13 @@ const r3 = (n) => Math.round(n * 1000) / 1000;
 const area = (b) => (b.w * b.h * b.qty) / 10000;
 const cents = (euros) => Math.round(euros * 100);
 const money = (c) => c / 100;
-const matPrice = (id) => (MATERIALS[id] ? MATERIALS[id].pricePerM2 : 0);
-const boardCents = (b) => cents(area(b) * matPrice(b.material) * PRICES.wasteFactor);
+const boardCents = (b) => cents(area(b) * pricePerM2({ material: b.material, finish: b.finish }) * PRICES.wasteFactor);
+const handleCents = (piece) => {
+  const f = piece.fronts;
+  const fin = MATERIALS[canonicalId(f.handleFinish)];
+  const finishF = f.handle === 'push' || f.handle === 'edge' ? 1 : (fin && fin.factor) || 1;
+  return cents((PRICES_V2.handle[f.handle] ?? 0) * (PRICES_V2.handleSize[f.handleSize] ?? 1) * finishF);
+};
 
 function doorsIn(piece, bay) {
   const k = piece.fronts.kind;
@@ -89,20 +106,23 @@ function bayDoor(piece, bay, g) {
 }
 
 // ---------- cut list ----------
-// Every board of a piece: { ref, part, w, h, t, qty, material }. `ref.part` says where it belongs.
+// Every board of a piece: { ref, part, w, h, t, qty, material, finish }. `ref.part` says where it belongs.
 export function cutListFor(piece) {
   const g = pieceGeometry(piece);
   const out = [];
-  const body = piece.carcass.material, front = piece.fronts.material;
+  const S = surfacesOf(piece);
+  const look = piece.look || {};
+  const body = S.carcass, inside = S.interior, front = S.front;
   const W = piece.width, D = piece.depth;
-  const add = (ref, part, w, h, t, qty, material) => {
-    if (qty > 0 && w > 0 && h > 0) out.push({ ref: { pieceId: piece.id, ...ref }, part, w: r1(w), h: r1(h), t: r1(t), qty, material });
+  const add = (ref, part, w, h, t, qty, spec) => {
+    if (qty > 0 && w > 0 && h > 0) out.push({ ref: { pieceId: piece.id, ...ref }, part, w: r1(w), h: r1(h), t: r1(t), qty, material: spec.material, finish: spec.finish || 'matte' });
   };
   const n = piece.bays.length;
   const type = piece.type;
+  const topSpec = piece.worktop ? { material: piece.worktop, finish: 'matte' } : front;
 
   if (type === 'table') {
-    add({ part: 'worktop' }, piece.worktop ? 'worktop' : 'top', W, D, g.slab, 1, piece.worktop || front);
+    add({ part: 'worktop' }, piece.worktop ? 'worktop' : 'top', W, D, g.slab, 1, topSpec);
     add({ part: 'frame' }, 'leg', 5.5, piece.height - g.slab, 5.5, 4, front);
     add({ part: 'frame' }, 'apron', W - 11, 8, 2.2, 2, front);
     add({ part: 'frame' }, 'apron', D - 11, 8, 2.2, 2, front);
@@ -111,7 +131,7 @@ export function cutListFor(piece) {
   }
   const legged = type === 'desk' && piece.bays.every((b) => !b.items.length) && piece.fronts.kind === 'none';
   if (type === 'desk') {
-    add({ part: 'worktop' }, piece.worktop ? 'worktop' : 'top', W, D, g.slab, 1, piece.worktop || front);
+    add({ part: 'worktop' }, piece.worktop ? 'worktop' : 'top', W, D, g.slab, 1, topSpec);
     if (legged) {
       add({ part: 'frame' }, 'leg', 5, g.Hc, 5, 4, front);
       add({ part: 'frame' }, 'apron', W - 10, 8, 2.2, 2, front);
@@ -121,21 +141,33 @@ export function cutListFor(piece) {
   }
 
   const innerH = g.innerH;
-  add({ part: 'carcass' }, 'side', type === 'desk' ? D - 2 : D, g.Hc, BOARD, 2, body);
+  add({ part: 'carcass' }, 'side', type === 'desk' ? D - 2 : D, g.Hc, BOARD, 2, look.gables ? front : body);
   if (type === 'window-seat') add({ part: 'worktop' }, 'top', W, D, g.slab, 1, front);
   else if (type === 'kitchen-base' || type === 'island') add({ part: 'carcass' }, 'stretcher', W - 2 * LAYOUT_T, 8, BOARD, 2, body);
   else if (type !== 'desk') add({ part: 'carcass' }, 'top', W - 2 * LAYOUT_T, D - 1, BOARD, 1, body);
   if (type !== 'desk') add({ part: 'carcass' }, 'bottom', W - 2 * LAYOUT_T, D - 1, BOARD, 1, body);
-  add({ part: 'carcass' }, 'back', W - 2 * LAYOUT_T, type === 'desk' ? 35 : innerH, type === 'desk' ? BOARD : BACK, 1, body);
-  add({ part: 'carcass' }, 'divider', D - 1.5, innerH, BOARD, n - 1, body);
-  if (g.plinth > 0) {
+  add({ part: 'carcass' }, 'back', W - 2 * LAYOUT_T, type === 'desk' ? 35 : innerH, type === 'desk' ? BOARD : BACK, 1, inside);
+  add({ part: 'carcass' }, 'divider', D - 1.5, innerH, BOARD, n - 1, inside);
+  if (g.plinth > 0 && look.base !== 'legs') {
     add({ part: 'carcass' }, 'plinth', W - 4, g.plinth, BOARD, 1, body);
     add({ part: 'carcass' }, 'plinth', D - 8, g.plinth, BOARD, 2, body);
   }
-  if (type === 'kitchen-base' && piece.worktop) add({ part: 'worktop' }, 'worktop', W, D + 2, g.slab, 1, piece.worktop);
-  if (type === 'island' && piece.worktop) add({ part: 'worktop' }, 'worktop', W + 6, D + 30, g.slab, 1, piece.worktop);
+  if (type === 'kitchen-base' && piece.worktop) add({ part: 'worktop' }, 'worktop', W, D + 2, g.slab, 1, topSpec);
+  if (type === 'island' && piece.worktop) add({ part: 'worktop' }, 'worktop', W + 6, D + 30, g.slab, 1, topSpec);
+
+  // top treatment and scribe strips (front material)
+  if (look.top === 'overhang' && g.cap) add({ part: 'trim' }, 'top cap', W, D + 2, g.cap, 1, front);
+  if (look.top === 'cornice' && g.cap) {
+    add({ part: 'trim' }, 'cornice front', W, g.cap, 2.2, 1, front);
+    add({ part: 'trim' }, 'cornice returns', 3.5, g.cap, 2.2, 2, front);
+  }
+  if (look.scribe && type !== 'desk') {
+    add({ part: 'trim' }, 'scribe top', W, SCRIBE.top, 1.2, 1, front);
+    add({ part: 'trim' }, 'scribe side', SCRIBE.side, g.Hc, 1.2, 2, front);
+  }
 
   // doors
+  const roles = (hLo, hHi) => roleSegments(hLo, hHi, piece);
   if (piece.fronts.kind === 'sliding') {
     const count = slidingPanels(piece);
     const stack = Math.max(0, ...piece.bays.map((b) => visibleFrontHeight(b.items)));
@@ -145,14 +177,18 @@ export function cutListFor(piece) {
       const d = bayDoor(piece, bay, g);
       if (!d.count) return;
       const ref = { bay: bi, part: 'doors' };
-      if (piece.fronts.kind === 'glass') {
-        add(ref, 'door', 5.5, d.h, FRONT, 2 * d.count, front);
-        add(ref, 'door', d.w - 11, 5.5, FRONT, 2 * d.count, front);
-      } else {
-        add(ref, 'door', d.w, d.h, FRONT, d.count, front);
+      for (const seg of doorParts(piece, bay, d, g)) {
+        const spec = seg.role === 'upper' && S.upper ? S.upper : front;
+        if (piece.fronts.kind === 'glass') {
+          add(ref, 'door', 5.5, seg.h, FRONT, 2 * d.count, spec);
+          add(ref, 'door', d.w - 11, 5.5, FRONT, 2 * d.count, spec);
+        } else {
+          add(ref, 'door', d.w, seg.h, FRONT, d.count, spec);
+        }
       }
     });
   }
+  void roles;
 
   // items
   piece.bays.forEach((bay, bi) => {
@@ -160,10 +196,27 @@ export function cutListFor(piece) {
       const def = ITEMS[it.kind];
       if (!def) return;
       const ctx = { bayW: bay.width, depth: D, innerH, outerW: g.outerBayW };
-      def.boards(it, ctx).forEach((b) => add({ bay: bi, item: ii }, b.part, b.w, b.h, b.t, b.qty, b.use === 'front' ? front : body));
+      def.boards(it, ctx).forEach((b) => {
+        let spec = b.use === 'front' ? front : inside;
+        if (b.use === 'front' && S.upper) {
+          const y = g.plinth + LAYOUT_T + (it.y || 0);
+          if (y >= piece.look.split) spec = S.upper;
+        }
+        add({ bay: bi, item: ii }, b.part, b.w, b.h, b.t, b.qty, spec);
+      });
     });
   });
   return out;
+}
+
+// The pieces a bay's door is made of: one, or two stacked when the piece is two-tone. [{ h, role }]
+function doorParts(piece, bay, d, g) {
+  if (!piece.look || !piece.look.upper) return [{ h: d.h, role: 'front' }];
+  const lo = g.plinth + visibleFrontHeight(bay.items), hi = g.plinth + g.Hc;
+  const segs = roleSegments(lo, hi, piece);
+  if (segs.length < 2) return [{ h: d.h, role: segs[0].role }];
+  const total = segs.reduce((s, x) => s + (x.hi - x.lo), 0);
+  return segs.map((x) => ({ h: r1(d.h * ((x.hi - x.lo) / total)), role: x.role }));
 }
 
 // ---------- the quote ----------
@@ -189,13 +242,14 @@ function quotePiece(project, piece, label, placement) {
     const e = PRICES_V2.hardware[key];
     return e ? cents(e.price * qty) : 0;
   };
-  const handleC = PRICES.handle[piece.fronts.handle] ?? 0;
+  const hC = handleCents(piece);
+  const look = piece.look || {};
 
   // Materials: boards grouped by where they belong
   const boards = cutListFor(piece);
   const groupBoards = (match) => boards.filter(match);
   const sumBoards = (bs) => ({ c: bs.reduce((s, b) => s + boardCents(b), 0), m2: bs.reduce((s, b) => s + area(b), 0) });
-  for (const [part, text] of [['carcass', 'Carcass boards'], ['frame', 'Frame'], ['worktop', piece.type === 'desk' || piece.type === 'table' ? 'Top' : piece.type === 'window-seat' ? 'Seat lid' : 'Worktop'], ['sliding', 'Sliding doors']]) {
+  for (const [part, text] of [['carcass', 'Carcass boards'], ['frame', 'Frame'], ['worktop', piece.type === 'desk' || piece.type === 'table' ? 'Top' : piece.type === 'window-seat' ? 'Seat lid' : 'Worktop'], ['sliding', 'Sliding doors'], ['trim', 'Top and trim']]) {
     const s = sumBoards(groupBoards((b) => b.ref.part === part && b.ref.bay === undefined));
     line('Materials', { part }, text, r3(s.m2), 'm²', s.c);
   }
@@ -205,7 +259,7 @@ function quotePiece(project, piece, label, placement) {
     if (piece.fronts.kind === 'glass') {
       const d = bayDoor(piece, bay, g);
       const m2 = (d.count * Math.max(0, d.w - 11) * Math.max(0, d.h - 11)) / 10000;
-      line('Materials', { bay: bi, part: 'doors' }, 'Door glass', r3(m2), 'm²', cents(m2 * PRICES.glassPerM2));
+      line('Materials', { bay: bi, part: 'doors' }, 'Door glass', r3(m2), 'm²', cents(m2 * pricePerM2({ material: look.glass })));
     }
     bay.items.forEach((it, ii) => {
       const def = ITEMS[it.kind];
@@ -220,24 +274,30 @@ function quotePiece(project, piece, label, placement) {
   piece.bays.forEach((bay, bi) => {
     const d = bayDoor(piece, bay, g);
     if (d.count) {
-      const hinges = d.count * hingesFor(d.h);
+      const parts = doorParts(piece, bay, d, g);
+      const hinges = parts.reduce((sum, x) => sum + d.count * hingesFor(x.h), 0);
       line('Hardware', { bay: bi, part: 'doors' }, 'Hinges', hinges, 'pc', cents(hinges * PRICES_V2.hinge));
-      line('Hardware', { bay: bi, part: 'doors' }, 'Door handles', d.count, 'pc', d.count * cents(handleC));
+      line('Hardware', { bay: bi, part: 'doors' }, 'Door handles', d.count * parts.length, 'pc', d.count * parts.length * hC);
     }
     const ctxBase = { bayW: bay.width, depth: piece.depth, innerH: g.innerH, outerW: g.outerBayW };
     bay.items.forEach((it, ii) => {
       const def = ITEMS[it.kind];
       if (!def) return;
-      const c = def.hardware(it, ctxBase).reduce((s, h) => s + hw(h.key, h.qty), 0) + def.handles(it) * cents(handleC);
+      const c = def.hardware(it, ctxBase).reduce((s, h) => s + hw(h.key, h.qty), 0) + def.handles(it) * hC;
       line('Hardware', { bay: bi, item: ii }, describeItem(it), 1, 'set', c);
     });
   });
   if (piece.fronts.kind === 'sliding') {
     const count = slidingPanels(piece);
     line('Hardware', { part: 'sliding' }, 'Sliding track', r1(piece.width / 100), 'm', cents((piece.width / 100) * PRICES.slidingTrack));
-    line('Hardware', { part: 'sliding' }, 'Door handles', count, 'pc', count * cents(handleC));
+    line('Hardware', { part: 'sliding' }, 'Door handles', count, 'pc', count * hC);
   }
-  if (g.plinth > 0) line('Hardware', { part: 'plinth' }, 'Plinth feet', r1(piece.width / 100), 'm', cents((piece.width / 100) * PRICES.plinthPerMetre));
+  if (g.plinth > 0 && look.base === 'legs') {
+    const n = legCount(piece.width), metal = look.legs !== 'wood';
+    const fin = MATERIALS[canonicalId(look.legs)];
+    const each = metal ? PRICES_V2.leg.metal * ((fin && fin.factor) || 1) : PRICES_V2.leg.wood;
+    line('Hardware', { part: 'plinth' }, metal ? 'Metal legs' : 'Wooden legs', n, 'pc', cents(each * n));
+  } else if (g.plinth > 0) line('Hardware', { part: 'plinth' }, 'Plinth feet', r1(piece.width / 100), 'm', cents((piece.width / 100) * PRICES.plinthPerMetre));
 
   // Workshop labour
   const rate = PRICES.labourPerHour;
@@ -250,11 +310,35 @@ function quotePiece(project, piece, label, placement) {
   labour({ part: 'base' }, `${T.label} workshop time`, L.baseHours[piece.type] ?? 6);
   labour({ part: 'bays' }, 'Extra bays', (piece.bays.length - 1) * L.extraBayHours);
   if (piece.fronts.kind === 'sliding') labour({ part: 'sliding' }, 'Sliding doors', slidingPanels(piece) * L.slidingPanelHours);
-  if (g.plinth > 0) labour({ part: 'plinth' }, 'Plinth', L.plinthHours);
-  if (piece.worktop) labour({ part: 'worktop' }, 'Worktop', MATERIALS[piece.worktop].kind === 'stone' ? L.stoneWorktopHours : L.worktopHours);
+  if (g.plinth > 0) labour({ part: 'plinth' }, look.base === 'legs' ? 'Legs' : 'Plinth', look.base === 'legs' ? PRICES_V2.look.legHours : L.plinthHours);
+  // look: front design, edges, routed pulls, top, scribe, two-tone, separate inside, end panels
+  {
+    const V = PRICES_V2.look;
+    let fronts = piece.fronts.kind === 'sliding' ? slidingPanels(piece) : 0;
+    piece.bays.forEach((bay) => {
+      const d = bayDoor(piece, bay, g);
+      if (d.count) fronts += d.count * doorParts(piece, bay, d, g).length;
+      bay.items.forEach((it) => { const def = ITEMS[it.kind]; if (def) fronts += def.handles(it); });
+    });
+    const design = piece.fronts.kind === 'glass' ? 'glass' : look.design;
+    const designName = { shaker: 'Shaker frames', ribbed: 'Ribbed fronts' }[design];
+    if (fronts && designName) labour({ part: 'look' }, designName, fronts * (V.designHours[design] || 0));
+    if (fronts && look.edge && look.edge !== 'square') labour({ part: 'look' }, look.edge === 'round' ? 'Rounded front edges' : 'Chamfered front edges', fronts * V.edgeHours[look.edge]);
+    if (fronts && piece.fronts.handle === 'edge' && piece.fronts.kind !== 'open' && piece.fronts.kind !== 'none') labour({ part: 'look' }, 'Routed finger pulls', fronts * V.routedPullHours);
+    if (look.top === 'overhang' && g.cap) labour({ part: 'trim' }, 'Top with overhang', V.overhangHours);
+    if (look.top === 'cornice' && g.cap) {
+      line('Materials', { part: 'trim' }, 'Crown moulding', r1(piece.width / 100), 'm', cents((piece.width / 100) * V.corniceMetre));
+      labour({ part: 'trim' }, 'Crown moulding', V.corniceHours);
+    }
+    if (look.scribe && piece.type !== 'desk') labour({ part: 'trim' }, 'Scribe strips', V.scribeHours);
+    if (look.upper) labour({ part: 'look' }, 'Two-tone fronts', V.twoToneHours);
+    if (look.gables) labour({ part: 'look' }, 'End panels', V.gableHours);
+    if (piece.interior) labour({ part: 'look' }, 'Separate inside material', V.interiorHours);
+  }
+  if (piece.worktop) labour({ part: 'worktop' }, 'Worktop', isStone(piece.worktop) ? L.stoneWorktopHours : L.worktopHours);
   piece.bays.forEach((bay, bi) => {
     const d = bayDoor(piece, bay, g);
-    if (d.count) labour({ bay: bi, part: 'doors' }, 'Doors', d.count * (L.doorHours + (piece.fronts.kind === 'glass' ? L.glassDoorHours : 0)));
+    if (d.count) labour({ bay: bi, part: 'doors' }, 'Doors', d.count * doorParts(piece, bay, d, g).length * (L.doorHours + (piece.fronts.kind === 'glass' ? L.glassDoorHours : 0)));
     bay.items.forEach((it, ii) => {
       const def = ITEMS[it.kind];
       if (def) labour({ bay: bi, item: ii }, describeItem(it), def.minutes(it) / 60);

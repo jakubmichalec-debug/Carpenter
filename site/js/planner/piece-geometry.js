@@ -2,13 +2,14 @@
 // are passed in, so this file imports no Three.js and Node can load it. The model is in cm: everything here is built
 // in cm inside a group scaled by 0.01, so the result is in metres. Origin: the piece's left end, bottom and back;
 // +x right, +y up, +z out of the wall.
-import { ITEMS, LAYOUT_T, TYPES, pieceGeometry } from './model.js';
+import { ITEMS, LAYOUT_T, TYPES, pieceGeometry, surfacesOf, roleSegments, legCount, SCRIBE } from './model.js';
+import { surfaceInfo } from './materials.js';
+import { fieldGeometry, CORNICE_PROFILE } from './front-geometry.js';
 import { bayLayout } from './interior-geom.js';
 
 const T = LAYOUT_T;       // sides and dividers fill their 2 cm layout slot
 const BOARD = 1.8;        // shelves and loose boards
 const F = 1.9;            // front board
-const GAP = 0.15;
 const DECOR = ['#d8d0c0', '#8d96a1', '#4a525c', '#c4a98a', '#7a8b78', '#bfb8ae', '#a8694f', '#e6dccb'];
 
 export const FRONT_MODES = ['closed', 'ajar', 'hidden'];
@@ -56,15 +57,21 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   root.userData = { pieceId: piece.id, width: W / 100, height: H / 100, depth: D / 100 };
 
   // ----- primitives -----
-  const mat = (id) => (lib.veneer ? lib.veneer(id) : lib.get(id));
-  const bodyMat = mat(piece.carcass.material);
-  const frontMat = mat(piece.fronts.material);
+  const look = piece.look || {};
+  const fr = piece.fronts;
+  const S = surfacesOf(piece);
+  const GAP = (look.gap || 3) / 20;                 // half the gap between two fronts, cm
+  const surf = (spec) => (lib.surface ? lib.surface(spec) : lib.veneer(spec.material));
+  const grained = (spec) => (lib.surfaceTextured ? lib.surfaceTextured(spec) : lib.textured(spec.material));
+  const bodyMat = surf(S.interior);
   const shadow = (m, cast = true) => { m.castShadow = cast; m.receiveShadow = true; return m; };
-  // box from its low corner; `id` is a material id (grain follows `grain`) or `material` a ready material
+  // box from its low corner. `spec` is a surface { material, finish } (grain follows `grain`), `material` a ready material,
+  // `materials` six ready materials (+x, -x, +y, -y, +z, -z)
   const box = (parent, x0, y0, z0, w, h, d, o = {}) => {
     const geo = new THREE.BoxGeometry(Math.max(0.01, w), Math.max(0.01, h), Math.max(0.01, d));
-    const m = o.material || mat(o.id || piece.carcass.material);
-    if (!o.material && lib.textured(o.id || piece.carcass.material)) {
+    const spec = o.spec || S.carcass;
+    const m = o.materials || o.material || surf(spec);
+    if (!o.material && (o.materials || grained(spec))) {
       mapUV(geo, { x: w / 100, y: h / 100, z: d / 100 }, o.grain || 'x', rnd(), rnd());
     }
     const mesh = new THREE.Mesh(geo, m);
@@ -83,17 +90,19 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   };
   const steel = lib.plain('#b9b9b3', 0.3, 0.9);
   const dark = lib.plain('#3a3d40', 0.6, 0.1);
-  const handleMat = lib.handle();
+  const handleMat = lib.handleOf ? lib.handleOf(fr.handleFinish) : lib.handle();
+  const glassMat = lib.glassOf ? lib.glassOf(look.glass) : lib.glass();
 
+  const topSpec = piece.worktop ? { material: piece.worktop, finish: 'matte' } : S.front;
   // ----- table: a top, four legs and aprons -----
   if (piece.type === 'table') {
     const topT = 3.8, yTop = H - topT;
-    box(g, 0, yTop, 0, W, topT, D, { id: piece.worktop || piece.fronts.material, part: 'worktop' });
+    box(g, 0, yTop, 0, W, topT, D, { spec: topSpec, part: 'worktop' });
     const s = 6, ins = 4;
-    for (const x of [ins, W - ins - s]) for (const z of [ins, D - ins - s]) box(g, x, 0, z, s, yTop, s, { id: piece.fronts.material, grain: 'y', part: 'leg' });
+    for (const x of [ins, W - ins - s]) for (const z of [ins, D - ins - s]) box(g, x, 0, z, s, yTop, s, { spec: S.front, grain: 'y', part: 'leg' });
     const ah = 9, ay = yTop - ah;
-    for (const z of [ins + 2, D - ins - 4]) box(g, ins + s, ay, z, W - 2 * (ins + s), ah, 2, { id: piece.fronts.material, part: 'rail' });
-    for (const x of [ins + 2, W - ins - 4]) box(g, x, ay, ins + s, 2, ah, D - 2 * (ins + s), { id: piece.fronts.material, grain: 'z', part: 'rail' });
+    for (const z of [ins + 2, D - ins - 4]) box(g, ins + s, ay, z, W - 2 * (ins + s), ah, 2, { spec: S.front, part: 'rail' });
+    for (const x of [ins + 2, W - ins - 4]) box(g, x, ay, ins + s, 2, ah, D - 2 * (ins + s), { spec: S.front, grain: 'z', part: 'rail' });
     return root;
   }
 

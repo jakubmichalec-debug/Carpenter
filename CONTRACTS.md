@@ -115,6 +115,31 @@ project = {
 * Wall placement: the piece's back sits on the wall; `offset` runs along the wall from its start corner; the piece faces the wall's inward normal. Free placement: `x, z` is the footprint centre, `rotation` in degrees; rotation 0 faces +z (the same as a piece on a top wall), local width axis is `(cos r, sin r)`.
 * Room templates (all corners clockwise from the top-left): `rect {width, depth}` 4 walls; `l-shape {lengthA, widthA, lengthB, widthB}` 6 walls (top bar lengthA x widthA, left arm widthB x lengthB, notch bottom right); `alcoves {width, depth, breastWidth, breastDepth, breastOffset}` 8 walls, chimney breast stepping into the room from the top side, `breastOffset` from the left; `attic {width, depth, kneeHeight, slopeAngle, slopeWall}` 4 walls and `slope` set, `slopeWall` is 1..4; `hallway {length, width}` 4 walls with end doors; `bay {width, depth, bayWidth, bayDepth}` 8 walls, a 3-sided 45 degree bay on the top side (the room body starts at z = bayDepth).
 
+### The look of a piece (furniture depth)
+Everything below is in `model.js` and `materials.js` and is pure. Every field is optional on input: `clampPiece` fills a missing or unknown value from the piece's style, so projects, local saves and share links made before these fields existed load with the look they had.
+```js
+piece = { ..., elevation,                      // cm; where a wall-hung piece goes when it is first placed (type limits)
+  carcass:  { material, finish },              // sides, top, bottom (outer faces)
+  interior: null | { material, finish },       // back, dividers, shelves, drawer boxes, inner faces. null = same as carcass; material 'front' = same as fronts
+  fronts:   { kind, material, finish, handle, grainVertical,
+              handleFinish, handleSize: 'short'|'medium'|'long',
+              doorHandle: 'auto'|'top'|'middle'|'bottom'|'full', drawerHandle: 'centre'|'top' },
+  look: { design: 'slab'|'shaker'|'glass'|'ribbed', edge: 'square'|'chamfer'|'round',
+          glass: materialId /* use 'glass' */, base: 'none'|'recessed'|'flush'|'legs', legs: 'wood'|handleFinishId,
+          top: 'flush'|'overhang'|'cornice', gables: bool /* outer side faces in the front material */,
+          gap: 2|3|4 /* mm between fronts */, scribe: bool /* filler strips at the ceiling and the sides */,
+          upper: null | { material, finish } /* two-tone: fronts above `split` */, split: cm from the floor },
+  plinth: 0..30 /* height of the base: plinth or legs; 0 = no base, and base 'none' <=> plinth 0 */, worktop }
+```
+* `fronts.kind 'glass'` and `look.design 'glass'` always go together (`clampPiece` enforces it; `updatePiece` keeps them in step). `HANDLES = bar, knob, cup, edge (routed finger pull), push`; `DESIGNS = slab, shaker, glass, ribbed`. Older values map on: handle `groove` -> `edge`, `long-bar` and `leather` -> `bar`; design `fluted` and `vgroove` -> `ribbed`, `cane` -> `shaker`.
+* `pieceGeometry` also returns `cap` (cm of height taken by the top treatment: overhang 2.5, cornice 5, only for types with `allowTop`); `Hc = height - plinth - slab - cap`. `legCount(width)` is 4, 6 or 8.
+* `surfacesOf(piece) -> { front, carcass, interior, upper }` resolves which surface each part uses; `roleSegments(lo, hi, piece)` splits a stretch of front at the two-tone split into `front` / `upper` parts (separate doors, a gap apart). `defaultElevation(piece)`, `defaultSplit(height, plinth)`, `SIZE_PRESETS[type]` (also `TYPES[type].sizePresets`), `TYPES[type].allowTop`.
+* `styleBundle(type, styleId)` gives a complete look for a type; ids that are not in the material table fall back, so a style survives a change of stock. `STYLES[id] = { label, blurb, legacy?, fronts, carcass, carcassFinish, interior, plinth, worktop, look }`; `legacy` styles keep working but are shown only on a piece that already uses one. `updatePiece(p, id, { style })` replaces the whole look with the style's; a patch may carry `look`, `fronts`, `carcass`, `interior` (null clears it).
+* `fit.js` (pure): `freeSpan(project, pieceId, wallId?)`, `fitToWall(project, pieceId, wallId?) -> { wallId, width, offset, placed, exact }` (fills the free stretch of the wall around the piece, limited by other pieces, doors, windows and radiators) and `fitToCeiling(project, pieceId) -> { height, ceiling }` (ceiling above the footprint minus 0.5 cm, or 1.5 cm when scribing).
+
+### `materials.js` (pure): the stock range
+One table, `LIBRARY` (= `MATERIALS`), read by the pickers, the live 3D, the path tracer and the pricing. Swap the table to change the range; nothing else changes. Each entry: `label, family, kind, color, roughness, metalness, grain, grainStyle?, tex?, edgeGrain?, veined?, pricePerM2, finishes[], satinPlus, uses[] ('front'|'carcass'|'interior'|'top'|'glass'|'handle'), thickness?, factor? (handles), note`. Helpers: `materialsFor(use)`, `familiesFor(use)`, `isUsable(id, use)`, `resolveMaterial(id, use, ...prefer)`, `cleanSurface(raw, use, fallback)`, `pricePerM2(surface)`, `thicknessOf(id)`, `resolveHandleFinish(id)`, `glassTypes()`, `canonicalId(id)`. `ALIASES` maps ids of earlier ranges to today's (`lacquer-white` -> `chalk-white`, `lacquer-sage` -> `sage`, `lacquer-charcoal` -> `black`, `lacquer-clay` -> `clay`, `terrazzo` -> `quartz-white`, `steel-black` -> `handle-black`); any other id that is not on offer falls back to the style's. The range today: 8 paints, 4 wood veneers, birch plywood, 2 laminates, 4 worktops, 2 glass types, 4 handle finishes; paints and veneers come in one finish.
+
 ### Exports of `model.js`
 * Constants: `LAYOUT_T`, `GRID` (3.2), `FRONT_KINDS`, `DOOR_SIDES`, `OPENING_TYPES`, `LIMITS`, `TYPES`, `STYLES`, `ITEMS`, `PRESETS`, `TEMPLATES`, `TEMPLATE_PARAMS`, and `MATERIALS`, `FLOORS`, `WALL_COLORS`, `HANDLES` re-exported from the configurator model.
 * `TYPES[type] = { label, icon, freestanding, defaultStyle, defaults: { width, height, depth, elevation, plinth, worktop, fronts, bays }, limits: { width, height, depth, elevation, bays }, allowedFronts, allowPlinth, allowWorktop, palette: [item kinds] }`. Types: `wardrobe, kitchen-base, kitchen-wall, tall-cabinet, wall-unit, desk, table, window-seat, under-stairs, island`.

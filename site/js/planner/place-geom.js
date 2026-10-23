@@ -1,7 +1,7 @@
 // Planner v2 placement helpers (step 4): pure, no DOM, no Three.js. All lengths in cm, plan coordinates (x right, z down).
 // The model's own placePiece already snaps a little (wall ends, neighbours, right angles). These helpers add what a
 // drag needs on top: following the nearest wall, snapping clear of doors and windows, finding a free spot, corners.
-import { TYPES, wallsOf, wallById, footprintOf, placePiece } from './model.js';
+import { TYPES, wallsOf, wallById, footprintOf, placePiece, defaultElevation } from './model.js';
 import { ceilingProfile, minCeiling, roomBounds } from './plan-geom.js';
 import { validateProject } from './validate.js';
 
@@ -32,7 +32,7 @@ export function nearestWall(room, pt, walls = wallsOf(room)) {
 }
 
 // Offsets (of the piece's left end) that put the piece in front of another piece or an opening on the same wall.
-function blockedRanges(project, piece, wall, elevation) {
+export function blockedRanges(project, piece, wall, elevation) {
   const top = elevation + piece.height;
   const out = [];
   for (const pl of project.placements) {
