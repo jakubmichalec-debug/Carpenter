@@ -49,7 +49,7 @@ export function profileFor({ design, edge, w, h, t }) {
       return t - R * clamp(s / ramp, 0, 1);
     };
   } else if (design === 'ribbed') {
-    const n = Math.max(2, Math.round(w / 2.6)), pitch = w / n, amp = 0.55, seg = 8;
+    const n = Math.max(2, Math.round(w / 3.2)), pitch = w / n, amp = 0.8, seg = 8;
     for (let k = 0; k < n; k++) for (let j = 0; j <= seg; j++) xs.push(k * pitch + (j / seg) * pitch);
     z = (x) => {
       const u = ((x / pitch) % 1 + 1) % 1;
@@ -105,7 +105,7 @@ export function fieldGeometry(THREE, { w, h, t, design = 'slab', edge = 'square'
   }
   // sides (from the face down to the back) and the back
   const side = (p0, p1, outward) => {
-    const a = [p0[0], p0[1], 0], b = [p1[0], p1[1], 0], c = p1, d = p0;   // a,b on the back; c,d on the face
+    const a = [p0[0], p0[1], 0], b = [p1[0], p1[1], 0], c = P(p1[0], p1[1]), d = P(p0[0], p0[1]);   // a,b on the back; c,d on the face
     const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
     const ua = [0, 0], ub = [len / 30, 0], uc = [len / 30, 1], ud = [0, 1];
     const n = cross(a, b, c);

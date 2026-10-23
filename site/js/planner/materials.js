@@ -10,7 +10,8 @@
 //   grain                  true for veneers: the live viewer draws a grain and the grain direction matters
 //   grainStyle             which procedural grain recipe to use (see planner/material-lib.js)
 //   tex                    optional render texture set in assets/planner-tex/ (tinted towards `color`)
-//   pricePerM2             board price in EUR per m2 for the matte finish
+//   pricePerM2             price in EUR per m2 for the matte finish when it is a visible front or top
+//   boardPricePerM2        price per m2 when it is used for the box itself (sides, back, shelves); defaults to pricePerM2
 //   finishes               ['matte', 'satin'] ...; `satinPlus` is the extra EUR per m2 for satin
 //   uses                   where it may be picked: 'front' | 'carcass' | 'interior' | 'top' | 'glass' | 'insert' | 'handle'
 //   thickness              worktop thickness in cm (default 3.8)
@@ -35,10 +36,10 @@ export const FAMILIES = {
 const ONE = ['matte'];
 const wood = (label, color, price, o = {}) => ({
   label, family: 'wood', kind: 'wood', color, roughness: 0.62, metalness: 0, grain: true, pricePerM2: price,
-  finishes: ONE, satinPlus: 0, uses: ['front'], ...o
+  finishes: ONE, satinPlus: 0, boardPricePerM2: Math.round(price * 0.45), uses: ['front'], ...o
 });
 const paint = (label, color, o = {}) => ({
-  label, family: 'painted', kind: 'lacquer', color, roughness: 0.42, metalness: 0, grain: false, pricePerM2: 155,
+  label, family: 'painted', kind: 'lacquer', color, roughness: 0.42, metalness: 0, grain: false, pricePerM2: 155, boardPricePerM2: 90,
   finishes: ONE, satinPlus: 0, uses: ['front'], ...o
 });
 const handle = (label, color, rough, metal, factor, note, o = {}) => ({
@@ -149,10 +150,11 @@ export function surfaceInfo(spec) {
   return { id, ...def, finish, roughness: rough };
 }
 
-export function pricePerM2(spec) {
+export function pricePerM2(spec, role = 'front') {
   const id = spec && has(LIBRARY, canonicalId(spec.material)) ? canonicalId(spec.material) : null;
   if (!id) return 0;
   const def = LIBRARY[id];
+  if (role === 'board' && def.boardPricePerM2 !== undefined) return def.boardPricePerM2;
   return def.pricePerM2 + (resolveFinish(id, spec.finish) === 'satin' ? def.satinPlus || 0 : 0);
 }
 

@@ -81,7 +81,7 @@ const r3 = (n) => Math.round(n * 1000) / 1000;
 const area = (b) => (b.w * b.h * b.qty) / 10000;
 const cents = (euros) => Math.round(euros * 100);
 const money = (c) => c / 100;
-const boardCents = (b) => cents(area(b) * pricePerM2({ material: b.material, finish: b.finish }) * PRICES.wasteFactor);
+const boardCents = (b) => cents(area(b) * pricePerM2({ material: b.material, finish: b.finish }, b.role) * PRICES.wasteFactor);
 const handleCents = (piece) => {
   const f = piece.fronts;
   const fin = MATERIALS[canonicalId(f.handleFinish)];
@@ -115,7 +115,10 @@ export function cutListFor(piece) {
   const body = S.carcass, inside = S.interior, front = S.front;
   const W = piece.width, D = piece.depth;
   const add = (ref, part, w, h, t, qty, spec) => {
-    if (qty > 0 && w > 0 && h > 0) out.push({ ref: { pieceId: piece.id, ...ref }, part, w: r1(w), h: r1(h), t: r1(t), qty, material: spec.material, finish: spec.finish || 'matte' });
+    if (qty > 0 && w > 0 && h > 0) {
+      const role = spec === front || spec === topSpec || (S.upper && spec === S.upper) ? 'front' : 'board';
+      out.push({ ref: { pieceId: piece.id, ...ref }, part, w: r1(w), h: r1(h), t: r1(t), qty, material: spec.material, finish: spec.finish || 'matte', role });
+    }
   };
   const n = piece.bays.length;
   const type = piece.type;

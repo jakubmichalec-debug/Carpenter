@@ -1,12 +1,11 @@
 // Step 2: Furniture. Pick a type (which adds an unplaced piece), a style and a size. A switcher lists the pieces
 // already made, so one can be picked again, edited or deleted. Leaving the step is always allowed.
-import { TYPES, STYLES, MATERIALS, HANDLES, FRONT_KINDS, pieceLabel } from '../model.js';
-import { esc, fieldHtml, wireFields, syncFields, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
+import { TYPES, STYLES, MATERIALS, updatePiece, pieceLabel } from '../model.js';
+import { quoteProject } from '../pricing.js';
+import { esc, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
+import { createLookPanel, styleCardHtml } from './look-panel.js';
 
-const FRONT_LABEL = { hinged: 'Hinged doors', sliding: 'Sliding doors', open: 'Open, no doors', glass: 'Glass doors', none: 'No fronts' };
-const HANDLE_LABEL = { bar: 'Bar', knob: 'Knob', push: 'Push to open', groove: 'Finger groove' };
-const HANDLE_PHRASE = { bar: 'bar handles', knob: 'knobs', push: 'push to open', groove: 'finger grooves' };
-const WORKTOP_NONE = 'none';
+const HANDLE_LABEL = { bar: 'bar handles', knob: 'knobs', cup: 'cup pulls', edge: 'finger pulls', push: 'push to open' };
 
 const ICON = (d) => `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const TYPE_ICON = {
@@ -22,26 +21,16 @@ const TYPE_ICON = {
   island: ICON('<path d="M2 10h28M4 10v18h24V10M12 10v18M20 10v18M7 17h2M15 17h2M23 17h2"/>')
 };
 
-const SELECTABLE = Object.entries(MATERIALS).filter(([, m]) => m.pickable !== false);
-const FRONT_MATERIALS = SELECTABLE.filter(([, m]) => m.kind !== 'stone');
-const CARCASS_MATERIALS = SELECTABLE.filter(([, m]) => m.kind === 'wood' || m.kind === 'ply');
-
 export function createFurnitureStep(root, { store, announce = () => {}, confirmAction }) {
   let state = store.getState();
   let validation = { errors: [] };
-  let tuneType = null, chipsKey = '', notesKey = '';
+  let styleKey = '', chipsKey = '', notesKey = '', priceTimer = 0;
 
   const typeCards = Object.entries(TYPES).map(([id, t]) => `
     <button type="button" class="pl-type" data-type="${id}" aria-pressed="false">
       <span class="pl-type__icon">${TYPE_ICON[id] || ''}</span>
       <span class="pl-type__name">${esc(t.label)}</span>
-      <span class="pl-type__size">${t.defaults.width} × ${t.defaults.height} cm</span>
-    </button>`).join('');
-  const styleCards = Object.entries(STYLES).map(([id, s]) => `
-    <button type="button" class="pl-style" data-style="${id}" aria-pressed="false">
-      <span class="pl-style__chip" style="--chip:${MATERIALS[s.fronts.material].color}"></span>
-      <span class="pl-style__name">${esc(s.label)}</span>
-      <span class="pl-style__what">${esc(FRONT_LABEL[s.fronts.kind])}, ${HANDLE_PHRASE[s.fronts.handle]}</span>
+      <span class="pl-type__size">${t.defaults.width} \u00d7 ${t.defaults.height} cm</span>
     </button>`).join('');
 
   root.innerHTML = `
@@ -69,80 +58,22 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     <div id="pl-f-rest">
       <section class="pl-sec" aria-labelledby="pl-h-style">
         <header class="pl-sec__row"><h3 id="pl-h-style">Style</h3></header>
-        <div class="pl-styles" id="pl-f-styles" role="group" aria-label="Style">${styleCards}</div>
-        <details class="pl-more" id="pl-f-tune">
-          <summary>Fine-tune the look</summary>
-          <div class="pl-more__body" id="pl-f-tune-body"></div>
-        </details>
+        <p class="pl-hint pl-hint--tight">One click sets the whole look. A price shows what the style adds to or takes off this piece.</p>
+        <div class="pl-styles" id="pl-f-styles" role="group" aria-label="Style"></div>
       </section>
 
-      <section class="pl-sec" aria-labelledby="pl-h-size">
-        <header class="pl-sec__row"><h3 id="pl-h-size">Size</h3></header>
-        <div class="pl-form" id="pl-f-size"></div>
-        <p class="pl-hint" id="pl-f-sizehint"></p>
+      <section class="pl-sec" aria-labelledby="pl-h-tune">
+        <header class="pl-sec__row"><h3 id="pl-h-tune">Fine-tune the look</h3></header>
+        <p class="pl-summary" id="pl-f-summary"></p>
+        <p class="pl-hint pl-hint--tight">Prices show what an option adds to or takes off this piece, VAT included. No price means no change.</p>
+        <div class="pl-look" id="pl-f-look"></div>
       </section>
     </div>`;
 
   const $ = (sel) => root.querySelector(sel);
-  const chipsEl = $('#pl-f-chips'), notesEl = $('#pl-f-notes'), rest = $('#pl-f-rest'), delBtn = $('#pl-f-delete');
+  const chipsEl = $('#pl-f-chips'), notesEl = $('#pl-f-notes'), rest = $('#pl-f-rest'), delBtn = $('#pl-f-delete'), stylesEl = $('#pl-f-styles');
   const current = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
-
-  // ---------- numbers ----------
-  const lookup = (bind) => {
-    const p = current();
-    if (!p) return undefined;
-    if (bind.startsWith('size:')) return p[bind.slice(5)];
-    if (bind === 'plinth') return p.plinth;
-    return undefined;
-  };
-  wireFields(root, {
-    current: lookup,
-    seal: () => store.dispatch({ type: 'history/seal' }),
-    apply(bind, v) {
-      const p = current();
-      if (!p) return;
-      const patch = bind.startsWith('size:') ? { [bind.slice(5)]: Math.round(v) } : bind === 'plinth' ? { plinth: Math.round(v), style: 'custom' } : null;
-      if (patch) store.dispatch({ type: 'piece/update', patch, coalesce: `f:${p.id}:${bind}` });
-    }
-  });
-
-  function buildSize(p) {
-    const L = TYPES[p.type].limits;
-    $('#pl-f-size').innerHTML = [
-      fieldHtml('size:width', 'Width', p.width, { min: L.width[0], max: L.width[1], sliderStep: 5 }),
-      fieldHtml('size:height', 'Height', p.height, { min: L.height[0], max: L.height[1], sliderStep: 5 }),
-      fieldHtml('size:depth', 'Depth', p.depth, { min: L.depth[0], max: L.depth[1], sliderStep: 5 })
-    ].join('');
-    $('#pl-f-sizehint').textContent = `A ${TYPES[p.type].label.toLowerCase()} is ${L.width[0]} to ${L.width[1]} cm wide, ${L.height[0]} to ${L.height[1]} cm high and ${L.depth[0]} to ${L.depth[1]} cm deep.`;
-  }
-
-  function buildTune(p) {
-    const T = TYPES[p.type];
-    const sel = (name, label, opts, value) => `<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-t-${name}">${label}</label><select class="pl-select" id="pl-t-${name}" data-sel="${name}">${opts.map(([v, l]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
-    const parts = [
-      sel('kind', 'Fronts', FRONT_KINDS.filter((k) => T.allowedFronts.includes(k)).map((k) => [k, FRONT_LABEL[k]]), p.fronts.kind),
-      sel('handle', 'Handles', HANDLES.map((h) => [h, HANDLE_LABEL[h]]), p.fronts.handle),
-      `<fieldset class="pl-fieldset"><legend>Front material</legend><div class="pl-swatches" id="pl-t-mats">${FRONT_MATERIALS.map(([id, m]) => `<label class="pl-swatch"><input type="radio" name="pl-t-front" value="${id}"><span class="pl-swatch__chip" style="--chip:${m.color}"></span><span class="pl-swatch__name">${esc(m.label)}</span></label>`).join('')}</div></fieldset>`,
-      sel('carcass', 'Sides and inside', CARCASS_MATERIALS.map(([id, m]) => [id, m.label]), p.carcass.material)
-    ];
-    if (T.allowWorktop) parts.push(sel('worktop', 'Worktop', [[WORKTOP_NONE, 'None'], ...SELECTABLE.map(([id, m]) => [id, m.label])], p.worktop || WORKTOP_NONE));
-    if (T.allowPlinth) parts.push(fieldHtml('plinth', 'Plinth height', p.plinth, { min: 0, max: 20, sliderStep: 1 }));
-    $('#pl-f-tune-body').innerHTML = parts.join('');
-  }
-  $('#pl-f-tune-body').addEventListener('change', (e) => {
-    const p = current();
-    if (!p) return;
-    const el = e.target;
-    let patch = null;
-    if (el.dataset.sel === 'kind') patch = { fronts: { kind: el.value } };
-    else if (el.dataset.sel === 'handle') patch = { fronts: { handle: el.value } };
-    else if (el.dataset.sel === 'carcass') patch = { carcass: { material: el.value } };
-    else if (el.dataset.sel === 'worktop') patch = { worktop: el.value === WORKTOP_NONE ? null : el.value };
-    else if (el.name === 'pl-t-front') patch = { fronts: { material: el.value } };
-    if (!patch) return;
-    store.dispatch({ type: 'piece/update', patch: { ...patch, style: 'custom' } });
-    store.dispatch({ type: 'history/seal' });
-  });
+  const look = createLookPanel($('#pl-f-look'), { store, announce });
 
   // ---------- clicks ----------
   $('#pl-f-types').addEventListener('click', (e) => {
@@ -155,7 +86,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     if (p) announce(`${pieceLabel(state.project, p.id)} ${state.project.pieces.length > before ? 'added' : 'chosen'}.`);
     else announce('There is no room for another piece.');
   });
-  $('#pl-f-styles').addEventListener('click', (e) => {
+  stylesEl.addEventListener('click', (e) => {
     const b = e.target.closest('[data-style]');
     if (!b || !current()) return;
     store.dispatch({ type: 'piece/update', patch: { style: b.dataset.style } });
@@ -182,6 +113,39 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     announce(`${name} deleted.`);
   });
 
+  // ---------- style cards and their prices ----------
+  function buildStyles(p) {
+    const ids = Object.keys(STYLES).filter((id) => !STYLES[id].legacy || id === p.style);
+    const key = `${p.type}|${ids.join(',')}`;
+    if (key === styleKey) return;
+    styleKey = key;
+    stylesEl.innerHTML = ids.map((id) => styleCardHtml(id, p.type)).join('');
+  }
+  function stylePrices() {
+    priceTimer = 0;
+    const p = current();
+    if (!p || state.ui.starting) return;
+    const solo = (piece) => ({ v: 2, room: state.project.room, pieces: [piece], placements: [] });
+    const total = (piece) => quoteProject(solo(piece), { vat: true }).cents.total;
+    const base = total(p);
+    stylesEl.querySelectorAll('[data-style]').forEach((b) => {
+      const el = b.querySelector('[data-price]');
+      if (b.dataset.style === p.style) { el.textContent = ''; return; }
+      const next = updatePiece(solo(p), p.id, { style: b.dataset.style }).pieces[0];
+      const d = next ? total(next) - base : 0;
+      const n = Math.round(Math.abs(d) / 100);
+      el.textContent = n === 0 ? '' : `${d > 0 ? '+' : '\u2212'}\u20ac${n.toLocaleString('en-IE')}`;
+      el.classList.toggle('is-neg', d < 0);
+    });
+  }
+  const label = (id) => (MATERIALS[id] ? MATERIALS[id].label : id);
+  function summary(p) {
+    const fronts = p.look.upper ? `${label(p.fronts.material)} below, ${label(p.look.upper.material)} above` : label(p.fronts.material);
+    const handle = p.fronts.kind === 'open' || p.fronts.kind === 'none' ? '' : `, ${HANDLE_LABEL[p.fronts.handle] || p.fronts.handle}`;
+    const custom = p.style === 'custom' ? ' Your own mix: pick a style to start again.' : '';
+    return `${p.width} \u00d7 ${p.height} \u00d7 ${p.depth} cm, ${fronts.toLowerCase().replace(/^./, (c) => c.toUpperCase())}${handle}.${custom}`;
+  }
+
   // ---------- update ----------
   function update(next, info = {}) {
     state = next;
@@ -203,14 +167,12 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
         : 'Picking a type adds a new piece. The ones you have shaped stay in your list.';
     if (!p || starting) { notesEl.innerHTML = ''; notesKey = ''; return; }
 
-    if (tuneType !== p.type) { tuneType = p.type; buildSize(p); buildTune(p); }
-    root.querySelectorAll('[data-style]').forEach((b) => b.setAttribute('aria-pressed', String(p.style === b.dataset.style)));
-    syncFields(root, lookup);
-    root.querySelectorAll('input[name="pl-t-front"]').forEach((i) => { i.checked = i.value === p.fronts.material; });
-    for (const [name, v] of [['kind', p.fronts.kind], ['handle', p.fronts.handle], ['carcass', p.carcass.material], ['worktop', p.worktop || WORKTOP_NONE]]) {
-      const s = root.querySelector(`[data-sel="${name}"]`);
-      if (s && s.value !== v) s.value = v;
-    }
+    buildStyles(p);
+    stylesEl.querySelectorAll('[data-style]').forEach((b) => b.setAttribute('aria-pressed', String(p.style === b.dataset.style)));
+    $('#pl-f-summary').textContent = summary(p);
+    look.sync(p, state);
+    if (priceTimer) clearTimeout(priceTimer);
+    priceTimer = setTimeout(stylePrices, 220);
 
     const list = (validation.errors || []).filter((e) => e.ref && e.ref.type === 'piece' && e.ref.id === p.id && e.code !== 'piece-unplaced');
     const html = notesHtml(list);

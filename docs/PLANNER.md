@@ -13,7 +13,10 @@ A five-step flow. The user can go back to any earlier step at any time without l
    sockets) and choose floor and wall finishes. Free drawing is not in scope yet; the model already stores
    rooms as corner lists, so it can be added later without a migration.
 2. **Furniture.** Pick a type (wardrobe, kitchen run, wall unit, desk, table, window seat, under-stairs), a style
-   (fronts, handles, plinth, materials) and its size.
+   (one click sets fronts, colours, handles, base and top) and fine-tune it: front design (slab, shaker, glass, ribbed), edges,
+   colour and material for the fronts, the box and the inside, two-tone, handles, legs or plinth, crown, end panels, scribe
+   strips, and its size (presets, 1 cm steps, fit to wall, fit to ceiling). Every option shows its price. The stock range lives
+   in one table, `site/js/planner/materials.js`.
 3. **Interior.** Lay out the inside, bay by bay. Set the number of bays, then add and move any item from the
    interior catalogue (section 3): shelves, rails, drawers, jewellery and divided drawers, shoe racks, trouser and
    tie racks, baskets, a laundry pull-out, a fold-out ironing board, mirrors, cubbies, hooks and LED strips. Every item can be dragged to any height,
