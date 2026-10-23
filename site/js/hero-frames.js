@@ -17,8 +17,8 @@ const FALLBACK = { count: 120, v: 4 };
 // every ANCHOR-th frame stays decoded (a fast scroll blends between these while nearer frames decode);
 // the preloader waits for exactly these
 const ANCHOR = 8;
-const WINDOW = 6; // decoded frames kept either side of the scroll position
-const DECODERS = 2; // decodes in flight at once
+const WINDOW = 10; // decoded frames kept either side of the scroll position
+const DECODERS = 3; // decodes in flight at once
 // the pointer parallax moves the canvas by up to this many whole pixels; the canvas overscans the stage by a
 // little more (home.css), so the move never bares an edge and no CSS scale resamples (and softens) the frame
 const PARALLAX = { x: 8, y: 6 };
@@ -88,12 +88,12 @@ export async function createFramePlayer(canvas, opts = {}) {
   const pending = new Set();
   let decoding = 0;
   // `ready` resolves once the anchors are decoded, `loaded` once every frame has been downloaded (or failed);
-  // opts.onLoad(count, readyFraction) reports progress for a preloader.
+  // opts.onLoad(count, fraction) reports progress towards both (downloads and anchor decodes) for a preloader.
   const anchorsTotal = Math.ceil(N / ANCHOR) + 1;
   let anchorsDone = 2;
   let markReady;
   const ready = new Promise((r) => { markReady = r; });
-  const report = () => { if (opts.onLoad) opts.onLoad(loadedCount, Math.min(1, anchorsDone / anchorsTotal)); };
+  const report = () => { if (opts.onLoad) opts.onLoad(loadedCount, Math.min(1, (loadedCount + anchorsDone) / (N + anchorsTotal))); };
 
   // decode what the scroll position needs (nearest first, anchors after) and free what it no longer needs
   function pump() {
