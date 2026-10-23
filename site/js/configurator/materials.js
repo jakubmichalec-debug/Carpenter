@@ -5,7 +5,7 @@ import { MATERIALS } from './model.js';
 
 const N = 512;
 
-const hash = (x, y, s) => {
+export const hash = (x, y, s) => {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
@@ -13,7 +13,7 @@ const hash = (x, y, s) => {
 };
 
 // Tileable value noise: u,v in [0,1), fx,fy integer lattice frequencies.
-function vnoise(u, v, fx, fy, s) {
+export function vnoise(u, v, fx, fy, s) {
   const x = u * fx, y = v * fy;
   const x0 = Math.floor(x), y0 = Math.floor(y);
   const tx = x - x0, ty = y - y0;
@@ -24,11 +24,11 @@ function vnoise(u, v, fx, fy, s) {
   return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
 }
 
-const hexToRgb = (hex) => {
+export const hexToRgb = (hex) => {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
-const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+export const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
 
 const WOOD = {
   oak:         { K: 16, arch: 0.30, bump: 1.5, rc: 0.075, fine: 0.07, pore: 0.24, tone: 0.04, seed: 11 },
@@ -40,7 +40,7 @@ const WOOD = {
 const fbm = (u, v, fx, fy, s) =>
   vnoise(u, v, fx, fy, s) * 0.55 + vnoise(u, v, fx * 2, fy * 2, s + 1) * 0.28 + vnoise(u, v, fx * 4, fy * 4, s + 2) * 0.17;
 
-function makeCanvas(size = N) {
+export function makeCanvas(size = N) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   return c;
@@ -95,7 +95,7 @@ const VENEER = {
   ash:         { K: 50, rc: 0.08, e: 10, fine: 0.05, pore: 0.16, tone: 0.03,  seed: 127 },
   'birch-ply': { K: 90, rc: 0.05, e: 12, fine: 0.035, pore: 0.03, tone: 0.025, seed: 141 }
 };
-function veneerCanvas(mat, id) {
+export function veneerCanvas(mat, id) {
   const p = VENEER[id] || VENEER.oak;
   const c = makeCanvas();
   const ctx = c.getContext('2d');
