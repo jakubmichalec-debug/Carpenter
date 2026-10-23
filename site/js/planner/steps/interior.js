@@ -7,18 +7,34 @@ import {
 import { bayLayout, bayAt, suggestY, dragDivider, resizeBay, nudgeY, itemsProblems, changeBayCount } from '../interior-geom.js';
 import { esc, clamp, fieldHtml, wireFields, syncFields, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
 import { drawItem, thumbSvg } from './interior-draw.js';
+import { MATERIALS, materialsFor } from '../materials.js';
+import { BACKS } from '../model.js';
 
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 const cm = (n) => `${Math.round(n * 10) / 10}`;
 
 const PARAM_LABEL = {
-  material: 'Material', adjustable: 'Adjustable on pins', count: 'How many', front: 'Front height', lining: 'Lining', grid: 'Compartments',
-  rows: 'Rows', angled: 'Angled rows', side: 'Side', depth: 'Depth', bags: 'Bags', mode: 'Where', height: 'Height', position: 'Distance from the left',
-  columns: 'Columns', tone: 'Light colour', sensor: 'Motion sensor', bins: 'Bins'
+  material: 'Material', adjustable: 'Adjustable on pins', count: 'How many', front: 'Front height', lining: 'Lining colour', insert: 'Divider insert',
+  rows: 'Rows', angled: 'Angled rows', lip: 'Toe lip on each row', side: 'Side', depth: 'Depth', bags: 'Bags', mode: 'Mirror type', height: 'Height',
+  position: 'Distance from the left', tone: 'Light colour', trigger: 'Switched on', bins: 'Bins', size: 'Drawer height', face: 'Drawer front',
+  length: 'Length', finish: 'Finish', shape: 'Shape', tiers: 'Tiers', baskets: 'Baskets', grid: 'Compartments'
 };
 const PARAM_UNIT = { front: 'cm', depth: 'cm', height: 'cm', position: 'cm' };
-const VALUE_LABEL = { '3x4': '3 × 4', '4x5': '4 × 5', 'pull-out': 'Pull-out', door: 'Inside the door', body: 'Same as the piece', glass: 'Glass' };
-const valueLabel = (v) => VALUE_LABEL[v] || (String(v).charAt(0).toUpperCase() + String(v).slice(1));
+const VALUE_LABEL = {
+  size: { low: 'Low, about 18 cm', medium: 'Medium, about 28 cm', deep: 'Deep, about 38 cm' },
+  face: { same: 'Same as the doors', wood: 'Plain oak', glass: 'Glass in a slim frame' },
+  insert: { none: 'None', cutlery: 'Cutlery tray', socks: 'Sock and underwear dividers', jewellery: 'Jewellery tray', felt: 'Felt lining' },
+  length: { long: 'Long, hangs 150 cm', short: 'Short, hangs 95 cm' },
+  trigger: { always: 'Always on', door: 'On when the door opens', motion: 'Motion sensor' },
+  mode: { fixed: 'Fixed inside the door', swivel: 'Swivel', 'pull-out': 'Pull-out' },
+  finish: { chrome: 'Chrome', nickel: 'Matt nickel', black: 'Black', white: 'White' },
+  lining: { grey: 'Grey', sand: 'Sand', charcoal: 'Charcoal' },
+  material: { body: 'Same as the inside', glass: 'Glass', wood: 'Wood', wire: 'Wire' },
+  tone: { warm: 'Warm white', neutral: 'Neutral white' },
+  shape: { round: 'Round', kidney: 'Kidney' }
+};
+const valueLabel = (name, v) => (VALUE_LABEL[name] && VALUE_LABEL[name][v]) || (String(v).charAt(0).toUpperCase() + String(v).slice(1));
+const BACK_LABEL = { closed: 'Closed', open: 'Open to the wall', mirror: 'Mirror' };
 const DOOR_LABEL = { left: 'Hinged on the left', right: 'Hinged on the right', double: 'Two doors', none: 'No door' };
 
 export function createInteriorStep(root, { insideBox, dock, store, announce = () => {}, showInside = () => {} }) {
@@ -184,6 +200,20 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   $('#pl-i-bayform').addEventListener('change', (e) => {
     const el = e.target;
     const p = cur();
+    if (p && el.dataset.bayopt) {
+      const k = state.ui.bay;
+      const bays = p.bays.map((b, i) => {
+        if (i !== k) return b;
+        const next = { ...b };
+        if (el.dataset.bayopt === 'colour') { if (el.value) next.colour = el.value; else delete next.colour; }
+        else if (el.value !== 'closed') next.back = el.value; else delete next.back;
+        return next;
+      });
+      store.dispatch({ type: 'piece/update', patch: { bays } });
+      store.dispatch({ type: 'history/seal' });
+      announce(el.dataset.bayopt === 'colour' ? `Bay ${k + 1} colour changed.` : `Bay ${k + 1} back panel: ${BACK_LABEL[el.value].toLowerCase()}.`);
+      return;
+    }
     if (!p || !el.dataset.door) return;
     store.dispatch({ type: 'piece/update', patch: { bays: p.bays.map((b, i) => (i === state.ui.bay ? { ...b, door: el.value } : b)) } });
     store.dispatch({ type: 'history/seal' });
@@ -292,7 +322,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     const out = [];
     const focusKey = document.activeElement && svg.contains(document.activeElement) ? document.activeElement.getAttribute('data-focus') : null;
 
-    out.push(`<defs><pattern id="pl-hatch-i" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" class="pl-hatch-line"/></pattern>`
+    out.push(`<defs><pattern id="pl-wall-i" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" class="pl-wall-bg"/><path d="M0 8L8 0" class="pl-wall-line"/><circle cx="2" cy="2" r=".7" class="pl-wall-dot"/><circle cx="6" cy="6" r=".7" class="pl-wall-dot"/></pattern><pattern id="pl-hatch-i" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" class="pl-hatch-line"/></pattern>`
       + lay.map((b) => `<clipPath id="pl-clip-bay-${b.index}"><rect x="${f1(X(b.x0))}" y="${f1(Y(top - T))}" width="${f1(b.width * s)}" height="${f1(g.innerH * s)}"/></clipPath>`).join('') + '</defs>');
 
     // floor line and the piece
@@ -316,6 +346,14 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
         }
         out.push(`<path class="pl-holes" d="${dots}" aria-hidden="true"/>`);
       }
+    });
+    // a bay's own colour and back: tint, mirror or the wall showing through
+    lay.forEach((b) => {
+      const bb = p.bays[b.index];
+      const gx = f1(X(b.x0)), gy = f1(Y(top - T)), gw = f1(b.width * s), gh = f1(g.innerH * s);
+      if (bb.colour && MATERIALS[bb.colour]) out.push(`<rect class="pl-bay-tint" x="${gx}" y="${gy}" width="${gw}" height="${gh}" style="fill:${MATERIALS[bb.colour].color}" aria-hidden="true"/>`);
+      if (bb.back === 'mirror') out.push(`<rect class="pl-bay-mirror" x="${gx}" y="${gy}" width="${gw}" height="${gh}" aria-hidden="true"/><path class="pl-i-sheen" d="M${f1(X(b.x0) + b.width * s * 0.25)} ${gy}l-14 ${gh}M${f1(X(b.x0) + b.width * s * 0.42)} ${gy}l-14 ${gh}" aria-hidden="true"/>`);
+      else if (bb.back === 'open') out.push(`<rect class="pl-bay-open" x="${gx}" y="${gy}" width="${gw}" height="${gh}" fill="url(#pl-wall-i)" aria-hidden="true"/>`);
     });
     lay.forEach((b) => {
       const bay = p.bays[b.index];
@@ -611,7 +649,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     $('#pl-i-count').textContent = `${p.bays.length} ${p.bays.length === 1 ? 'bay' : 'bays'}`;
     $('#pl-i-less').disabled = p.bays.length <= lim[0];
     $('#pl-i-more').disabled = p.bays.length >= max;
-    const key = JSON.stringify([p.id, p.bays.map((b) => [b.width, b.door]), state.ui.bay, p.fronts.kind, problemsKey(p)]);
+    const key = JSON.stringify([p.id, p.bays.map((b) => [b.width, b.door, b.colour || '', b.back || '']), state.ui.bay, p.fronts.kind, problemsKey(p)]);
     if (key === baysKey) return;
     baysKey = key;
     const prob = problems();
@@ -620,10 +658,22 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     const hingedKind = p.fronts.kind === 'hinged' || p.fronts.kind === 'glass';
     $('#pl-i-bayform').innerHTML = (p.bays.length > 1 ? fieldHtml(`bayw:${k}`, `Width of bay ${k + 1}`, b.width, { min: 20, max: 400, slider: false, id: 'bayw' }) : '')
       + (hingedKind ? `<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-i-door">Door on bay ${k + 1}</label><select class="pl-select" id="pl-i-door" data-door="1">${DOOR_SIDES.map((d) => `<option value="${d}"${d === b.door ? ' selected' : ''}>${DOOR_LABEL[d]}</option>`).join('')}</select></div>` : '')
-      + (p.bays.length > 1 ? '<button type="button" class="pl-link" data-equal="1">Make all bays the same width</button>' : '');
+      + (p.bays.length > 1 ? '<button type="button" class="pl-link" data-equal="1">Make all bays the same width</button>' : '')
+      + bayOptionsHtml(p, b, k);
     $('#pl-i-bayhint').textContent = p.bays.length > 1
       ? `Drag a divider in the drawing, or type a width. The other bays keep their size, only the neighbour gives or takes. Inside width ${pieceGeometry(p).innerW} cm.`
       : 'One bay. Add more with the plus button, up to ' + max + '.';
+  }
+  // Interior colour and back panel of the selected bay.
+  function bayOptionsHtml(p, b, k) {
+    const cur2 = b.colour || '';
+    const colourOpt = (v, label, swatch) => `<label class="pl-mat" data-opt="bay-colour:${esc(v)}"><input type="radio" name="pl-bay-colour" data-bayopt="colour" value="${esc(v)}"${v === cur2 ? ' checked' : ''}>${swatch}<span class="pl-mat__name">${esc(label)}</span></label>`;
+    const same = `<span class="pl-sw pl-sw--same" aria-hidden="true"></span>`;
+    const colours = [colourOpt('', 'Same as the piece', same), ...materialsFor('bay').map((id) => colourOpt(id, MATERIALS[id].label, `<span class="pl-sw pl-sw--${MATERIALS[id].family}" style="--c:${MATERIALS[id].color}"></span>`))].join('');
+    const back = b.back || 'closed';
+    const backs = BACKS.map((v) => `<label class="pl-opt"><input type="radio" name="pl-bay-back" data-bayopt="back" value="${v}"${v === back ? ' checked' : ''}><span class="pl-opt__body">${BACK_LABEL[v]}</span></label>`).join('');
+    return `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Inside colour of bay ${k + 1}</legend><div class="pl-mats">${colours}</div></fieldset>`
+      + `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Back panel of bay ${k + 1}</legend><div class="pl-opts">${backs}</div><p class="pl-hint pl-group__hint">${back === 'open' ? 'No back board: the wall shows. Good for a shallow recess or to save money.' : back === 'mirror' ? 'A full-height mirror on the back wall of this bay.' : 'A back board in the inside colour.'}</p></fieldset>`;
   }
   function problemsKey(p) {
     const q = problems();
@@ -659,7 +709,8 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
         ? order.map(({ it, i }) => `<button type="button" class="pl-li${prob.items[`${bi}:${i}`] ? ' is-warn' : ''}" data-pick="${i}" aria-pressed="${i === state.ui.item}"><span>${esc(describeItem(it))}</span><i>${cm(it.y)} cm</i></button>`).join('')
         : '<p class="pl-inspector__empty">Nothing in this bay yet. Press an item above to add it.</p>';
     }
-    const ik = sel ? `${p.id}:${bi}:${state.ui.item}:${sel.kind}` : 'none';
+    const enumKey = sel ? JSON.stringify(Object.entries(ITEMS[sel.kind].params).filter(([, sp]) => sp.type !== 'int').map(([n]) => sel[n])) : '';
+    const ik = sel ? `${p.id}:${bi}:${state.ui.item}:${sel.kind}:${enumKey}` : 'none';
     if (ik === inspKey.insp) return;
     inspKey = { ...inspKey, insp: ik };
     if (!sel) { inspEl.innerHTML = ''; return; }
@@ -667,12 +718,13 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     const [lo, hi] = rangeOf(p, bi, sel);
     const fields = [fieldHtml('item:y', 'Height above the bay floor', sel.y, { min: 0, max: Math.max(lo, hi), step: 0.1, sliderStep: GRID, id: 'item-y' })];
     for (const [name, spec] of Object.entries(d.params)) {
+      if (d.when && d.when[name] && !d.when[name](sel)) continue;
       const label = PARAM_LABEL[name] || name;
       if (spec.type === 'int') {
         const max = name === 'position' ? Math.max(5, bay.width - 5) : spec.max;
         fields.push(fieldHtml(`item:${name}`, label, sel[name], { min: spec.min, max, slider: false, unit: PARAM_UNIT[name] || '', id: `item-${name}` }));
       } else if (spec.type === 'enum') {
-        fields.push(`<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-ip-${name}">${esc(label)}</label><select class="pl-select" id="pl-ip-${name}" data-psel="${name}">${spec.values.map((v) => `<option value="${esc(v)}"${v === sel[name] ? ' selected' : ''}>${esc(valueLabel(v))}</option>`).join('')}</select></div>`);
+        fields.push(`<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-ip-${name}">${esc(label)}</label><select class="pl-select" id="pl-ip-${name}" data-psel="${name}">${spec.values.map((v) => `<option value="${esc(v)}"${v === sel[name] ? ' selected' : ''}>${esc(valueLabel(name, v))}</option>`).join('')}</select></div>`);
       } else {
         fields.push(`<label class="pl-check"><input type="checkbox" data-pchk="${name}"${sel[name] ? ' checked' : ''}><span>${esc(label)}</span></label>`);
       }

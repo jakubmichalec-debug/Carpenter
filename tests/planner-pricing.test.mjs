@@ -121,7 +121,9 @@ test('a 3 m kitchen run (five base and five wall cabinets) is priced sensibly', 
 });
 
 test('every line points at a piece, bay or item: "Wardrobe 1 > Bay 2 > 3 drawers"', () => {
-  const q = quoteProject(wardrobe240());
+  const w = wardrobe240();
+  w.pieces[0].bays[1].items = [{ kind: 'drawers', y: 0, count: 3, size: 'low', face: 'same', insert: 'none', lining: 'grey', front: 19.2 }];
+  const q = quoteProject(w);
   const piece = q.pieces[0];
   assert.equal(piece.label, 'Wardrobe 1');
   const drawers = piece.items.find((i) => i.label === '3 drawers');
@@ -247,9 +249,9 @@ test('cut list and board areas agree', () => {
 test('items and options move the price in the right direction', () => {
   const base = quoteProject(wardrobe240()).cents.total;
   const withItem = (item, bay = 0) => quoteProject(M.addItem(wardrobe240(), 'w', bay, item)).cents.total;
-  assert.ok(withItem({ kind: 'led', y: 220, sensor: true }) > base);
-  assert.ok(withItem({ kind: 'led', y: 220, sensor: true }) > withItem({ kind: 'led', y: 220 }));
-  assert.ok(withItem({ kind: 'ironing', y: 100 }) - base > cents(PRICES_V2.hardware.ironingFitting.price) * 1.2, 'fitting + labour + VAT');
+  assert.ok(withItem({ kind: 'led', y: 220, trigger: 'motion' }) > base);
+  assert.ok(withItem({ kind: 'led', y: 220, trigger: 'motion' }) > withItem({ kind: 'led', y: 220 }));
+  assert.ok(withItem({ kind: 'larder', y: 0, baskets: 4 }) - base > cents(PRICES_V2.hardware.larderFrame.price) * 1.2, 'frame + baskets + labour + VAT');
   assert.ok(withItem({ kind: 'shelf', y: 100, material: 'glass' }) > withItem({ kind: 'shelf', y: 100 }) - 50 * 1.21 * 100 / 100, 'glass shelf is priced');
   assert.ok(withItem({ kind: 'drawers', y: 120, count: 4 }) - base > withItem({ kind: 'drawers', y: 120, count: 1 }) - base);
   const knobs = quoteProject(wardrobe240({ fronts: { handle: 'push' } })).cents.total;

@@ -20,21 +20,21 @@ test('bayLayout lines bays up with the dividers', () => {
 
 test('suggestY finds free grid heights and keeps validation quiet', () => {
   let proj = { ...M.createProject(), pieces: [wardrobe()], placements: [] };
-  const add = (kind) => {
-    const y = suggestY(proj.pieces[0], 0, kind);
+  const add = (kind, params = {}) => {
+    const y = suggestY(proj.pieces[0], 0, kind, params);
     assert.ok(Math.abs(y / M.GRID - Math.round(y / M.GRID)) < 0.02, `${kind} on the grid (${y})`);
-    proj = M.addItem(proj, 'p1', 0, { kind, y });
+    proj = M.addItem(proj, 'p1', 0, { ...params, kind, y });
     return y;
   };
   const dr = add('drawers');
   assert.equal(dr, 0);
-  const rail = add('rail-short');
+  const rail = add('rail', { length: 'short' });
   const g = M.pieceGeometry(proj.pieces[0]);
   assert.ok(rail > g.innerH - 12, 'rail goes near the top');
   const s1 = add('shelf');
   const s2 = add('shelf');
   assert.ok(s2 >= s1 + 18, 'shelves keep 18 cm apart');
-  assert.ok(s1 >= 60, 'shelves start above the drawers');
+  assert.ok(s1 >= 57.6, 'shelves start above the drawers');
   const v = validateProject(proj).errors.filter((e) => e.ref.type === 'item' && e.blocking);
   assert.deepEqual(v, [], JSON.stringify(v));
 });

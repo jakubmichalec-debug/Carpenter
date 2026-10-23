@@ -225,6 +225,12 @@ export function validateProject(project) {
       if (it.kind === 'divider' && isNum(it.position) && (it.position < 0 || it.position > bay.width)) {
         add('item-outside-bay', `${where}: the divider is outside the bay.`, ref);
       }
+      if (def.warn) { // sizes the makers' fittings are made for: advice, never a block
+        const w = def.warn, lc = label.toLowerCase();
+        if (w.minWidth && bay.width < w.minWidth) add('item-size', `${where}: ${lc} is made for bays at least ${w.minWidth} cm wide.`, ref, false);
+        if (w.maxWidth && bay.width > w.maxWidth) add('item-size', `${where}: ${lc} is made for bays up to ${w.maxWidth} cm wide.`, ref, false);
+        if (w.minDepth && piece.depth < w.minDepth) add('item-size', `${where}: ${lc} works best in a piece at least ${w.minDepth} cm deep.`, ref, false);
+      }
       if (def.zone(it) && Math.abs(it.y / GRID - Math.round(it.y / GRID)) > 0.02) {
         add('item-off-grid', `${where}: ${label.toLowerCase()} is not on the 32 mm hole system.`, ref, false);
       }

@@ -39,7 +39,15 @@ export const PRICES_V2 = {
     binSet:         { label: 'Bin set',               unit: 'pc',  price: 62 },
     carousel:       { label: 'Corner carousel',       unit: 'pc',  price: 260 },
     cableTray:      { label: 'Cable tray',            unit: 'pc',  price: 26 },
-    keyboardRunner: { label: 'Keyboard runner',       unit: 'pc',  price: 58 }
+    keyboardRunner: { label: 'Keyboard runner',       unit: 'pc',  price: 58 },
+    railFinish:     { label: 'Rail finish',           unit: 'EUR', price: 1 },       // qty is the extra EUR (metres x the finish's price per metre)
+    swivelFitting:  { label: 'Swivel mirror fitting', unit: 'pc',  price: 58 },
+    ledDoorSwitch:  { label: 'Door switch for LED',   unit: 'pc',  price: 18 },
+    feltInsert:     { label: 'Felt tray insert',      unit: 'pc',  price: 16 },
+    shoeLip:        { label: 'Shoe rack toe lip',     unit: 'pc',  price: 3 },
+    spiceRack:      { label: 'Spice pull-out frame',  unit: 'pc',  price: 96 },
+    spiceTier:      { label: 'Spice tier',            unit: 'pc',  price: 9 },
+    larderFrame:    { label: 'Larder pull-out frame', unit: 'pc',  price: 340 }
   },
   labour: {
     baseHours: {
@@ -116,12 +124,13 @@ export function cutListFor(piece) {
   const W = piece.width, D = piece.depth;
   const add = (ref, part, w, h, t, qty, spec) => {
     if (qty > 0 && w > 0 && h > 0) {
-      const role = spec === front || spec === topSpec || (S.upper && spec === S.upper) ? 'front' : 'board';
+      const role = spec === front || spec === topSpec || spec === woodSpec || (S.upper && spec === S.upper) ? 'front' : 'board';
       out.push({ ref: { pieceId: piece.id, ...ref }, part, w: r1(w), h: r1(h), t: r1(t), qty, material: spec.material, finish: spec.finish || 'matte', role });
     }
   };
   const n = piece.bays.length;
   const type = piece.type;
+  const woodSpec = { material: 'oak', finish: 'matte' };
   const topSpec = piece.worktop ? { material: piece.worktop, finish: 'matte' } : front;
 
   if (type === 'table') {
@@ -149,8 +158,18 @@ export function cutListFor(piece) {
   else if (type === 'kitchen-base' || type === 'island') add({ part: 'carcass' }, 'stretcher', W - 2 * LAYOUT_T, 8, BOARD, 2, body);
   else if (type !== 'desk') add({ part: 'carcass' }, 'top', W - 2 * LAYOUT_T, D - 1, BOARD, 1, body);
   if (type !== 'desk') add({ part: 'carcass' }, 'bottom', W - 2 * LAYOUT_T, D - 1, BOARD, 1, body);
-  add({ part: 'carcass' }, 'back', W - 2 * LAYOUT_T, type === 'desk' ? 35 : innerH, type === 'desk' ? BOARD : BACK, 1, inside);
-  add({ part: 'carcass' }, 'divider', D - 1.5, innerH, BOARD, n - 1, inside);
+  // a bay may have its own colour (a neutral from the table) and its own back: closed, open to the wall, or a mirror
+  const bayInside = (bi) => (piece.bays[bi] && piece.bays[bi].colour ? { material: piece.bays[bi].colour, finish: 'matte' } : inside);
+  const plainBacks = piece.bays.every((b) => !b.colour && (!b.back || b.back === 'closed'));
+  if (plainBacks || type === 'desk') {
+    add({ part: 'carcass' }, 'back', W - 2 * LAYOUT_T, type === 'desk' ? 35 : innerH, type === 'desk' ? BOARD : BACK, 1, inside);
+    add({ part: 'carcass' }, 'divider', D - 1.5, innerH, BOARD, n - 1, inside);
+  } else {
+    piece.bays.forEach((b, bi) => {
+      if (!b.back || b.back === 'closed') add({ bay: bi, part: 'back' }, 'back', b.width + LAYOUT_T, innerH, BACK, 1, bayInside(bi));
+      if (bi < n - 1) add({ part: 'carcass' }, 'divider', D - 1.5, innerH, BOARD, 1, bayInside(bi));
+    });
+  }
   if (g.plinth > 0 && look.base !== 'legs') {
     add({ part: 'carcass' }, 'plinth', W - 4, g.plinth, BOARD, 1, body);
     add({ part: 'carcass' }, 'plinth', D - 8, g.plinth, BOARD, 2, body);
@@ -200,8 +219,8 @@ export function cutListFor(piece) {
       if (!def) return;
       const ctx = { bayW: bay.width, depth: D, innerH, outerW: g.outerBayW };
       def.boards(it, ctx).forEach((b) => {
-        let spec = b.use === 'front' ? front : inside;
-        if (b.use === 'front' && S.upper) {
+        let spec = b.use === 'front' ? front : b.use === 'wood' ? woodSpec : bayInside(bi);
+        if ((b.use === 'front' || b.use === 'wood') && S.upper && b.use === 'front') {
           const y = g.plinth + LAYOUT_T + (it.y || 0);
           if (y >= piece.look.split) spec = S.upper;
         }
@@ -263,6 +282,12 @@ function quotePiece(project, piece, label, placement) {
       const d = bayDoor(piece, bay, g);
       const m2 = (d.count * Math.max(0, d.w - 11) * Math.max(0, d.h - 11)) / 10000;
       line('Materials', { bay: bi, part: 'doors' }, 'Door glass', r3(m2), 'm²', cents(m2 * pricePerM2({ material: look.glass })));
+    }
+    const back = sumBoards(groupBoards((b) => b.ref.bay === bi && b.ref.part === 'back'));
+    line('Materials', { bay: bi, part: 'back' }, 'Back panel', r3(back.m2), 'm²', back.c);
+    if (bay.back === 'mirror') {
+      const m2 = (bay.width * g.innerH) / 10000;
+      line('Materials', { bay: bi, part: 'back' }, 'Mirror back panel', r3(m2), 'm²', hw('mirrorM2', m2));
     }
     bay.items.forEach((it, ii) => {
       const def = ITEMS[it.kind];
@@ -340,6 +365,8 @@ function quotePiece(project, piece, label, placement) {
   }
   if (piece.worktop) labour({ part: 'worktop' }, 'Worktop', isStone(piece.worktop) ? L.stoneWorktopHours : L.worktopHours);
   piece.bays.forEach((bay, bi) => {
+    if (bay.back === 'mirror') labour({ bay: bi, part: 'back' }, 'Fitting the mirror back panel', 0.6);
+    if (bay.colour) labour({ bay: bi, part: 'back' }, 'Bay colour', 0.3);
     const d = bayDoor(piece, bay, g);
     if (d.count) labour({ bay: bi, part: 'doors' }, 'Doors', d.count * doorParts(piece, bay, d, g).length * (L.doorHours + (piece.fronts.kind === 'glass' ? L.glassDoorHours : 0)));
     bay.items.forEach((it, ii) => {

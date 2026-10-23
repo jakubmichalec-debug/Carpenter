@@ -30,7 +30,9 @@ export const FAMILIES = {
   ply: { label: 'Plywood' },
   stone: { label: 'Worktops' },
   glass: { label: 'Glass' },
-  handle: { label: 'Handle finish' }
+  handle: { label: 'Handle finish' },
+  rail: { label: 'Rail finish' },
+  lining: { label: 'Tray lining' }
 };
 
 const ONE = ['matte'];
@@ -80,6 +82,23 @@ export const LIBRARY = {
   brushed:        handle('Brushed steel', '#b9b9b3', 0.35, 0.9, 1.15, 'Quiet, neutral metal.'),
   wood:           handle('Oak', '#c19a6b', 0.6, 0, 1.1, 'Turned from oak, to sit well with oak fronts.', { wood: true })
 };
+// ----- rail and rod finishes (items store the part after "rail-") and tray linings (after "lining-") -----
+const rail = (label, color, metal, rough, perMetre, note) => ({
+  label, family: 'rail', kind: 'handle', color, roughness: rough, metalness: metal, grain: false, pricePerM2: 0, perMetre, uses: ['rail'], note
+});
+LIBRARY['rail-chrome'] = rail('Chrome', '#c9ccce', 1, 0.2, 0, 'Bright and classic.');
+LIBRARY['rail-nickel'] = rail('Matt nickel', '#9a9c9b', 0.9, 0.42, 6, 'Soft grey metal, no mirror shine.');
+LIBRARY['rail-black'] = rail('Black', '#222324', 0.7, 0.45, 5, 'Matte black, modern.');
+LIBRARY['rail-white'] = rail('White', '#ecebe6', 0.2, 0.5, 3, 'Painted white, disappears into a white inside.');
+const lining = (label, color, note) => ({
+  label, family: 'lining', kind: 'handle', color, roughness: 0.95, metalness: 0, grain: false, pricePerM2: 0, uses: ['lining'], note
+});
+LIBRARY['lining-grey'] = lining('Grey', '#8d9196', 'Soft felt in light grey.');
+LIBRARY['lining-sand'] = lining('Sand', '#cdbb9a', 'Warm felt in sand.');
+LIBRARY['lining-charcoal'] = lining('Charcoal', '#3b3e42', 'Dark felt that makes jewellery pop.');
+// A bay can have its own colour from these neutrals.
+for (const id of ['chalk-white', 'pebble-grey', 'oak', 'black']) LIBRARY[id].uses.push('bay');
+
 // Legacy: old code used this id for the black steel handle. Still resolvable, never offered.
 LIBRARY['steel-black'] = { label: 'Black steel', family: 'handle', kind: 'lacquer', color: '#1c1d1f', roughness: 0.4, metalness: 0.8, grain: false, pricePerM2: 0, uses: [], pickable: false, finishes: ONE, satinPlus: 0, note: '' };
 
@@ -93,7 +112,7 @@ export const HANDLE_ALIASES = { groove: 'edge', 'long-bar': 'bar', leather: 'bar
 export const DESIGN_ALIASES = { fluted: 'ribbed', vgroove: 'ribbed', cane: 'shaker' };
 
 export const MATERIALS = LIBRARY;
-export const USES = ['front', 'carcass', 'interior', 'top', 'glass', 'handle'];
+export const USES = ['front', 'carcass', 'interior', 'top', 'glass', 'handle', 'bay', 'rail', 'lining'];
 // Carcass and inside options: the only boards we offer for the box itself.
 for (const id of ['birch-ply', 'chalk-white', 'oak', 'black']) {
   const u = LIBRARY[id].uses;
@@ -171,3 +190,11 @@ export function resolveHandleFinish(finish) {
   return list.includes(c) ? c : list.includes('handle-black') ? 'handle-black' : list[0] || 'handle-black';
 }
 export const glassTypes = () => materialsFor('glass');
+
+// Rail finishes and linings, as the short names items store ("chrome", "grey").
+export const railFinishes = () => materialsFor('rail').map((id) => id.slice(5));
+export const liningColours = () => materialsFor('lining').map((id) => id.slice(7));
+export const railInfo = (finish) => LIBRARY[`rail-${finish}`] || LIBRARY['rail-chrome'] || Object.values(LIBRARY).find((m) => m.uses.includes('rail'));
+export const liningInfo = (colour) => LIBRARY[`lining-${colour}`] || LIBRARY['lining-grey'] || Object.values(LIBRARY).find((m) => m.uses.includes('lining'));
+// Old linings: black and navy became charcoal and grey.
+export const LINING_ALIASES = { black: 'charcoal', navy: 'charcoal' };

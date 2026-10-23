@@ -134,8 +134,8 @@ test('item-outside-bay: below the floor, above the top, a divider outside the ba
   const inner = M.pieceGeometry(base().pieces[0]).innerH;
   assert.ok(find(setItems(base(), [{ kind: 'shelf', y: -3.2 }]), 'item-outside-bay'));
   assert.ok(find(setItems(base(), [{ kind: 'shelf', y: inner }]), 'item-outside-bay'));
-  assert.ok(find(setItems(base(), [{ kind: 'drawers', y: 188.8, count: 3, front: 20 }]), 'item-outside-bay'));
-  assert.ok(find(setItems(base(), [{ kind: 'double-hang', y: 64, }]), 'item-outside-bay'), 'lower rail below the floor');
+  assert.ok(find(setItems(base(), [{ kind: 'drawers', y: 188.8, count: 3, front: 19.2 }]), 'item-outside-bay'));
+  assert.ok(find(setItems(base(), [{ kind: 'rail', length: 'short', y: -3.2 }]), 'item-outside-bay'), 'rail below the floor');
   assert.ok(find(setItems(base(), [{ kind: 'shelf', y: Number.NaN }]), 'item-outside-bay'));
   assert.ok(find(setItems(base(), [{ kind: 'divider', y: 0, height: 60, position: 500 }]), 'item-outside-bay'));
   assert.equal(find(setItems(base(), [{ kind: 'shelf', y: 99.2 }]), 'item-outside-bay'), undefined);
@@ -145,20 +145,22 @@ test('item-outside-bay: below the floor, above the top, a divider outside the ba
 test('item-clearance: hanging space below rails', () => {
   const inner = M.pieceGeometry(base().pieces[0]).innerH;
   // each rail kind is fine when it sits near the top of the bay
-  for (const kind of ['rail-long', 'rail-short', 'double-hang', 'pull-down-rail']) {
-    const ok = setItems(base(), [{ kind, y: M.snapDown(inner - 12) }]);
-    assert.deepEqual(validateProject(ok).errors.filter((e) => e.blocking), [], `${kind} high enough`);
+  for (const it of [{ kind: 'rail', length: 'long' }, { kind: 'rail', length: 'short' }, { kind: 'pull-down-rail' }]) {
+    const ok = setItems(base(), [{ ...it, y: M.snapDown(inner - 12) }]);
+    assert.deepEqual(validateProject(ok).errors.filter((e) => e.blocking), [], `${it.kind} ${it.length || ''} high enough`);
   }
-  const e = find(setItems(base(), [{ kind: 'rail-long', y: 100.8 }]), 'item-clearance');
+  const e = find(setItems(base(), [{ kind: 'rail', length: 'long', y: 100.8 }]), 'item-clearance');
   assert.match(e.message, /150 cm/);
-  assert.equal(find(setItems(base(), [{ kind: 'rail-long', y: 153.6 }]), 'item-clearance'), undefined);
-  assert.ok(find(setItems(base(), [{ kind: 'rail-long', y: 147.2 }]), 'item-clearance'));
-  assert.ok(find(setItems(base(), [{ kind: 'rail-short', y: 89.6 }]), 'item-clearance'));
-  assert.equal(find(setItems(base(), [{ kind: 'rail-short', y: 96 }]), 'item-clearance'), undefined);
+  assert.equal(find(setItems(base(), [{ kind: 'rail', length: 'long', y: 153.6 }]), 'item-clearance'), undefined);
+  assert.ok(find(setItems(base(), [{ kind: 'rail', length: 'long', y: 147.2 }]), 'item-clearance'));
+  assert.ok(find(setItems(base(), [{ kind: 'rail', length: 'short', y: 89.6 }]), 'item-clearance'));
+  assert.equal(find(setItems(base(), [{ kind: 'rail', length: 'short', y: 96 }]), 'item-clearance'), undefined);
   assert.ok(find(setItems(base(), [{ kind: 'pull-down-rail', y: 96 }]), 'item-clearance'));
   assert.equal(find(setItems(base(), [{ kind: 'pull-down-rail', y: 102.4 }]), 'item-clearance'), undefined);
-  assert.ok(find(setItems(base(), [{ kind: 'double-hang', y: 185.6 }]), 'item-clearance'));
-  assert.equal(find(setItems(base(), [{ kind: 'double-hang', y: 195.2 }]), 'item-clearance'), undefined);
+  // double hanging is two short rails: they need 99 cm between them, and the lower one 95 cm of its own
+  const two = (y) => setItems(base(), [{ kind: 'rail', length: 'short', y }, { kind: 'rail', length: 'short', y: y - 99.2 }]);
+  assert.ok(find(two(185.6), 'item-clearance'));
+  assert.equal(find(two(198.4), 'item-clearance'), undefined);
 });
 
 test('item-clearance: two items may not claim the same space', () => {
@@ -167,12 +169,12 @@ test('item-clearance: two items may not claim the same space', () => {
   assert.ok(find(setItems(base(), [at('shelf', 96), at('shelf', 105.6)]), 'item-clearance'));
   assert.equal(find(setItems(base(), [at('shelf', 96), at('shelf', 115.2)]), 'item-clearance'), undefined);
   // a shelf inside the hanging space of a rail
-  assert.ok(find(setItems(base(), [at('rail-long', 192), at('shelf', 96)]), 'item-clearance'));
+  assert.ok(find(setItems(base(), [at('rail', 192), at('shelf', 96)]), 'item-clearance'));
   // a shelf above the rail is fine
-  assert.equal(find(setItems(base(), [at('rail-long', 192), at('shelf', 198.4)]), 'item-clearance'), undefined);
+  assert.equal(find(setItems(base(), [at('rail', 192), at('shelf', 198.4)]), 'item-clearance'), undefined);
   // drawers under a rail
-  assert.ok(find(setItems(base(), [at('rail-long', 192), at('drawers', 0, { count: 3, front: 20 })]), 'item-clearance'));
-  assert.equal(find(setItems(base(), [at('rail-long', 211.2), at('drawers', 0, { count: 3, front: 20 })]), 'item-clearance'), undefined);
+  assert.ok(find(setItems(base(), [at('rail', 192), at('drawers', 0, { count: 3, front: 19.2 })]), 'item-clearance'));
+  assert.equal(find(setItems(base(), [at('rail', 211.2), at('drawers', 0, { count: 3, front: 19.2 })]), 'item-clearance'), undefined);
   // every kind with a zone collides with a copy of itself at the same height and not when stacked
   for (const kind of M.TYPES.wardrobe.palette) {
     const it = M.normalizeItem({ kind, y: 90 }, { bayWidth: 80, innerH: 226 });
@@ -184,15 +186,15 @@ test('item-clearance: two items may not claim the same space', () => {
     assert.equal(errs[0].blocking, true);
   }
   // LED strips and inside-door mirrors claim no space
-  assert.equal(find(setItems(base(), [at('led', 100), at('led', 100), at('mirror', 0, { mode: 'door' }), at('shelf', 100)]), 'item-clearance'), undefined);
+  assert.equal(find(setItems(base(), [at('led', 100), at('led', 100), at('mirror', 0, { mode: 'fixed' }), at('shelf', 100)]), 'item-clearance'), undefined);
 });
 
 test('item-clearance: minimum bay size and runner depth', () => {
-  // ironing board: bay at least 40 wide
+  // larder: bay at least 30 wide
   let p = M.setBays(base(), 'w', 9); // 200 wide / 9 = ~20 each
-  p = setItems(p, [{ kind: 'ironing', y: 0 }]);
-  assert.match(find(p, 'item-clearance').message, /40 cm wide/);
-  assert.equal(find(setItems(base(), [{ kind: 'ironing', y: 0 }]), 'item-clearance'), undefined);
+  p = setItems(p, [{ kind: 'larder', y: 0, baskets: 4 }]);
+  assert.match(find(p, 'item-clearance').message, /30 cm wide/);
+  assert.equal(find(setItems(base(), [{ kind: 'larder', y: 0, baskets: 4 }]), 'item-clearance'), undefined);
   // trouser rack, hamper
   assert.ok(find(setItems(M.setBays(base(), 'w', 9), [{ kind: 'trouser-rack', y: 0 }]), 'item-clearance'));
   assert.ok(find(setItems(M.setBays(base(), 'w', 9), [{ kind: 'hamper', y: 0 }]), 'item-clearance'));
@@ -202,14 +204,14 @@ test('item-clearance: minimum bay size and runner depth', () => {
   assert.match(find(q, 'item-clearance').message, /210 cm high/);
   // runners need depth: a shallow wall unit cannot take drawers
   let u = M.addPiece(M.setTemplate(base(), 'rect', {}), 'wall-unit', 'open-ash', { id: 'u', depth: 30 });
-  u.pieces.find((x) => x.id === 'u').bays[0].items = [{ kind: 'drawers', y: 0, count: 2, front: 20 }];
+  u.pieces.find((x) => x.id === 'u').bays[0].items = [{ kind: 'drawers', y: 0, count: 2, front: 19.2 }];
   assert.match(find(u, 'item-clearance').message, /35 cm deep/);
   u = M.updatePiece(u, 'u', { depth: 40 });
   assert.equal(find(u, 'item-clearance'), undefined);
 });
 
 test('item-needs-door', () => {
-  const inner = { kind: 'inner-drawers', y: 0, count: 2, front: 18 };
+  const inner = { kind: 'inner-drawers', y: 0, count: 2, front: 19.2 };
   const p = setItems(base(), [inner]);
   assert.equal(find(p, 'item-needs-door'), undefined, 'hinged bay has a door');
   const noDoor = clone(p);
@@ -221,7 +223,7 @@ test('item-needs-door', () => {
   assert.ok(find(open, 'item-needs-door'));
   const sliding = M.updatePiece(p, 'w', { fronts: { kind: 'sliding' } });
   assert.equal(find(sliding, 'item-needs-door'), undefined, 'sliding doors cover every bay');
-  const mirror = setItems(noDoor, [{ kind: 'mirror', y: 0, mode: 'door' }]);
+  const mirror = setItems(noDoor, [{ kind: 'mirror', y: 0, mode: 'fixed' }]);
   assert.ok(find(mirror, 'item-needs-door'));
   assert.equal(find(setItems(noDoor, [{ kind: 'mirror', y: 0, mode: 'pull-out' }]), 'item-needs-door'), undefined);
 });

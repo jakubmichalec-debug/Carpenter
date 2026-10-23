@@ -909,3 +909,24 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
   .pl-opt__body, .pl-sw, .pl-style { transition: none; }
   .pl-mat:hover .pl-sw { transform: none; }
 }
+
+/* ---------- Step 3: bay options and the newer items ---------- */
+.pl-bay-tint { opacity: .4; pointer-events: none; }
+.pl-bay-mirror { fill: color-mix(in srgb, var(--oak-light) 38%, var(--paper)); stroke: var(--ink-3); stroke-width: 1; pointer-events: none; }
+.pl-bay-open { pointer-events: none; }
+.pl-wall-bg { fill: color-mix(in srgb, var(--sand) 38%, var(--paper)); }
+.pl-wall-line { stroke: color-mix(in srgb, var(--ink) 9%, transparent); stroke-width: 1; fill: none; }
+.pl-wall-dot { fill: color-mix(in srgb, var(--ink) 16%, transparent); }
+.pl-i-front--glass { fill: color-mix(in srgb, var(--oak-light) 26%, var(--paper)); }
+.pl-i-front--oak { fill: color-mix(in srgb, var(--wood) 38%, var(--paper)); }
+.pl-i-glass-pane { fill: color-mix(in srgb, var(--oak-light) 45%, var(--paper)); stroke: var(--ink-3); stroke-width: .8; }
+.pl-i-sheen--thin { stroke-width: 2; }
+.pl-i-insert { stroke: color-mix(in srgb, var(--ink) 35%, transparent); stroke-width: .8; }
+.pl-i-insert-line { stroke: color-mix(in srgb, var(--paper) 70%, transparent); stroke-width: 1; fill: none; }
+.pl-i-lip { stroke: var(--oak-deep); stroke-width: 2; stroke-linecap: round; fill: none; }
+.pl-i-jar { fill: color-mix(in srgb, var(--clay) 55%, var(--paper)); stroke: var(--wood-deep); stroke-width: .6; }
+.pl-i-jar--b { fill: color-mix(in srgb, var(--sage) 60%, var(--paper)); }
+.pl-sw--same { background: linear-gradient(135deg, var(--paper) 0 48%, var(--bone) 48%); border-style: dashed; }
+.pl-bayopt { margin-top: 14px; grid-column: 1 / -1; }
+.pl-bayopt .pl-mats { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); }
+.pl-thumbi .pl-i-insert, .pl-thumbi .pl-i-jar { stroke-width: .4; }

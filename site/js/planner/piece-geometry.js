@@ -3,13 +3,18 @@
 // in cm inside a group scaled by 0.01, so the result is in metres. Origin: the piece's left end, bottom and back;
 // +x right, +y up, +z out of the wall.
 import { ITEMS, LAYOUT_T, TYPES, pieceGeometry, surfacesOf, roleSegments, legCount, SCRIBE } from './model.js';
-import { surfaceInfo } from './materials.js';
+import { surfaceInfo, railInfo, liningInfo } from './materials.js';
 import { fieldGeometry, CORNICE_PROFILE } from './front-geometry.js';
 import { bayLayout } from './interior-geom.js';
 
 const T = LAYOUT_T;       // sides and dividers fill their 2 cm layout slot
 const BOARD = 1.8;        // shelves and loose boards
 const F = 1.9;            // front board
+const shadeHex = (hex, k) => {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0');
+  return `#${c((n >> 16) & 255)}${c((n >> 8) & 255)}${c(n & 255)}`;
+};
 const DECOR = ['#d8d0c0', '#8d96a1', '#4a525c', '#c4a98a', '#7a8b78', '#bfb8ae', '#a8694f', '#e6dccb'];
 
 export const FRONT_MODES = ['closed', 'ajar', 'hidden'];
@@ -63,7 +68,6 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   const GAP = (look.gap || 3) / 20;                 // half the gap between two fronts, cm
   const surf = (spec) => (lib.surface ? lib.surface(spec) : lib.veneer(spec.material));
   const grained = (spec) => (lib.surfaceTextured ? lib.surfaceTextured(spec) : lib.textured(spec.material));
-  const bodyMat = surf(S.interior);
   const shadow = (m, cast = true) => { m.castShadow = cast; m.receiveShadow = true; return m; };
   // box from its low corner. `spec` is a surface { material, finish } (grain follows `grain`), `material` a ready material,
   // `materials` six ready materials (+x, -x, +y, -y, +z, -z)
@@ -116,28 +120,49 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   const zFront = cD + 0.2;
   const yf = ph + T;                                                // floor of every bay
   const outerSide = look.gables ? S.front : S.carcass;
+  const same = (a, b2) => a.material === b2.material && a.finish === b2.finish;
+  // A bay may have its own colour and its own back (closed, open to the wall, or a mirror).
+  const baySpec = (bi) => (piece.bays[bi] && piece.bays[bi].colour ? { material: piece.bays[bi].colour, finish: 'matte' } : S.interior);
+  const lastBay = piece.bays.length - 1;
+  const bayOptions = piece.bays.some((b2) => b2.colour || (b2.back && b2.back !== 'closed'));
+  const allSame = piece.bays.every((b2, bi) => same(baySpec(bi), baySpec(0)));
+  const roofSpec = allSame ? baySpec(0) : S.interior;   // the top and bottom board show one inside colour
   // Sides, top, bottom and back: the inside faces take the inside material, the outer faces the carcass (or, with end panels, the front).
-  const sameInside = S.interior.material === S.carcass.material && S.interior.finish === S.carcass.finish;
-  const sidesM = (innerFace) => {
-    if (sameInside && !look.gables) return {};
-    const c = surf(S.carcass), i = surf(S.interior), o = surf(outerSide);
+  const sidesM = (innerFace, inSpec) => {
+    if (same(inSpec, S.carcass) && !look.gables) return {};
+    const c = surf(S.carcass), i = surf(inSpec), o = surf(outerSide);
     const arr = [c, c, c, c, c, c];
     arr[innerFace] = i; arr[innerFace === 0 ? 1 : 0] = o;
     return { materials: arr };
   };
   const faceM = (face) => {
-    if (sameInside) return {};
+    if (same(roofSpec, S.carcass)) return {};
     const c = surf(S.carcass), arr = [c, c, c, c, c, c];
-    arr[face] = surf(S.interior);
+    arr[face] = surf(roofSpec);
     return { materials: arr };
   };
-  box(g, 0, ph, 0, T, geo.Hc, cD, { ...sidesM(0), grain: 'y', part: 'side' });
-  box(g, W - T, ph, 0, T, geo.Hc, cD, { ...sidesM(1), grain: 'y', part: 'side' });
+  box(g, 0, ph, 0, T, geo.Hc, cD, { ...sidesM(0, baySpec(0)), grain: 'y', part: 'side' });
+  box(g, W - T, ph, 0, T, geo.Hc, cD, { ...sidesM(1, baySpec(lastBay)), grain: 'y', part: 'side' });
   box(g, T, ph, 0, W - 2 * T, T, cD, { ...faceM(2), part: 'bottom' });
   box(g, T, top - T, 0, W - 2 * T, T, cD, { ...faceM(3), part: 'top' });
-  box(g, T, yf, 0, W - 2 * T, innerH, 0.8, { spec: S.interior, grain: 'y', part: 'back' });
   const layout = bayLayout(piece);
-  layout.slice(0, -1).forEach((b) => box(g, b.x1, yf, 0.8, T, innerH, cD - 0.8, { spec: S.interior, grain: 'y', part: 'divider' }));
+  const mirrorMat = lib.plain('#cfdadf', 0.04, 0.9);
+  if (!bayOptions) {
+    box(g, T, yf, 0, W - 2 * T, innerH, 0.8, { spec: S.interior, grain: 'y', part: 'back' });
+    layout.slice(0, -1).forEach((b) => box(g, b.x1, yf, 0.8, T, innerH, cD - 0.8, { spec: S.interior, grain: 'y', part: 'divider' }));
+  } else {
+    layout.forEach((b, bi) => {
+      const back = piece.bays[bi].back || 'closed';
+      const xb = bi === lastBay ? W - T : b.x1 + T;
+      if (back === 'closed') box(g, b.x0, yf, 0, xb - b.x0, innerH, 0.8, { spec: baySpec(bi), grain: 'y', part: 'back' });
+      else if (back === 'mirror') box(g, b.x0, yf, 0, xb - b.x0, innerH, 0.8, { material: mirrorMat, part: 'mirror-back', cast: false });
+      // open: nothing behind the bay, the wall shows
+      if (bi < lastBay) {
+        const left = surf(baySpec(bi)), right = surf(baySpec(bi + 1)), edge = surf(S.interior);
+        box(g, b.x1, yf, 0.8, T, innerH, cD - 0.8, { materials: [right, left, edge, edge, edge, edge], grain: 'y', part: 'divider' });
+      }
+    });
+  }
   if (geo.slab > 0) {
     const wt = piece.worktop && piece.type !== 'window-seat';
     box(g, 0, top, 0, W, geo.slab, D + (wt ? 1.5 : 0), { spec: wt ? topSpec : piece.type === 'window-seat' ? S.carcass : topSpec, part: 'worktop' });
@@ -196,13 +221,13 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   const frontSpec = (role) => (role === 'upper' && S.upper ? S.upper : S.front);
   const grainDir = fr.grainVertical ? 'y' : 'x';
   // `design` is slab, shaker, ribbed or glass; a panel is built with its low left back corner at (x0, y0, 0) in `parent`
-  function frontPanel(parent, x0, y0, w, h, role, design, part) {
-    const spec = frontSpec(role);
+  function frontPanel(parent, x0, y0, w, h, role, design, part, specOverride) {
+    const spec = specOverride || frontSpec(role);
     const faceMat = surf(spec);
     const edgeMat = surfaceInfo(spec).edgeGrain && lib.plyEdge ? lib.plyEdge(spec) : faceMat;
     const d = design === 'shaker' && Math.min(w, h) < 14 ? 'slab' : design === 'ribbed' && w < 8 ? 'slab' : design;
-    if (d === 'glass' && h > 24 && w > 16) {
-      const st = 4.5;
+    if (d === 'glass' && h > 12 && w > 16) {
+      const st = Math.min(4.5, 0.2 * Math.min(w, h));
       const mk = (xa, ya0, ww, hh, grain) => box(parent, x0 + xa, y0 + ya0, 0, ww, hh, F, { spec, grain, part });
       mk(0, 0, st, h, 'y'); mk(w - st, 0, st, h, 'y'); mk(st, 0, w - 2 * st, st, 'x'); mk(st, h - st, w - 2 * st, st, 'x');
       box(parent, x0 + st, y0 + st, F / 2 - 0.25, w - 2 * st, h - 2 * st, 0.5, { material: glassMat, part: 'glass', cast: false });
@@ -292,11 +317,31 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
     box(parent, x0 + w - 1.2, y0 + 1.5, z0, 1.2, bh, dd, { material, part: 'drawer-box' });
     box(parent, x0, y0 + 1.5, z0, w, bh, 1.2, { material, part: 'drawer-box' });
   };
+  // Dividers and a felt lining inside a drawer box: sock grid, cutlery compartments, jewellery tray or plain felt.
+  const drawerInsert = (parent, kindOfInsert, x0, w, y0, h, zFrontOf, depth, lining) => {
+    const dd = Math.max(15, depth), z0 = zFrontOf - dd + 1.4;
+    const inW = w - 2.4, inD = dd - 2.6, y1 = y0 + 2.3, x1 = x0 + 1.2;
+    const info = liningInfo(lining);
+    const mat = lib.plain(info.color, 0.95);
+    const dv = lib.plain(shadeHex(info.color, 0.82), 0.9);
+    if (kindOfInsert === 'cutlery') {
+      box(parent, x1, y1 - 0.2, z0, inW, 0.4, inD, { material: lib.plain('#3b3e42', 0.8), part: 'insert', cast: false });
+      for (let i = 1; i < 4; i++) box(parent, x1 + (i * inW) / 4 - 0.2, y1, z0, 0.4, Math.min(3, h - 5), inD, { material: lib.plain('#2a2c2f', 0.8), part: 'insert', cast: false });
+      box(parent, x1, y1, z0 + inD * 0.55, inW, Math.min(3, h - 5), 0.4, { material: lib.plain('#2a2c2f', 0.8), part: 'insert', cast: false });
+      return;
+    }
+    box(parent, x1, y1 - 0.2, z0, inW, 0.5, inD, { material: mat, part: 'insert', cast: false });
+    const cols = kindOfInsert === 'socks' ? Math.max(3, Math.round(inW / 9)) : kindOfInsert === 'jewellery' ? 3 : 0;
+    const rows = kindOfInsert === 'socks' ? 3 : kindOfInsert === 'jewellery' ? 2 : 0;
+    const dh = Math.min(kindOfInsert === 'socks' ? 9 : 3.5, h - 5);
+    for (let i = 1; i < cols; i++) box(parent, x1 + (i * inW) / cols - 0.2, y1, z0, 0.4, dh, inD, { material: dv, part: 'insert', cast: false });
+    for (let j = 1; j < rows; j++) box(parent, x1, y1, z0 + (j * inD) / rows - 0.2, inW, dh, 0.4, { material: dv, part: 'insert', cast: false });
+  };
   const DRAWERS = {
     drawers: (it) => ({ count: it.count, h: it.front, outer: true }),
     'inner-drawers': (it) => ({ count: it.count, h: it.front, outer: false }),
     jewellery: () => ({ count: 1, h: 8, outer: false }),
-    'divided-drawer': () => ({ count: 1, h: 15, outer: true }),
+    tray: () => ({ count: 1, h: 6, outer: false }),
     'cutlery-insert': (it) => ({ count: 1, h: it.front, outer: true }),
     'pan-drawer': (it) => ({ count: it.count, h: it.front, outer: true }),
     'keyboard-drawer': () => ({ count: 1, h: 8, outer: true }),
@@ -309,6 +354,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
     const def = ITEMS[it.kind];
     if (!def) return;
     const bx = b.x0, bw = b.width, ya = yf + it.y;
+    const bodyMat = surf(baySpec(bi));
     const zi0 = 0.8, zi1 = cD - 1, dz = zi1 - zi0;
     const edge0 = bi === 0 ? GAP + scribeSide : bx - T / 2 + GAP, edge1 = bi === piece.bays.length - 1 ? W - GAP - scribeSide : bx + bw + T / 2 - GAP;
     const spec = DRAWERS[it.kind] ? DRAWERS[it.kind](it) : null;
@@ -327,13 +373,17 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
             fg.position.z = zf;
             grp.add(fg);
             const role = S.upper && y0 + spec.h / 2 >= look.split ? 'upper' : 'front';
-            frontPanel(fg, fx0, y0 + GAP, fx1 - fx0, spec.h - 2 * GAP, role, designFor(false), 'drawer-front');
+            const glassFace = it.face === 'glass', oakFace = it.face === 'wood';
+            frontPanel(fg, fx0, y0 + GAP, fx1 - fx0, spec.h - 2 * GAP, role, glassFace ? 'glass' : designFor(false), 'drawer-front', oakFace ? { material: 'oak', finish: 'matte' } : undefined);
             if (def.handles(it)) handle(fg, { what: 'drawer', x: (fx0 + fx1) / 2, lo: y0 + GAP, hi: y0 + spec.h - GAP, w: fx1 - fx0, z: F });
           } else {
-            box(grp, fx0, y0 + GAP, zf, fx1 - fx0, spec.h - 2 * GAP, 1.2, { spec: S.interior, grain: grainDir, part: 'drawer-front' });
+            box(grp, fx0, y0 + GAP, zf, fx1 - fx0, spec.h - 2 * GAP, 1.2, { spec: baySpec(bi), grain: grainDir, part: 'drawer-front' });
           }
         }
-        drawerBox(grp, bx + 0.6, bw - 1.2, y0, spec.h, spec.open ? cD - 3 : zf, Math.min(dz - 4, 45), it.material === 'wire' ? steel : bodyMat);
+        const boxD = Math.min(dz - 4, 45), zBox = spec.open ? cD - 3 : zf;
+        drawerBox(grp, bx + 0.6, bw - 1.2, y0, spec.h, zBox, boxD, it.material === 'wire' ? steel : bodyMat);
+        const ins = it.kind === 'jewellery' ? 'jewellery' : it.kind === 'tray' ? (it.insert === 'felt' ? 'felt' : null) : it.kind === 'cutlery-insert' ? 'cutlery' : it.insert && it.insert !== 'none' ? it.insert : null;
+        if (ins) drawerInsert(grp, ins, bx + 0.6, bw - 1.2, y0, spec.h, zBox, boxD, it.lining || 'grey');
       }
       if (spec.outer && it.kind !== 'basket') fronts.push({ bay: bi, lo: ya, hi: ya + spec.count * spec.h });
       return;
@@ -352,11 +402,13 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
         }
         return;
       }
-      case 'rail-long': case 'rail-short': case 'double-hang': case 'pull-down-rail': {
-        const rails = it.kind === 'double-hang' ? [ya, ya - 95] : [ya];
-        const drop = it.kind === 'rail-long' ? 115 : it.kind === 'pull-down-rail' ? 85 : 80;
+      case 'rail': case 'pull-down-rail': {
+        const rails = [ya];
+        const drop = it.kind === 'rail' && it.length !== 'short' ? 115 : it.kind === 'pull-down-rail' ? 85 : 80;
+        const ri = it.kind === 'rail' ? railInfo(it.finish) : null;
+        const railMat = ri ? lib.plain(ri.color, ri.roughness, ri.metalness) : steel;
         rails.forEach((ry) => {
-          cyl(g, bx + bw / 2, ry + 2, zi0 + dz / 2, 1.25, bw, 'x', steel);
+          cyl(g, bx + bw / 2, ry + 2, zi0 + dz / 2, 1.25, bw, 'x', railMat);
           const n = Math.min(9, Math.floor(bw / 7));
           const gw = Math.min(4.5, bw / (n + 1));
           for (let i = 0; i < n; i++) {
@@ -376,6 +428,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
         for (let r = 0; r < rows; r++) {
           const s = box(grp, bx + 1.2, ya + r * pitch + 3, zi0 + 4, bw - 2.4, 1.2, dz * 0.82, { material: bodyMat, part: 'rack' });
           if (it.kind === 'shoes' && it.angled) s.rotation.x = 0.28;
+          if (it.kind === 'shoes' && it.lip) box(grp, bx + 1.2, ya + r * pitch + (it.angled ? 4.2 : 4.2), zi0 + 4 + dz * 0.82 * (it.angled ? 0.96 : 1) - 1.2, bw - 2.4, 2.6, 1.2, { material: bodyMat, part: 'lip' });
           for (let k = 0; k < 2 && bw > 40; k++) box(grp, bx + 5 + k * ((bw - 20) / 1.4), ya + r * pitch + 5, zi0 + dz * 0.3, 8, 6, 22, { material: lib.plain(DECOR[Math.floor(rnd() * DECOR.length)], 0.8), part: 'shoe', cast: false });
         }
         return;
@@ -395,7 +448,8 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
       }
       case 'valet-rod': {
         const x = it.side === 'left' ? bx + 3 : bx + bw - 3;
-        cyl(g, x, ya + 2.5, zi0 + dz * 0.5, 0.6, dz * 0.8, 'z', steel, 8);
+        const vi = railInfo(it.finish);
+        cyl(g, x, ya + 2.5, zi0 + dz * 0.5, 0.6, dz * 0.8, 'z', lib.plain(vi.color, vi.roughness, vi.metalness), 8);
         return;
       }
       case 'bin-pullout': {
@@ -404,25 +458,87 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
         for (let i = 0; i < n; i++) box(grp, bx + 2 + i * w + 0.5, ya + 2, zi0 + 6, w - 1, 38, Math.min(38, dz - 12), { material: dark, part: 'bin' });
         return;
       }
-      case 'ironing':
-        box(g, bx + 3, ya, zi0 + 0.2, bw - 6, 110, 3, { material: lib.plain('#d9d4c8', 0.9), part: 'ironing' });
-        return;
       case 'mirror': {
+        const mm = lib.plain('#cfdadf', 0.04, 0.9);
+        if (it.mode === 'swivel') {
+          // a mirror on a pivot at the side of the bay; ajar, it swings out
+          const pv = new THREE.Group();
+          pv.position.set(it.side === 'right' ? bx + bw - 2 : bx + 2, ya, zi0 + 6);
+          pv.rotation.y = mode === 'ajar' ? 0.9 : 0;
+          box(pv, -0.25, 0, 0, 0.5, 120, 30, { material: mm, part: 'mirror' });
+          box(pv, -0.7, -0.5, -0.5, 1.4, 121, 1, { material: steel, part: 'rail', cast: false });
+          g.add(pv);
+          return;
+        }
         const pullOut = it.mode === 'pull-out';
         const h = pullOut ? 120 : Math.min(170, yf + innerH - ya);
-        box(g, bx + 2, ya, pullOut ? zi1 - 3 + pull : cD - 1, bw - 4, h, 0.5, { material: lib.plain('#cfdadf', 0.04, 0.9), part: 'mirror' });
+        box(g, bx + 2, ya, pullOut ? zi1 - 3 + pull : cD - 1, bw - 4, h, 0.5, { material: mm, part: 'mirror' });
+        return;
+      }
+      case 'larder': {
+        // a full-height pull-out: a front, two side frames and wire baskets
+        const H = 35 * it.baskets;
+        const grp = new THREE.Group();
+        grp.position.z = mode === 'ajar' ? 28 : 0;
+        g.add(grp);
+        const outer = !sliding;
+        const zf = outer ? zFront : cD - 3.7;
+        const fx0 = outer ? edge0 : bx + 0.3, fx1 = outer ? edge1 : bx + bw - 0.3;
+        if (outer) {
+          const fg = new THREE.Group();
+          fg.position.z = zf;
+          grp.add(fg);
+          frontPanel(fg, fx0, ya + GAP, fx1 - fx0, H - 2 * GAP, S.upper && ya >= look.split ? 'upper' : 'front', designFor(false), 'drawer-front');
+          handle(fg, { what: 'door', x: fx1 - 4.5, lo: ya, hi: ya + H, w: fx1 - fx0, z: F });
+          fronts.push({ bay: bi, lo: ya, hi: ya + H });
+        }
+        const bd = Math.min(dz - 4, 48), z0 = zf - bd;
+        for (const x of [bx + 1, bx + bw - 2.2]) box(grp, x, ya, z0, 1.2, H, bd, { material: steel, part: 'larder-frame' });
+        for (let i = 0; i < it.baskets; i++) {
+          const y0 = ya + i * 35 + 3;
+          box(grp, bx + 2.4, y0, z0, bw - 4.8, 0.5, bd, { material: steel, part: 'basket' });
+          box(grp, bx + 2.4, y0, zf - 1, bw - 4.8, 9, 0.5, { material: steel, part: 'basket' });
+          box(grp, bx + 2.4, y0, z0, bw - 4.8, 6, 0.5, { material: steel, part: 'basket' });
+          // a few jars and packets
+          for (let k = 0; k < 3 && bw > 30; k++) box(grp, bx + 5 + k * ((bw - 14) / 3), y0 + 0.5, z0 + bd * 0.3, Math.min(8, (bw - 14) / 3 - 2), 10 + rnd() * 8, 8, { material: lib.plain(DECOR[Math.floor(rnd() * DECOR.length)], 0.8), part: 'jar', cast: false });
+        }
+        return;
+      }
+      case 'spice': {
+        // a narrow pull-out with tiers of spice jars
+        const H = 18 * it.tiers + 8;
+        const grp = new THREE.Group();
+        grp.position.z = mode === 'ajar' ? 28 : 0;
+        g.add(grp);
+        const outer = !sliding;
+        const zf = outer ? zFront : cD - 3.7;
+        const fx0 = outer ? edge0 : bx + 0.3, fx1 = outer ? edge1 : bx + bw - 0.3;
+        if (outer) {
+          const fg = new THREE.Group();
+          fg.position.z = zf;
+          grp.add(fg);
+          frontPanel(fg, fx0, ya + GAP, fx1 - fx0, H - 2 * GAP - 0.3, S.upper && ya >= look.split ? 'upper' : 'front', designFor(false), 'drawer-front');
+          handle(fg, { what: 'door', x: fx1 - 3.5, lo: ya, hi: ya + H, w: fx1 - fx0, z: F });
+          fronts.push({ bay: bi, lo: ya, hi: ya + H });
+        }
+        const bd = Math.min(dz - 4, 45), z0 = zf - bd;
+        for (const x of [bx + 0.6, bx + bw - 1.8]) box(grp, x, ya, z0, 1.2, H, bd, { material: bodyMat, part: 'spice-side' });
+        for (let i = 0; i < it.tiers; i++) {
+          const y0 = ya + 2 + i * 18;
+          box(grp, bx + 1.8, y0, z0, bw - 3.6, 1, bd, { material: bodyMat, part: 'spice-shelf' });
+          box(grp, bx + 1.8, y0, zf - 1.5, bw - 3.6, 3, 0.8, { material: bodyMat, part: 'spice-lip' });
+          const jars = Math.max(2, Math.floor((bw - 4) / 5.4));
+          for (let k = 0; k < 2; k++) for (let j = 0; j < jars; j++) {
+            const jar = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8.5, 12), lib.plain(DECOR[(i + j + k) % DECOR.length], 0.7));
+            jar.position.set(bx + 2 + 2.7 + j * ((bw - 4 - 5.4) / Math.max(1, jars - 1)), y0 + 1 + 4.25, z0 + 5 + k * (bd * 0.45));
+            grp.add(jar);
+          }
+        }
         return;
       }
       case 'divider':
         box(g, bx + it.position - BOARD / 2, ya, zi0, BOARD, it.height, dz, { material: bodyMat, part: 'divider' });
         return;
-      case 'cubbies': {
-        for (let r = 0; r < it.rows; r++) {
-          if (r > 0) box(g, bx, ya + r * 30 - BOARD / 2, zi0, bw, BOARD, dz, { material: bodyMat, part: 'shelf' });
-          for (let c = 1; c < it.columns; c++) box(g, bx + (c * bw) / it.columns - 0.9, ya + r * 30 + (r ? BOARD / 2 : 0), zi0, BOARD, 28.2, dz, { material: bodyMat, part: 'divider' });
-        }
-        return;
-      }
       case 'hooks': {
         box(g, bx + 2, ya + 3, zi0, bw - 4, 4, 1.5, { material: bodyMat, part: 'hooks' });
         for (let i = 0; i < it.count; i++) cyl(g, bx + 2 + ((i + 0.5) * (bw - 4)) / it.count, ya + 5, zi0 + 3.5, 0.5, 4, 'z', steel, 6);
@@ -439,6 +555,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
         const r = Math.max(8, Math.min(bw / 2 - 2, 28));
         for (const dy of [8, 38]) {
           const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1.5, 28), bodyMat);
+          if (it.shape === 'kidney') m.scale.set(1.25, 1, 0.8);
           m.position.set(bx + bw / 2, ya + dy, zi0 + r + 3);
           g.add(shadow(m));
         }

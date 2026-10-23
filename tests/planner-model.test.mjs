@@ -193,7 +193,7 @@ test('item y snaps to the 32 mm system, rounded to 0.1', () => {
   assert.ok(high <= inner - 1.8 + 1e-9 && onGrid(high));
   assert.equal(M.moveItem(p, 'p1', 0, idx, { y: -50 }).pieces[0].bays[0].items[idx].y, 0);
   // a rail keeps its body inside the bay
-  const rail = M.addItem(p0, 'p1', 1, { kind: 'rail-long', y: 9999 }).pieces[0].bays[1].items.at(-1);
+  const rail = M.addItem(p0, 'p1', 1, { kind: 'rail', length: 'long', y: 9999 }).pieces[0].bays[1].items.at(-1);
   assert.ok(rail.y + 4 <= inner);
   // presets are on the grid too
   for (const [id, pre] of Object.entries(M.PRESETS)) {
@@ -210,7 +210,7 @@ test('item edits: add, update, move between bays, remove, params clamp', () => {
   const n0 = p.pieces[0].bays[1].items.length;
   p = M.addItem(p, 'p1', 1, { kind: 'drawers', y: 0, count: 99, front: 1 });
   const d = p.pieces[0].bays[1].items.at(-1);
-  assert.deepEqual([d.count, d.front], [6, 12]);
+  assert.deepEqual([d.count, d.front, d.size], [6, 19.2, 'low'], 'old heights become the nearest drawer size');
   p = M.updateItem(p, 'p1', 1, n0, { count: 2, kind: 'shelf' });
   assert.equal(p.pieces[0].bays[1].items[n0].kind, 'drawers', 'kind is fixed');
   assert.equal(p.pieces[0].bays[1].items[n0].count, 2);
@@ -225,15 +225,16 @@ test('item edits: add, update, move between bays, remove, params clamp', () => {
   const dv = M.addItem(p, 'p1', 0, { kind: 'divider', y: 0, position: 9999 }).pieces[0].bays[0].items.at(-1);
   assert.equal(dv.position, p.pieces[0].bays[0].width - 5);
   // presets
-  const bay = M.applyPreset(p, 'p1', 0, 'dressing').pieces[0].bays[0].items.map((i) => i.kind);
-  assert.deepEqual(bay, ['jewellery', 'divided-drawer', 'trouser-rack', 'mirror']);
+  const bay = M.applyPreset(p, 'p1', 0, 'trousers-ties').pieces[0].bays[0].items.map((i) => i.kind);
+  assert.deepEqual(bay, ['trouser-rack', 'tie-belt', 'valet-rod', 'mirror']);
+  assert.deepEqual(M.applyPreset(p, 'p1', 0, 'dressing'), M.applyPreset(p, 'p1', 0, 'trousers-ties'), 'old preset ids still work');
   assert.deepEqual(M.applyPreset(p, 'p1', 0, 'nope'), p, 'unknown preset changes nothing');
   assert.deepEqual(M.applyPreset(p, 'p1', 0, 'kitchen-bin'), p, 'a preset for another type changes nothing');
-  assert.deepEqual(M.presetsFor('wardrobe').map((x) => x.id).sort(), ['double-hanging', 'drawers-shelves', 'dressing', 'hanging-shelf', 'shelves', 'shoes']);
+  assert.deepEqual(M.presetsFor('wardrobe').map((x) => x.id).sort(), ['double-hang', 'drawers', 'hang', 'shelves', 'shoes', 'trousers-ties']);
 });
 
 test('ITEMS: every kind has a label, params, hardware and a zone consistent with its body', () => {
-  assert.ok(Object.keys(M.ITEMS).length >= 21);
+  assert.ok(Object.keys(M.ITEMS).length >= 26);
   for (const [kind, d] of Object.entries(M.ITEMS)) {
     assert.equal(typeof d.label, 'string', kind);
     const it = M.normalizeItem({ kind, y: 0 }, { bayWidth: 80, innerH: 226 });
@@ -250,13 +251,12 @@ test('ITEMS: every kind has a label, params, hardware and a zone consistent with
   // the documented clearances
   const it = (k, o = {}) => M.normalizeItem({ kind: k, y: 100, ...o }, { bayWidth: 80, innerH: 226 });
   assert.deepEqual(M.itemZone(it('shelf')), [0, 18]);
-  assert.deepEqual(M.itemZone(it('rail-long')), [-150, 4]);
-  assert.deepEqual(M.itemZone(it('rail-short')), [-95, 4]);
-  assert.deepEqual(M.itemZone(it('double-hang')), [-190, 4]);
+  assert.deepEqual(M.itemZone(it('rail')), [-150, 4]);
+  assert.deepEqual(M.itemZone(it('rail', { length: 'short' })), [-95, 4]);
   assert.deepEqual(M.itemZone(it('pull-down-rail')), [-100, 10]);
-  assert.deepEqual(M.itemZone(it('drawers', { count: 3, front: 20 })), [0, 60]);
+  assert.deepEqual(M.itemZone(it('drawers', { count: 3 })), [0, 57.6]);
+  assert.deepEqual(M.itemZone(it('drawers', { count: 2, size: 'deep' })), [0, 76.8]);
   assert.deepEqual(M.itemZone(it('jewellery')), [0, 8]);
-  assert.deepEqual(M.itemZone(it('divided-drawer')), [0, 15]);
   assert.deepEqual(M.itemZone(it('shoes', { rows: 3 })), [0, 60]);
   assert.deepEqual(M.itemZone(it('shoe-pullout', { rows: 3 })), [0, 66]);
   assert.deepEqual(M.itemZone(it('trouser-rack')), [0, 70]);
@@ -264,14 +264,16 @@ test('ITEMS: every kind has a label, params, hardware and a zone consistent with
   assert.deepEqual(M.itemZone(it('valet-rod')), [0, 5]);
   assert.deepEqual(M.itemZone(it('basket', { depth: 20 })), [0, 23]);
   assert.deepEqual(M.itemZone(it('hamper')), [0, 60]);
-  assert.deepEqual(M.itemZone(it('ironing')), [0, 110]);
-  assert.equal(M.itemZone(it('mirror', { mode: 'door' })), null);
+  assert.equal(M.itemZone(it('mirror', { mode: 'fixed' })), null);
+  assert.equal(M.itemZone(it('mirror', { mode: 'swivel' })), null);
   assert.deepEqual(M.itemZone(it('mirror', { mode: 'pull-out' })), [0, 120]);
-  assert.deepEqual(M.itemZone(it('cubbies', { rows: 2 })), [0, 60]);
+  assert.deepEqual(M.itemZone(it('larder', { baskets: 4 })), [0, 140]);
+  assert.deepEqual(M.itemZone(it('tray')), [0, 8]);
+  assert.deepEqual(M.itemZone(it('spice', { tiers: 3 })), [0, 62]);
   assert.deepEqual(M.itemZone(it('hooks')), [0, 10]);
   assert.equal(M.itemZone(it('led')), null);
   assert.equal(M.ITEMS['inner-drawers'].needsDoor({}), true);
-  assert.equal(M.ITEMS.ironing.minBay.width, 40);
+  assert.equal(M.ITEMS.larder.minBay.width, 30);
   assert.equal(M.ITEMS['pull-down-rail'].minBay.height, 210);
 });
 
@@ -565,7 +567,7 @@ test('migrate: a kitchen v1 design with wall cabinets, an island and a rail ward
   const wd = p.pieces.find((x) => x.type === 'wardrobe');
   assert.equal(wd.fronts.kind, 'sliding');
   assert.equal(wd.bays.length, 3);
-  assert.ok(wd.bays.every((b) => b.items.some((i) => i.kind === 'rail-long' || i.kind === 'rail-short')), 'rail interior expands to hanging rails');
+  assert.ok(wd.bays.every((b) => b.items.some((i) => i.kind === 'rail')), 'rail interior expands to hanging rails');
   assert.ok(wd.bays.every((b) => b.items.some((i) => i.kind === 'led')), 'v1 led flag becomes an LED item');
   assert.equal(wd.bays.reduce((n, b) => n + b.items.filter((i) => i.kind === 'drawers').reduce((s, i) => s + i.count, 0), 0), 3);
   // rail wardrobe with drawers is a sound layout
@@ -574,6 +576,6 @@ test('migrate: a kitchen v1 design with wall cabinets, an island and a rail ward
   assert.equal(M.migrate({}).pieces.length, 0);
   assert.equal(M.migrate(null).room.walls.length, 4);
   const mixed = M.migrate(updateModule(createDesign(), 'm1', { interior: 'mixed', sections: 4, width: 300 }));
-  const kinds = mixed.pieces[0].bays.map((b) => b.items.some((i) => i.kind === 'rail-long'));
+  const kinds = mixed.pieces[0].bays.map((b) => b.items.some((i) => i.kind === 'rail'));
   assert.deepEqual(kinds, [false, true, false, true]);
 });

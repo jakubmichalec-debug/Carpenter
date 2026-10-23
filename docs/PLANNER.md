@@ -155,8 +155,7 @@ whether it needs a door in front, and its hardware for pricing. The interior edi
 | `hooks` | Accessory hooks | count 3 to 8 | 10 | hook rail |
 | `led` | LED strip | warm or neutral, motion sensor | 2 | LED per metre, driver, sensor if set |
 
-Presets per bay: *Hanging + shelf*, *Double hanging*, *Shelves*, *Drawers + shelves*, *Shoes*, *Dressing* (jewellery
-drawer, divided drawer, trouser rack, mirror). Kitchen, desk and wall-unit types get their own palettes
+Presets per bay: *Hanging*, *Double hanging*, *Shelves*, *Drawers*, *Shoes*, *Trousers and ties*; the kitchen, tall, wall-unit, desk, window-seat and under-stairs presets are listed in `CONTRACTS.md` ("Interior depth"). **The catalogue above was revised in the interior-depth round (see `docs/INTERIOR-RESEARCH.md` and `CONTRACTS.md`)**: rails are one item with a length, drawers have heights, fronts and divider inserts, and the pull-out tray, larder and spice pull-out are new; the ironing board, cubby grid and divided drawer are gone. Kitchen, desk and wall-unit types get their own palettes
 (cutlery insert, pan drawer, bin pull-out, corner carousel, cable tray, keyboard drawer, book shelf, media niche).
 
 * **Rules** (`validate.js`, pure, reporting `{ code, message, ref }` like today):

@@ -43,13 +43,13 @@ const TOP_LIKE = new Set(['led']);
 // A free, grid-snapped height for a new item. Hanging items and LED strips are tried from the top down, everything
 // else from the floor up (shelves start 32 cm up). When nothing is free the item still lands inside the bay
 // (validation then says what clashes).
-export function suggestY(piece, bayIndex, kind) {
+export function suggestY(piece, bayIndex, kind, params = {}) {
   const bay = piece.bays[bayIndex];
   const def = ITEMS[kind];
   if (!bay || !def) return 0;
   const g = pieceGeometry(piece);
   const ctx = { bayWidth: bay.width, innerH: g.innerH };
-  const base = normalizeItem({ kind, y: 0 }, ctx);
+  const base = normalizeItem({ ...params, kind, y: 0 }, ctx);
   if (!base) return 0;
   const [blo, bhi] = def.body(base);
   const zone = def.zone(base);
@@ -122,14 +122,14 @@ export function itemsProblems(errors, pieceId) {
 // width, and the divider it freed, to its neighbour. Returns raw bays ({ width, door, items }) for `piece/update`.
 // Widths already add up to the new inside width.
 export function changeBayCount(piece, count) {
-  let bays = piece.bays.map((b) => ({ width: b.width, door: b.door, items: b.items.map((i) => ({ ...i })) }));
+  let bays = piece.bays.map((b) => ({ width: b.width, door: b.door, ...(b.colour ? { colour: b.colour } : {}), ...(b.back ? { back: b.back } : {}), items: b.items.map((i) => ({ ...i })) }));
   const target = Math.max(1, Math.round(count));
   while (bays.length < target) {
     let k = 0;
     bays.forEach((b, i) => { if (b.width > bays[k].width) k = i; });
     const w = bays[k].width - LAYOUT_T;
     const a = Math.ceil(w / 2), b = w - a;
-    bays = [...bays.slice(0, k), { ...bays[k], width: a }, { width: b, door: bays[k].door, items: [] }, ...bays.slice(k + 1)];
+    bays = [...bays.slice(0, k), { ...bays[k], width: a }, { width: b, door: bays[k].door, ...(bays[k].colour ? { colour: bays[k].colour } : {}), ...(bays[k].back ? { back: bays[k].back } : {}), items: [] }, ...bays.slice(k + 1)];
   }
   while (bays.length > target && bays.length > 1) {
     const last = bays.pop();

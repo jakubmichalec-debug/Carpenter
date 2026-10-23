@@ -2,7 +2,8 @@
 // Shapes are specified in CONTRACTS.md, section "Planner v2".
 import { FLOORS, WALL_COLORS, clampDesign } from '../configurator/model.js';
 import {
-  MATERIALS, isUsable, resolveMaterial, cleanSurface, thicknessOf, resolveHandleFinish, HANDLE_ALIASES, DESIGN_ALIASES
+  MATERIALS, isUsable, resolveMaterial, cleanSurface, thicknessOf, resolveHandleFinish, HANDLE_ALIASES, DESIGN_ALIASES,
+  railFinishes, liningColours, railInfo, LINING_ALIASES
 } from './materials.js';
 
 export { MATERIALS, FLOORS, WALL_COLORS };
@@ -16,6 +17,7 @@ export const DESIGNS = ['slab', 'shaker', 'glass', 'ribbed'];
 export const EDGES = ['square', 'chamfer', 'round'];
 export const BASES = ['none', 'recessed', 'flush', 'legs'];
 export const TOPS = ['flush', 'overhang', 'cornice'];
+export const BACKS = ['closed', 'open', 'mirror'];   // a bay's back panel
 export const GAPS = [2, 3, 4];            // mm between fronts
 export const TOP_CAP = { flush: 0, overhang: 2.5, cornice: 5 };   // cm of height the top treatment takes
 export const SCRIBE = { top: 2.5, side: 1.5 };                    // cm of filler strip when scribing is on
@@ -80,14 +82,39 @@ function def(label, o) {
   return {
     label, params: {},
     body: () => [0, 0], zone: () => null,
-    needsDoor: () => false, minBay: { width: 0, height: 0 }, minDepth: 0,
+    needsDoor: () => false, minBay: { width: 0, height: 0 }, minDepth: 0, warn: null, sizes: null, when: {},
     hardware: () => [], boards: () => [], handles: () => 0, minutes: () => 15,
     describe: () => label,
     ...o
   };
 }
 
-const stackOf = (it) => it.count * it.front;
+const stackOf = (it) => r1(it.count * it.front);
+
+// Drawer heights on the 32 mm grid: about 18, 28 and 38 cm (6, 9 and 12 holes).
+export const DRAWER_SIZES = { low: 19.2, medium: 28.8, deep: 38.4 };
+export const sizeForFront = (f) => (f < 24 ? 'low' : f < 33.6 ? 'medium' : 'deep');
+export const DRAWER_FACES = ['same', 'wood', 'glass'];
+export const DRAWER_INSERTS = ['none', 'cutlery', 'socks', 'jewellery'];
+const hasInsert = (it) => !!it.insert && it.insert !== 'none';
+const insertHardware = (it) => (hasInsert(it) ? [{ key: { cutlery: 'cutleryInsert', socks: 'dividerGrid', jewellery: 'velvetTray' }[it.insert], qty: it.count }] : []);
+const railExtra = (it, c, metres) => {
+  const per = railInfo(it.finish).perMetre || 0;
+  return per > 0 ? [{ key: 'railFinish', qty: metres * per }] : [];
+};
+const insertText = { cutlery: 'cutlery insert', socks: 'sock dividers', jewellery: 'jewellery tray' };
+// The front of a drawer in the stack: same as the doors, plain oak, or a slim frame with glass.
+const drawerFronts = (it, c, h, count) => {
+  if (it.face === 'glass') {
+    return [
+      { part: 'drawer-frame', w: 5.5, h: h - 0.3, t: FRONT_T, qty: 2 * count, use: 'front' },
+      { part: 'drawer-frame', w: c.outerW - 0.3 - 11, h: 5.5, t: FRONT_T, qty: 2 * count, use: 'front' }
+    ];
+  }
+  return [{ part: 'drawer-front', w: c.outerW - 0.3, h: h - 0.3, t: FRONT_T, qty: count, use: it.face === 'wood' ? 'wood' : 'front' }];
+};
+const glassFrontHardware = (it, c, h, count) => (it.face === 'glass'
+  ? [{ key: 'glassM2', qty: (Math.max(0, c.outerW - 0.3 - 11) * Math.max(0, h - 0.3 - 11) * count) / 10000 }] : []);
 
 export const ITEMS = {
   shelf: def('Shelf', {
@@ -100,59 +127,69 @@ export const ITEMS = {
     boards: (it, c) => (it.material === 'glass' ? [] : [{ part: 'shelf', w: c.bayW - 0.2, h: c.depth - 3, t: BOARD_T, qty: 1, use: 'body' }]),
     describe: (it) => (it.material === 'glass' ? 'Glass shelf' : 'Shelf')
   }),
-  'rail-long': def('Long hanging rail', {
-    body: () => [0, 4], zone: () => [-150, 4], minutes: () => 18,
-    hardware: (it, c) => [{ key: 'railTube', qty: c.bayW / 100 }, { key: 'railSocket', qty: 2 }]
-  }),
-  'rail-short': def('Short hanging rail', {
-    body: () => [0, 4], zone: () => [-95, 4], minutes: () => 18,
-    hardware: (it, c) => [{ key: 'railTube', qty: c.bayW / 100 }, { key: 'railSocket', qty: 2 }]
-  }),
-  'double-hang': def('Double hanging', {
-    body: () => [-95, 4], zone: () => [-190, 4], minutes: () => 32,
-    hardware: (it, c) => [{ key: 'railTube', qty: (2 * c.bayW) / 100 }, { key: 'railSocket', qty: 4 }]
+  rail: def('Hanging rail', {
+    params: { length: pEnum(['long', 'short'], 'long'), finish: pEnum(railFinishes(), 'chrome') },
+    body: () => [0, 4], zone: (it) => [it.length === 'short' ? -95 : -150, 4], minutes: () => 18,
+    warn: { minDepth: 50 },
+    hardware: (it, c) => [{ key: 'railTube', qty: c.bayW / 100 }, { key: 'railSocket', qty: 2 }, ...railExtra(it, c, c.bayW / 100)],
+    describe: (it) => `${it.length === 'short' ? 'Short' : 'Long'} hanging rail`
   }),
   'pull-down-rail': def('Pull-down rail', {
     body: () => [0, 10], zone: () => [-100, 10], minBay: { width: 0, height: 210 }, minutes: () => 35,
+    warn: { minWidth: 75, maxWidth: 109, minDepth: 54 },
     hardware: () => [{ key: 'wardrobeLift', qty: 1 }]
   }),
   drawers: def('Drawer stack', {
-    params: { count: pInt(1, 6, 3), front: pInt(12, 30, 20) },
-    body: (it) => [0, stackOf(it)], zone: (it) => [0, stackOf(it)], minDepth: 35, minutes: (it) => it.count * 40,
-    hardware: (it) => [{ key: 'runner', qty: it.count }],
-    boards: (it, c) => [{ part: 'drawer-front', w: c.outerW - 0.3, h: it.front - 0.3, t: FRONT_T, qty: it.count, use: 'front' }, ...drawerBoxes(c, it.front, it.count)],
+    params: {
+      count: pInt(1, 6, 3), size: pEnum(Object.keys(DRAWER_SIZES), 'low'), face: pEnum(DRAWER_FACES, 'same'),
+      insert: pEnum(DRAWER_INSERTS, 'none'), lining: pEnum(liningColours(), 'grey')
+    },
+    sizes: DRAWER_SIZES,
+    when: { lining: (it) => hasInsert(it) },
+    body: (it) => [0, stackOf(it)], zone: (it) => [0, stackOf(it)], minDepth: 35, minutes: (it) => it.count * (40 + (hasInsert(it) ? 12 : 0) + (it.face === 'glass' ? 25 : 0)),
+    hardware: (it, c) => [{ key: 'runner', qty: it.count }, ...insertHardware(it), ...glassFrontHardware(it, c, it.front, it.count)],
+    boards: (it, c) => [...drawerFronts(it, c, it.front, it.count), ...drawerBoxes(c, it.front, it.count)],
     handles: (it) => it.count,
-    describe: (it) => plural(it.count, 'drawer')
+    describe: (it) => `${plural(it.count, 'drawer')}${it.face === 'glass' ? ' with glass fronts' : ''}${hasInsert(it) ? `, ${insertText[it.insert]}` : ''}`
   }),
   'inner-drawers': def('Drawers behind the door', {
-    params: { count: pInt(1, 4, 2), front: pInt(12, 30, 18) },
-    body: (it) => [0, stackOf(it)], zone: (it) => [0, stackOf(it)], needsDoor: () => true, minDepth: 35, minutes: (it) => it.count * 40,
-    hardware: (it) => [{ key: 'runner', qty: it.count }],
+    params: { count: pInt(1, 4, 2), size: pEnum(Object.keys(DRAWER_SIZES), 'low'), insert: pEnum(DRAWER_INSERTS, 'none'), lining: pEnum(liningColours(), 'grey') },
+    sizes: DRAWER_SIZES,
+    when: { lining: (it) => hasInsert(it) },
+    body: (it) => [0, stackOf(it)], zone: (it) => [0, stackOf(it)], needsDoor: () => true, minDepth: 35, minutes: (it) => it.count * (40 + (hasInsert(it) ? 12 : 0)),
+    warn: { minWidth: 40, maxWidth: 109, minDepth: 42 },
+    hardware: (it) => [{ key: 'runner', qty: it.count }, ...insertHardware(it)],
     boards: (it, c) => [{ part: 'drawer-front', w: c.bayW - 5, h: it.front - 0.3, t: BOX_T, qty: it.count, use: 'body' }, ...drawerBoxes(c, it.front, it.count)],
-    describe: (it) => `${plural(it.count, 'drawer')} behind the door`
+    describe: (it) => `${plural(it.count, 'drawer')} behind the door${hasInsert(it) ? `, ${insertText[it.insert]}` : ''}`
   }),
   jewellery: def('Jewellery drawer', {
-    params: { lining: pEnum(['grey', 'navy', 'sand', 'black'], 'grey') },
+    params: { lining: pEnum(liningColours(), 'grey') },
     body: () => [0, 8], zone: () => [0, 8], minDepth: 35, minutes: () => 55,
     hardware: () => [{ key: 'runner', qty: 1 }, { key: 'velvetTray', qty: 1 }],
     boards: (it, c) => [{ part: 'drawer-front', w: c.bayW - 5, h: 7.7, t: BOX_T, qty: 1, use: 'body' }, ...drawerBoxes(c, 8, 1)]
   }),
-  'divided-drawer': def('Socks and underwear drawer', {
-    params: { grid: pEnum(['3x4', '4x5'], '3x4') },
-    body: () => [0, 15], zone: () => [0, 15], minDepth: 35, minutes: () => 60,
-    hardware: () => [{ key: 'runner', qty: 1 }, { key: 'dividerGrid', qty: 1 }],
-    boards: (it, c) => [{ part: 'drawer-front', w: c.outerW - 0.3, h: 14.7, t: FRONT_T, qty: 1, use: 'front' }, ...drawerBoxes(c, 15, 1)],
-    handles: () => 1
+  tray: def('Pull-out tray', {
+    params: { insert: pEnum(['none', 'felt'], 'none'), lining: pEnum(liningColours(), 'grey') },
+    when: { lining: (it) => it.insert === 'felt' },
+    body: () => [0, 6], zone: () => [0, 8], minDepth: 40, minutes: () => 30,
+    warn: { minDepth: 45 },
+    hardware: (it) => [{ key: 'runner', qty: 1 }, ...(it.insert === 'felt' ? [{ key: 'feltInsert', qty: 1 }] : [])],
+    boards: (it, c) => [
+      { part: 'tray-base', w: c.bayW - 5, h: c.depth - 6, t: BOXBASE_T, qty: 1, use: 'body' },
+      { part: 'tray-rim', w: c.depth - 6, h: 5, t: BOX_T, qty: 2, use: 'body' }
+    ],
+    describe: (it) => (it.insert === 'felt' ? 'Pull-out tray with felt' : 'Pull-out tray')
   }),
   shoes: def('Shoe rack', {
-    params: { rows: pInt(1, 4, 2), angled: pBool(true) },
+    params: { rows: pInt(1, 4, 2), angled: pBool(true), lip: pBool(false) },
     body: (it) => [0, 20 * it.rows], zone: (it) => [0, 20 * it.rows], minutes: (it) => 10 * it.rows,
-    hardware: (it) => [{ key: 'shoeRail', qty: it.rows }],
+    hardware: (it) => [{ key: 'shoeRail', qty: it.rows }, ...(it.lip ? [{ key: 'shoeLip', qty: it.rows }] : [])],
     describe: (it) => `Shoe rack, ${plural(it.rows, 'row')}`
   }),
   'shoe-pullout': def('Pull-out shoe rack', {
     params: { rows: pInt(2, 4, 3) },
     body: (it) => [0, 22 * it.rows], zone: (it) => [0, 22 * it.rows], minDepth: 35, minutes: (it) => 30 + 8 * it.rows,
+    warn: { minDepth: 50 },
     hardware: (it) => [{ key: 'runner', qty: 1 }, { key: 'shoeRail', qty: it.rows }],
     boards: (it, c) => [{ part: 'rack-side', w: c.depth - 6, h: 22 * it.rows - 2, t: BOX_T, qty: 2, use: 'body' }],
     describe: (it) => `Pull-out shoe rack, ${it.rows} rows`
@@ -167,9 +204,9 @@ export const ITEMS = {
     hardware: () => [{ key: 'tieRack', qty: 1 }]
   }),
   'valet-rod': def('Valet rod', {
-    params: { side: pEnum(['left', 'right'], 'left') },
+    params: { side: pEnum(['left', 'right'], 'left'), finish: pEnum(railFinishes(), 'chrome') },
     body: () => [0, 5], zone: () => [0, 5], minutes: () => 10,
-    hardware: () => [{ key: 'valetRod', qty: 1 }]
+    hardware: (it) => [{ key: 'valetRod', qty: 1 }, ...railExtra(it, null, 0.5)]
   }),
   basket: def('Pull-out basket', {
     params: { material: pEnum(['wood', 'wire'], 'wood'), depth: pInt(15, 30, 20) },
@@ -184,34 +221,22 @@ export const ITEMS = {
     boards: (it, c) => [{ part: 'hamper-front', w: c.outerW - 0.3, h: 59.7, t: FRONT_T, qty: 1, use: 'front' }],
     handles: () => 1
   }),
-  ironing: def('Fold-out ironing board', {
-    body: () => [0, 110], zone: () => [0, 110], minBay: { width: 40, height: 0 }, minutes: () => 45,
-    hardware: () => [{ key: 'ironingFitting', qty: 1 }]
-  }),
   mirror: def('Mirror', {
-    params: { mode: pEnum(['door', 'pull-out'], 'door') },
-    body: (it) => (it.mode === 'pull-out' ? [0, 120] : [0, 0]),
+    params: { mode: pEnum(['fixed', 'swivel', 'pull-out'], 'fixed') },
+    body: (it) => (it.mode === 'fixed' ? [0, 0] : [0, 120]),
     zone: (it) => (it.mode === 'pull-out' ? [0, 120] : null),
-    needsDoor: (it) => it.mode === 'door', minutes: (it) => (it.mode === 'pull-out' ? 40 : 20),
+    needsDoor: (it) => it.mode === 'fixed', minutes: (it) => ({ fixed: 20, swivel: 35, 'pull-out': 40 }[it.mode]),
     hardware: (it, c) => [
-      { key: 'mirrorM2', qty: it.mode === 'pull-out' ? (c.bayW * 120) / 10000 : (c.bayW * Math.min(170, c.innerH)) / 10000 },
-      ...(it.mode === 'pull-out' ? [{ key: 'runner', qty: 1 }] : [])
+      { key: 'mirrorM2', qty: it.mode === 'pull-out' ? (c.bayW * 120) / 10000 : it.mode === 'swivel' ? (30 * 120) / 10000 : (c.bayW * Math.min(170, c.innerH)) / 10000 },
+      ...(it.mode === 'pull-out' ? [{ key: 'runner', qty: 1 }] : []),
+      ...(it.mode === 'swivel' ? [{ key: 'swivelFitting', qty: 1 }] : [])
     ],
-    describe: (it) => (it.mode === 'pull-out' ? 'Pull-out mirror' : 'Mirror inside the door')
+    describe: (it) => ({ fixed: 'Mirror inside the door', swivel: 'Swivel mirror', 'pull-out': 'Pull-out mirror' }[it.mode])
   }),
   divider: def('Vertical divider', {
     params: { height: pInt(10, 300, 60), position: pInt(5, 400, null) },
     body: (it) => [0, it.height], minutes: () => 12,
     boards: (it, c) => [{ part: 'divider', w: c.depth - 3, h: it.height, t: BOARD_T, qty: 1, use: 'body' }]
-  }),
-  cubbies: def('Cubby grid', {
-    params: { columns: pInt(1, 6, 3), rows: pInt(1, 6, 2) },
-    body: (it) => [0, 30 * it.rows], zone: (it) => [0, 30 * it.rows], minutes: (it) => 10 * (it.rows + it.columns),
-    boards: (it, c) => [
-      { part: 'cubby-shelf', w: c.bayW - 0.2, h: c.depth - 3, t: BOARD_T, qty: it.rows - 1, use: 'body' },
-      { part: 'cubby-divider', w: c.depth - 3, h: 28.2, t: BOARD_T, qty: (it.columns - 1) * it.rows, use: 'body' }
-    ],
-    describe: (it) => `Cubby grid ${it.columns} x ${it.rows}`
   }),
   hooks: def('Accessory hooks', {
     params: { count: pInt(3, 8, 4) },
@@ -220,13 +245,15 @@ export const ITEMS = {
     describe: (it) => `${it.count} hooks`
   }),
   led: def('LED strip', {
-    params: { tone: pEnum(['warm', 'neutral'], 'warm'), sensor: pBool(false) },
-    body: () => [0, 2], minutes: () => 14,
+    params: { tone: pEnum(['warm', 'neutral'], 'warm'), trigger: pEnum(['always', 'door', 'motion'], 'always') },
+    body: () => [0, 2], minutes: (it) => 14 + (it.trigger === 'always' ? 0 : 8),
     hardware: (it, c) => [
-      { key: 'ledM', qty: c.bayW / 100 }, { key: 'ledDriver', qty: 1 }, ...(it.sensor ? [{ key: 'ledSensor', qty: 1 }] : [])
-    ]
+      { key: 'ledM', qty: c.bayW / 100 }, { key: 'ledDriver', qty: 1 },
+      ...(it.trigger === 'motion' ? [{ key: 'ledSensor', qty: 1 }] : it.trigger === 'door' ? [{ key: 'ledDoorSwitch', qty: 1 }] : [])
+    ],
+    describe: (it) => ({ always: 'LED strip', door: 'LED strip, on when the door opens', motion: 'LED strip with motion sensor' }[it.trigger])
   }),
-  // Kitchen, desk and wall-unit palettes
+  // Kitchen
   'cutlery-insert': def('Cutlery drawer', {
     params: { front: pInt(12, 20, 14) },
     body: (it) => [0, it.front], zone: (it) => [0, it.front], minDepth: 40, minutes: () => 50,
@@ -248,10 +275,30 @@ export const ITEMS = {
     hardware: (it) => [{ key: 'runnerHeavy', qty: 1 }, { key: 'binSet', qty: it.bins }],
     describe: (it) => `Bin pull-out, ${plural(it.bins, 'bin')}`
   }),
+  spice: def('Spice pull-out', {
+    params: { tiers: pInt(2, 5, 3) },
+    body: (it) => [0, 18 * it.tiers + 8], zone: (it) => [0, 18 * it.tiers + 8], minDepth: 40, minutes: (it) => 35 + 6 * it.tiers,
+    warn: { maxWidth: 30 },
+    hardware: (it) => [{ key: 'sideRunner', qty: 1 }, { key: 'spiceRack', qty: 1 }, { key: 'spiceTier', qty: it.tiers }],
+    boards: (it, c) => [{ part: 'spice-front', w: c.outerW - 0.3, h: 18 * it.tiers + 7.7, t: FRONT_T, qty: 1, use: 'front' }],
+    handles: () => 1,
+    describe: (it) => `Spice pull-out, ${plural(it.tiers, 'tier')}`
+  }),
+  larder: def('Pull-out larder', {
+    params: { baskets: pInt(3, 6, 4) },
+    body: (it) => [0, 35 * it.baskets], zone: (it) => [0, 35 * it.baskets], minBay: { width: 30, height: 0 }, minDepth: 45, minutes: (it) => 60 + 12 * it.baskets,
+    warn: { minWidth: 30, maxWidth: 60, minDepth: 50 },
+    hardware: (it) => [{ key: 'larderFrame', qty: 1 }, { key: 'wireBasket', qty: it.baskets }],
+    boards: (it, c) => [{ part: 'larder-front', w: c.outerW - 0.3, h: 35 * it.baskets - 0.3, t: FRONT_T, qty: 1, use: 'front' }],
+    handles: () => 1,
+    describe: (it) => `Pull-out larder, ${plural(it.baskets, 'basket')}`
+  }),
   carousel: def('Corner carousel', {
+    params: { shape: pEnum(['round', 'kidney'], 'round') },
     body: () => [0, 60], zone: () => [0, 60], minBay: { width: 60, height: 0 }, minutes: () => 45,
     hardware: () => [{ key: 'carousel', qty: 1 }]
   }),
+  // Desk and wall unit
   'cable-tray': def('Cable tray', {
     body: () => [0, 6], zone: () => [0, 6], minutes: () => 15,
     hardware: () => [{ key: 'cableTray', qty: 1 }]
@@ -291,8 +338,62 @@ function normParam(spec, v) {
   return v === undefined ? spec.default : !!v;
 }
 
+// Kinds that earlier versions had, as the item that replaced them. Old projects, saves and share links keep loading.
+function legacyItem(raw) {
+  if (!isObj(raw)) return raw;
+  const r = { ...raw };
+  switch (r.kind) {
+    case 'rail-long': r.kind = 'rail'; r.length = 'long'; break;
+    case 'rail-short': r.kind = 'rail'; r.length = 'short'; break;
+    case 'double-hang': r.kind = 'rail'; r.length = 'short'; break;          // bay-level expansion makes it two rails
+    case 'divided-drawer': r.kind = 'drawers'; r.count = 1; r.size = 'low'; r.insert = 'socks'; delete r.front; break;
+    case 'ironing': case 'cubbies': r.kind = 'shelf'; break;                 // no longer offered: a shelf keeps the space useful
+    default:
+  }
+  if (r.kind === 'mirror' && r.mode === 'door') r.mode = 'fixed';
+  if (r.kind === 'led' && r.trigger === undefined) r.trigger = r.sensor ? 'motion' : 'always';
+  if (typeof r.lining === 'string' && LINING_ALIASES[r.lining]) r.lining = LINING_ALIASES[r.lining];
+  return r;
+}
+
+// A bay's raw items with the old kinds that became several items expanded: double hanging is two rails, a cubby grid is
+// shelves and dividers. Everything else passes through for normalizeItem.
+export function expandLegacyItems(rawItems, bayW = 80) {
+  const out = [];
+  for (const it of rawItems || []) {
+    if (isObj(it) && it.kind === 'double-hang') {
+      const y = toNum(it.y, 0);
+      out.push({ kind: 'rail', length: 'short', y }, { kind: 'rail', length: 'short', y: Math.max(0, snapDown(y - 99)) });
+    } else if (isObj(it) && it.kind === 'cubbies') {
+      const rows = clamp(toInt(it.rows, 2), 1, 6), cols = clamp(toInt(it.columns, 3), 1, 6), y = toNum(it.y, 0);
+      for (let r = 0; r < rows; r++) if (r > 0 || y > 0) out.push({ kind: 'shelf', y: snapY(y + 30 * r) });
+      for (let c = 1; c < cols; c++) out.push({ kind: 'divider', y, height: 30 * rows, position: Math.round((c * bayW) / cols) });
+    } else out.push(it);
+  }
+  return out;
+}
+
+// Items that stand on the floor of the bay (or on each other) are pushed up where a larger replacement left them
+// overlapping. Used only for bays that held an old kind or an old drawer height, so nothing else moves.
+function settleBay(items, innerH) {
+  const floor = items.filter((it) => { const z = ITEMS[it.kind].zone(it); return z && z[0] >= 0; }).sort((a, b) => a.y - b.y);
+  let cursor = 0;
+  for (const it of floor) {
+    const z = ITEMS[it.kind].zone(it);
+    if (it.y < cursor - 0.05) {
+      const y = snapUp(cursor);
+      if (y + z[1] <= innerH + 0.05) it.y = y;
+    }
+    cursor = Math.max(cursor, it.y + z[1]);
+  }
+  return items;
+}
+const oldInterior = (raw) => (raw || []).some((it) => isObj(it) && (['rail-long', 'rail-short', 'double-hang', 'divided-drawer', 'cubbies', 'ironing'].includes(it.kind)
+  || ((it.kind === 'drawers' || it.kind === 'inner-drawers') && it.size === undefined)));
+
 // ctx: { bayWidth, innerH }. Returns null for an unknown kind.
-export function normalizeItem(raw, ctx = {}) {
+export function normalizeItem(rawIn, ctx = {}) {
+  const raw = legacyItem(rawIn);
   if (!isObj(raw) || !has(ITEMS, raw.kind)) return null;
   const d = ITEMS[raw.kind];
   const out = { kind: raw.kind, y: 0 };
@@ -302,10 +403,14 @@ export function normalizeItem(raw, ctx = {}) {
     if (name === 'position') {
       const p = raw.position === undefined || raw.position === null ? Math.round(bayW / 2) : toInt(raw.position, Math.round(bayW / 2));
       out.position = clamp(p, 5, Math.max(5, Math.round(bayW) - 5));
+    } else if (name === 'size' && d.sizes) {
+      // drawer height: a size name, or an old height in cm that becomes the nearest size
+      out.size = spec.values.includes(raw.size) ? raw.size : Number.isFinite(Number(raw.front)) && raw.front !== null ? sizeForFront(Number(raw.front)) : spec.default;
     } else {
       out[name] = normParam(spec, raw[name]);
     }
   }
+  if (d.sizes) out.front = d.sizes[out.size];
   const [blo, bhi] = d.body(out);
   const lo = Math.max(0, -blo);
   const hi = Math.max(lo, innerH - bhi);
@@ -327,139 +432,209 @@ export function visibleFrontHeight(items) {
 
 // ---------- presets ----------
 // build(ctx) returns raw items. ctx: { innerH, bayW, from, type }; `from` is where free space starts.
-const shelvesFrom = (ctx, from, pitch = 35.2) => {
+const shelvesFrom = (ctx, from, pitch = 35.2, kind = 'shelf') => {
   const out = [];
   let y = from > 0 ? snapUp(from) : snapY(pitch);
   while (y + 18 <= ctx.innerH + EPS) {
-    out.push({ kind: 'shelf', y });
+    out.push({ kind, y });
     y = r1(y + pitch);
   }
   return out;
 };
-const drawerFront = (type) => (type === 'desk' ? 14 : type === 'window-seat' ? 18 : 20);
+// Items placed one above the other from the floor, each on the next free hole; what does not fit, or does not suit the
+// bay, is left out.
+function stackUp(ctx, specs, from = 0) {
+  const out = [];
+  let y = snapUp(from || 0);
+  for (const s of specs) {
+    const d = ITEMS[s.kind];
+    const n = d && normalizeItem({ ...s, y: 0 }, { bayWidth: ctx.bayW, innerH: ctx.innerH });
+    if (!n || ctx.bayW < d.minBay.width) continue;
+    if (ctx.type && TYPES[ctx.type] && !TYPES[ctx.type].palette.includes(s.kind)) continue;
+    const z = d.zone(n) || d.body(n);
+    if (y + z[1] > ctx.innerH + EPS) continue;
+    out.push({ ...s, y });
+    y = snapUp(y + z[1]);
+  }
+  return out;
+}
+const drawerSize = (type) => (type === 'desk' ? 14 : type === 'window-seat' ? 18 : 20);
+const WARDROBES = ['wardrobe', 'tall-cabinet', 'under-stairs'];
 
 export const PRESETS = {
-  'hanging-shelf': {
-    label: 'Hanging + shelf', types: ['wardrobe', 'tall-cabinet', 'under-stairs'],
+  hang: {
+    label: 'Hanging', types: ['wardrobe', 'tall-cabinet', 'under-stairs'],
     build(c) {
       const from = c.from || 0;
       const shelfY = snapDown(c.innerH - 25);
       const railY = snapDown(shelfY - 6);
       const items = [{ kind: 'shelf', y: shelfY }];
       let lo;
-      if (railY - 150 >= from) { items.push({ kind: 'rail-long', y: railY }); lo = railY - 150; }
-      else if (railY - 95 >= from) { items.push({ kind: 'rail-short', y: railY }); lo = railY - 95; }
+      if (railY - 150 >= from) { items.push({ kind: 'rail', length: 'long', y: railY }); lo = railY - 150; }
+      else if (railY - 95 >= from) { items.push({ kind: 'rail', length: 'short', y: railY }); lo = railY - 95; }
       else return shelvesFrom(c, from);
-      const shoeY = snapUp(from);
-      if (lo - shoeY >= 40) items.push({ kind: 'shoes', y: shoeY, rows: 2 });
+      const floorShelf = snapUp(Math.max(from, 32));
+      if (lo - floorShelf >= 18) items.push({ kind: 'shelf', y: floorShelf });
       return items;
     }
   },
-  'double-hanging': {
+  'double-hang': {
     label: 'Double hanging', types: ['wardrobe', 'tall-cabinet'],
     build(c) {
       const from = c.from || 0;
-      const y = snapDown(c.innerH - 12);
-      if (y - 190 >= from) return [{ kind: 'double-hang', y }, { kind: 'led', y: snapDown(c.innerH - 2) }];
-      return PRESETS['hanging-shelf'].build(c);
+      const shelfY = snapDown(c.innerH - 20);
+      const top = snapDown(shelfY - 4);
+      const low = snapDown(top - 99);
+      if (low - 95 < from) return PRESETS.hang.build(c);
+      const items = [{ kind: 'shelf', y: shelfY }, { kind: 'rail', length: 'short', y: top }, { kind: 'rail', length: 'short', y: low }];
+      const hooksY = snapUp(from);
+      if (low - 95 - hooksY >= 10) items.push({ kind: 'hooks', y: hooksY, count: 4 });
+      return items;
     }
   },
   shelves: {
     label: 'Shelves', types: ['wardrobe', 'tall-cabinet', 'kitchen-base', 'kitchen-wall', 'wall-unit', 'desk', 'window-seat', 'under-stairs', 'island'],
     build: (c) => shelvesFrom(c, c.from || 0)
   },
-  'drawers-shelves': {
-    label: 'Drawers + shelves', types: ['wardrobe', 'tall-cabinet', 'wall-unit', 'under-stairs', 'window-seat'],
+  drawers: {
+    label: 'Drawers', types: ['wardrobe', 'tall-cabinet', 'wall-unit', 'under-stairs', 'window-seat'],
     build(c) {
-      const front = drawerFront(c.type);
+      const from = c.from || 0;
+      if (c.type === 'wardrobe' || c.type === 'tall-cabinet') {
+        const items = stackUp(c, [
+          { kind: 'drawers', count: 2, size: 'low' }, { kind: 'drawers', count: 1, size: 'low', insert: 'socks' }, { kind: 'jewellery' }
+        ], from);
+        const top = items.length ? Math.max(...items.map((i) => i.y + (ITEMS[i.kind].zone(normalizeItem({ ...i, y: 0 }, { bayWidth: c.bayW, innerH: c.innerH })) || [0, 0])[1])) : from;
+        items.push(...shelvesFrom(c, top));
+        items.push({ kind: 'led', y: snapDown(c.innerH - 2) });
+        return items;
+      }
+      const front = drawerSize(c.type);
       const count = clamp(Math.floor((c.innerH * 0.35) / front), 1, 4);
-      const stack = count * front;
-      return [{ kind: 'drawers', y: 0, count, front }, ...shelvesFrom(c, stack)];
+      const size = front >= 20 ? 'low' : 'low';
+      return [{ kind: 'drawers', y: 0, count: Math.min(count, Math.floor(c.innerH / DRAWER_SIZES[size])), size }, ...shelvesFrom(c, count * DRAWER_SIZES[size])];
     }
   },
   shoes: {
     label: 'Shoes', types: ['wardrobe', 'tall-cabinet', 'under-stairs'],
-    build(c) {
-      const items = [];
-      let y = snapUp(c.from || 0);
-      for (;;) {
-        const room = c.innerH - y;
-        const rows = Math.min(4, Math.floor(room / 20));
-        if (rows < 1) break;
-        items.push({ kind: 'shoes', y, rows });
-        y = snapUp(y + rows * 20);
-        if (items.length >= 4) break;
-      }
-      return items;
-    }
+    build: (c) => stackUp(c, [
+      { kind: 'shoe-pullout', rows: 2 }, { kind: 'shoes', rows: 1, angled: true }, { kind: 'shoes', rows: 1, angled: true }, { kind: 'shoes', rows: 1, angled: true }
+    ], c.from || 0)
   },
-  dressing: {
-    label: 'Dressing', types: ['wardrobe', 'tall-cabinet'],
-    build(c) {
-      let y = snapUp(c.from || 0);
-      const items = [{ kind: 'jewellery', y }];
-      y = snapUp(y + 8);
-      items.push({ kind: 'divided-drawer', y });
-      y = snapUp(y + 15);
-      if (y + 70 <= c.innerH) { items.push({ kind: 'trouser-rack', y }); }
-      items.push({ kind: 'mirror', y: 0, mode: 'door' });
-      return items;
-    }
+  'trousers-ties': {
+    label: 'Trousers and ties', types: ['wardrobe', 'tall-cabinet'],
+    build: (c) => [
+      ...stackUp(c, [{ kind: 'trouser-rack' }, { kind: 'tie-belt', side: 'left' }, { kind: 'valet-rod', side: 'right' }], c.from || 0),
+      { kind: 'mirror', y: 0, mode: 'swivel' }
+    ]
   },
-  'kitchen-drawers': {
-    label: 'Cutlery and pan drawers', types: ['kitchen-base', 'island'],
+  'kitchen-pans': {
+    label: 'Pans and cutlery', types: ['kitchen-base', 'island'],
     build(c) {
-      const items = [{ kind: 'cutlery-insert', y: 0, front: 14 }];
-      const y = snapUp(14);
       const front = 26;
-      const count = Math.max(1, Math.min(3, Math.floor((c.innerH - y) / front)));
-      items.push({ kind: 'pan-drawer', y, count, front });
+      const count = Math.max(1, Math.min(2, Math.floor((c.innerH - 14) / front)));
+      const items = [{ kind: 'pan-drawer', y: 0, count, front }];
+      const y = snapUp(count * front);
+      if (y + 14 <= c.innerH + EPS) items.push({ kind: 'cutlery-insert', y, front: 14 });
       return items;
+    }
+  },
+  'kitchen-spice': {
+    label: 'Spice pull-out', types: ['kitchen-base', 'island'],
+    build(c) {
+      const tiers = clamp(Math.floor((c.innerH - 8) / 18), 2, 5);
+      return [{ kind: 'spice', y: 0, tiers }];
     }
   },
   'kitchen-bin': {
     label: 'Bin pull-out', types: ['kitchen-base', 'island'],
     build: (c) => [{ kind: 'bin-pullout', y: 0, bins: 2 }, { kind: 'shelf', y: snapUp(50) }]
   },
-  'desk-drawers': {
-    label: 'Desk drawers', types: ['desk'],
+  'kitchen-corner': {
+    label: 'Corner carousel', types: ['kitchen-base', 'island'],
+    build: (c) => (c.bayW >= 60 ? [{ kind: 'carousel', y: 0 }] : shelvesFrom(c, 0))
+  },
+  larder: {
+    label: 'Pull-out larder', types: ['tall-cabinet'],
     build(c) {
-      const front = 18;
-      const count = clamp(Math.floor(c.innerH / front), 1, 4);
-      return [{ kind: 'drawers', y: 0, count, front }];
+      const baskets = clamp(Math.floor((c.innerH - 22) / 35), 3, 6);
+      const items = [{ kind: 'larder', y: 0, baskets }];
+      const y = snapUp(baskets * 35);
+      if (y + 18 <= c.innerH + EPS) items.push({ kind: 'shelf', y });
+      return items;
     }
   },
-  'desk-open': {
-    label: 'Open desk bay', types: ['desk'],
-    build: (c) => [{ kind: 'cable-tray', y: snapDown(c.innerH - 6) }, { kind: 'book-shelf', y: snapY(35.2) }]
+  books: {
+    label: 'Books', types: ['wall-unit'],
+    build: (c) => shelvesFrom(c, 0, c.innerH / 4 > 28 ? snapY(c.innerH / 4) : 35.2, 'book-shelf').slice(0, 4)
   },
-  'seat-baskets': {
-    label: 'Seat baskets', types: ['window-seat'],
-    build: (c) => [{ kind: 'basket', y: 0, depth: Math.max(15, Math.min(30, Math.floor(c.innerH - 6))) }]
+  media: {
+    label: 'Media', types: ['wall-unit'],
+    build(c) {
+      const items = [{ kind: 'media-niche', y: 0 }];
+      const y = snapUp(50);
+      if (y + 18 <= c.innerH) items.push({ kind: 'shelf', y });
+      items.push({ kind: 'led', y: snapDown(c.innerH - 2) });
+      return items;
+    }
+  },
+  'desk-fit': {
+    label: 'Desk drawers and tray', types: ['desk'],
+    build(c) {
+      const items = stackUp(c, [{ kind: 'drawers', count: 2, size: 'low' }, { kind: 'keyboard-drawer' }], 0);
+      const cursor = items.length ? Math.max(...items.map((i) => i.y + ITEMS[i.kind].body(normalizeItem({ ...i, y: 0 }, { bayWidth: c.bayW, innerH: c.innerH }))[1])) : 0;
+      const shelf = stackUp(c, [{ kind: 'shelf' }], cursor);
+      const after = shelf.length ? snapUp(shelf[0].y + 18) : cursor;
+      const trayY = snapDown(c.innerH - 6);
+      return [...items, ...shelf, ...(trayY >= after ? [{ kind: 'cable-tray', y: trayY }] : [])];
+    }
+  },
+  'seat-drawer': {
+    label: 'Deep drawer', types: ['window-seat'],
+    build(c) {
+      const size = c.innerH >= DRAWER_SIZES.deep ? 'deep' : c.innerH >= DRAWER_SIZES.medium ? 'medium' : 'low';
+      const items = [{ kind: 'drawers', y: 0, count: 1, size }];
+      const y = snapUp(DRAWER_SIZES[size]);
+      if (y + 18 <= c.innerH + EPS) items.push({ kind: 'shelf', y });
+      return items;
+    }
+  },
+  stairs: {
+    label: 'Baskets and trays', types: ['under-stairs'],
+    build: (c) => [
+      ...stackUp(c, [{ kind: 'basket', material: 'wire', depth: 25 }, { kind: 'tray', insert: 'none' }, { kind: 'shoes', rows: 1, angled: true }], 0),
+      { kind: 'led', y: snapDown(c.innerH - 2) }
+    ]
   }
 };
+// Preset ids from earlier versions.
+export const PRESET_ALIASES = {
+  'hanging-shelf': 'hang', 'double-hanging': 'double-hang', 'drawers-shelves': 'drawers', dressing: 'trousers-ties',
+  'kitchen-drawers': 'kitchen-pans', 'desk-drawers': 'desk-fit', 'desk-open': 'desk-fit', 'seat-baskets': 'seat-drawer'
+};
+export const presetOf = (id) => PRESETS[has(PRESETS, id) ? id : PRESET_ALIASES[id]] || null;
 
 export function presetsFor(type) {
   return Object.entries(PRESETS).filter(([, p]) => p.types.includes(type)).map(([id, p]) => ({ id, label: p.label }));
 }
 
 const DEFAULT_PRESETS = {
-  wardrobe: ['hanging-shelf', 'drawers-shelves', 'double-hanging', 'shelves'],
-  'tall-cabinet': ['shelves', 'drawers-shelves'],
-  'kitchen-base': ['kitchen-drawers'],
-  island: ['kitchen-drawers', 'kitchen-bin'],
+  wardrobe: ['hang', 'drawers', 'double-hang', 'shelves'],
+  'tall-cabinet': ['shelves', 'drawers'],
+  'kitchen-base': ['kitchen-pans'],
+  island: ['kitchen-pans', 'kitchen-bin'],
   'kitchen-wall': ['shelves'],
   'wall-unit': ['shelves'],
-  desk: ['desk-drawers', 'desk-open'],
+  desk: ['desk-fit'],
   table: [],
-  'window-seat': ['seat-baskets'],
-  'under-stairs': ['drawers-shelves']
+  'window-seat': ['seat-drawer'],
+  'under-stairs': ['drawers']
 };
 
 // ---------- types and styles ----------
 const ALL_FRONTS = FRONT_KINDS;
-const WARDROBE_PALETTE = ['shelf', 'rail-long', 'rail-short', 'double-hang', 'pull-down-rail', 'drawers', 'inner-drawers', 'jewellery', 'divided-drawer', 'shoes', 'shoe-pullout', 'trouser-rack', 'tie-belt', 'valet-rod', 'basket', 'hamper', 'ironing', 'mirror', 'divider', 'cubbies', 'hooks', 'led'];
-const KITCHEN_PALETTE = ['shelf', 'drawers', 'inner-drawers', 'pan-drawer', 'cutlery-insert', 'bin-pullout', 'carousel', 'basket', 'divider', 'led'];
+const WARDROBE_PALETTE = ['shelf', 'rail', 'pull-down-rail', 'drawers', 'inner-drawers', 'jewellery', 'tray', 'shoes', 'shoe-pullout', 'trouser-rack', 'tie-belt', 'valet-rod', 'basket', 'hamper', 'mirror', 'divider', 'hooks', 'led'];
+const KITCHEN_PALETTE = ['shelf', 'drawers', 'inner-drawers', 'pan-drawer', 'cutlery-insert', 'bin-pullout', 'spice', 'carousel', 'basket', 'divider', 'led'];
 
 export const TYPES = {
   wardrobe: {
@@ -485,21 +660,21 @@ export const TYPES = {
     defaults: { width: 60, height: 220, depth: 60, elevation: 0, plinth: 10, worktop: null, fronts: 'hinged', bays: 1 },
     limits: { width: [40, 120], height: [180, 300], depth: [40, 70], elevation: [0, 0], bays: [1, 3] },
     allowedFronts: ['hinged', 'glass', 'open', 'none'], allowPlinth: true, allowWorktop: false,
-    palette: ['shelf', 'rail-short', 'drawers', 'inner-drawers', 'pan-drawer', 'bin-pullout', 'shoes', 'basket', 'hamper', 'ironing', 'mirror', 'divider', 'cubbies', 'hooks', 'led']
+    palette: ['shelf', 'rail', 'drawers', 'inner-drawers', 'pan-drawer', 'bin-pullout', 'larder', 'tray', 'shoes', 'basket', 'hamper', 'mirror', 'divider', 'hooks', 'led']
   },
   'wall-unit': {
     label: 'Wall unit', icon: 'wall-unit', freestanding: false, defaultStyle: 'open-ash',
     defaults: { width: 100, height: 200, depth: 30, elevation: 0, plinth: 0, worktop: null, fronts: 'open', bays: 2 },
     limits: { width: [40, 400], height: [60, 300], depth: [20, 45], elevation: [0, 150], bays: [1, 8] },
     allowedFronts: ['open', 'none', 'glass', 'hinged'], allowPlinth: false, allowWorktop: false,
-    palette: ['shelf', 'book-shelf', 'media-niche', 'divider', 'cubbies', 'drawers', 'inner-drawers', 'cable-tray', 'led']
+    palette: ['shelf', 'book-shelf', 'media-niche', 'divider', 'drawers', 'inner-drawers', 'cable-tray', 'led']
   },
   desk: {
     label: 'Desk', icon: 'desk', freestanding: false, defaultStyle: 'walnut-grooved',
     defaults: { width: 140, height: 75, depth: 65, elevation: 0, plinth: 0, worktop: null, fronts: 'none', bays: 2 },
     limits: { width: [80, 300], height: [70, 80], depth: [50, 90], elevation: [0, 0], bays: [1, 4] },
     allowedFronts: ['none', 'open', 'hinged'], allowPlinth: false, allowWorktop: true,
-    palette: ['shelf', 'book-shelf', 'drawers', 'keyboard-drawer', 'cable-tray', 'divider', 'cubbies', 'basket', 'led']
+    palette: ['shelf', 'book-shelf', 'drawers', 'keyboard-drawer', 'cable-tray', 'divider', 'basket', 'led']
   },
   table: {
     label: 'Table', icon: 'table', freestanding: true, defaultStyle: 'flat-oak',
@@ -512,14 +687,14 @@ export const TYPES = {
     defaults: { width: 160, height: 45, depth: 45, elevation: 0, plinth: 0, worktop: null, fronts: 'hinged', bays: 2 },
     limits: { width: [80, 350], height: [35, 55], depth: [35, 60], elevation: [0, 0], bays: [1, 6] },
     allowedFronts: ['hinged', 'open', 'none'], allowPlinth: false, allowWorktop: false,
-    palette: ['shelf', 'drawers', 'basket', 'hamper', 'divider', 'cubbies', 'led']
+    palette: ['shelf', 'drawers', 'basket', 'hamper', 'divider', 'led']
   },
   'under-stairs': {
     label: 'Under-stairs storage', icon: 'under-stairs', freestanding: false, defaultStyle: 'white-minimal',
     defaults: { width: 120, height: 120, depth: 60, elevation: 0, plinth: 10, worktop: null, fronts: 'hinged', bays: 2 },
     limits: { width: [50, 300], height: [50, 250], depth: [40, 90], elevation: [0, 0], bays: [1, 5] },
     allowedFronts: ['hinged', 'sliding', 'open', 'none'], allowPlinth: true, allowWorktop: false,
-    palette: ['shelf', 'drawers', 'inner-drawers', 'basket', 'shoes', 'shoe-pullout', 'hamper', 'bin-pullout', 'divider', 'cubbies', 'hooks', 'led']
+    palette: ['shelf', 'drawers', 'inner-drawers', 'basket', 'tray', 'shoes', 'shoe-pullout', 'hamper', 'bin-pullout', 'divider', 'hooks', 'led']
   },
   island: {
     label: 'Island', icon: 'island', freestanding: true, defaultStyle: 'sage-kitchen',
@@ -684,7 +859,7 @@ const defaultDoor = (kind, outerW, i) => {
 function defaultItems(type, i, g, bayW) {
   const list = DEFAULT_PRESETS[type] || [];
   if (!list.length) return [];
-  const pre = PRESETS[list[i % list.length]];
+  const pre = presetOf(list[i % list.length]);
   return pre ? pre.build({ innerH: g.innerH, bayW, from: 0, type }) : [];
 }
 
@@ -772,8 +947,13 @@ export function clampPiece(raw, fallbackId = 'p0') {
     const b = srcBays[i];
     const door = b && DOOR_SIDES.includes(b.door) ? b.door : defaultDoor(piece.fronts.kind, g.outerBayW, i);
     const rawItems = b ? (Array.isArray(b.items) ? b.items : []) : defaultItems(raw.type, i, g, w);
-    const items = rawItems.slice(0, LIMITS.itemsPerBay).map((it) => normalizeItem(it, { bayWidth: w, innerH: g.innerH })).filter(Boolean);
-    return { width: w, door, items };
+    let items = expandLegacyItems(rawItems, w).slice(0, LIMITS.itemsPerBay).map((it) => normalizeItem(it, { bayWidth: w, innerH: g.innerH })).filter(Boolean);
+    if (b && oldInterior(rawItems)) items = settleBay(items, g.innerH);
+    const bay = { width: w, door, items };
+    // per-bay options appear only when they differ from the default, so older pieces stay exactly as they were
+    if (b && isUsable(b.colour, 'bay')) bay.colour = resolveMaterial(b.colour, 'bay');
+    if (b && BACKS.includes(b.back) && b.back !== 'closed') bay.back = b.back;
+    return bay;
   });
   return piece;
 }
@@ -1279,7 +1459,7 @@ export function setBays(project, id, countOrWidths) {
   const widths = Array.isArray(countOrWidths) ? fitWidths(countOrWidths.slice(0, count).map(Number), g.innerW) : equalWidths(g.innerW, count);
   const bays = widths.map((w, k) => {
     const old = p.bays[k];
-    return { width: w, door: old ? old.door : defaultDoor(p.fronts.kind, g.outerBayW, k), items: old ? old.items : [] };
+    return { ...(old ? { colour: old.colour, back: old.back } : {}), width: w, door: old ? old.door : defaultDoor(p.fronts.kind, g.outerBayW, k), items: old ? old.items : [] };
   });
   next.pieces[i] = clampPiece({ ...p, bays }, id);
   return next;
@@ -1338,7 +1518,7 @@ export function removeItem(project, pieceId, bayIndex, index) {
 export function applyPreset(project, pieceId, bayIndex, presetId) {
   const next = cloneProject(project);
   const piece = next.pieces[pieceIndex(next, pieceId)];
-  const pre = has(PRESETS, presetId) ? PRESETS[presetId] : null;
+  const pre = presetOf(presetId);
   if (!piece || !piece.bays[bayIndex] || !pre || !pre.types.includes(piece.type)) return next;
   const g = pieceGeometry(piece);
   const bay = piece.bays[bayIndex];
@@ -1431,7 +1611,7 @@ function migrateModule(m, id) {
   });
   const g = pieceGeometry(piece);
   const n = piece.bays.length;
-  const dFront = V1_DRAWER_H[m.type] || 20;
+  const dFront = DRAWER_SIZES[sizeForFront(Math.min(30, Math.max(12, V1_DRAWER_H[m.type] || 20)))]; // old drawer heights become the nearest size
   const maxPer = Math.max(0, Math.floor((0.6 * g.innerH) / dFront));
   const hasDrawers = !['table', 'bench'].includes(m.type);
   const D = hasDrawers ? m.drawers : 0;
@@ -1440,14 +1620,14 @@ function migrateModule(m, id) {
     const stack = count * dFront;
     let interior = 'shelves';
     if (m.type === 'wardrobe' || m.type === 'tall-cabinet') {
-      if (m.interior === 'rail') interior = 'hanging-shelf';
+      if (m.interior === 'rail') interior = 'hang';
       else if (m.interior === 'shoe') interior = 'shoes';
-      else if (m.interior === 'mixed') interior = i % 2 === 0 ? 'shelves' : 'hanging-shelf';
+      else if (m.interior === 'mixed') interior = i % 2 === 0 ? 'shelves' : 'hang';
     }
     const raw = [];
-    if (count) raw.push({ kind: 'drawers', y: 0, count, front: Math.min(30, Math.max(12, dFront)) });
+    if (count) raw.push({ kind: 'drawers', y: 0, count, front: dFront });
     if (m.type !== 'table' && m.type !== 'bench') {
-      raw.push(...PRESETS[interior].build({ innerH: g.innerH, bayW: bay.width, from: stack, type }));
+      raw.push(...presetOf(interior).build({ innerH: g.innerH, bayW: bay.width, from: stack, type }));
     }
     if (m.led && type !== 'table') raw.push({ kind: 'led', y: Math.max(0, g.innerH - 2) });
     const items = raw.map((it) => normalizeItem(it, { bayWidth: bay.width, innerH: g.innerH })).filter(Boolean);
