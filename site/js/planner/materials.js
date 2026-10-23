@@ -58,7 +58,7 @@ export const LIBRARY = {
   black:          paint('Black',        '#1F1F20', { pricePerM2: 160, note: 'Soft black, matte.' }),
   // ----- wood veneer, hard-wax oiled -----
   oak:            wood('Natural oak', '#c19a6b', 220, { grainStyle: 'oak', tex: 'oak', uses: ['front', 'top'], note: 'Warm, open grain. The classic choice.' }),
-  'oak-smoked':   wood('Smoked oak',  '#6e5440', 250, { roughness: 0.6, grainStyle: 'oak', tex: 'oak', note: 'Oak darkened with ammonia fumes. Deep brown, grain still visible.' }),
+  'oak-smoked':   wood('Smoked oak',  '#6e5440', 250, { tinted: true, roughness: 0.6, grainStyle: 'oak', tex: 'oak', note: 'Oak darkened with ammonia fumes. Deep brown, grain still visible.' }),
   walnut:         wood('Walnut',      '#6b4a36', 290, { roughness: 0.58, grainStyle: 'walnut', tex: 'walnut', note: 'Rich chocolate brown with a lively grain.' }),
   ash:            wood('Pale ash',    '#d9c7a3', 180, { roughness: 0.65, grainStyle: 'ash', tex: 'ash', note: 'Pale and straight-grained. Bright, Scandinavian feel.' }),
   // ----- plywood -----

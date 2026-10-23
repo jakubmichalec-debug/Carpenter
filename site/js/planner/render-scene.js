@@ -6,6 +6,8 @@
 import { buildFloor, buildWall, buildPiece, disposeGroup } from './geometry.js';
 import { wallsOf, ceilingHeightAt } from './model.js';
 import { ceilingPolygons, placedTransform, insideRoom } from './review-logic.js';
+import { MATERIALS, canonicalId, surfaceInfo, resolveHandleFinish } from './materials.js';
+import { surfacesOf } from './model.js';
 
 const M = 0.01;
 const SUN_ELEVATION = (38 * Math.PI) / 180;
@@ -61,7 +63,9 @@ function flattenByMaterial(THREE, root) {
 // ---------- PBR textures (Poly Haven, CC0, site/assets/planner-tex/) ----------
 // Grain of the wood textures runs along the image x axis, like the canvases of the live viewer, so the piece UVs
 // (piece-geometry.js: 1.6 m along the grain, 0.6 m across) apply unchanged. `m` is how many metres one texture tile covers.
-export const WOOD_TEX = { oak: 'oak', walnut: 'walnut', ash: 'ash', 'birch-ply': 'birch' };
+// Which texture set a material id uses comes from the material table (`tex`); smoked oak is the oak texture tinted darker.
+export const WOOD_TEX = new Proxy({}, { get: (_, id) => (MATERIALS[canonicalId(id)] && MATERIALS[canonicalId(id)].tex) || undefined });
+const TEX_MEAN = { oak: [0xa1, 0x7e, 0x58], walnut: [0x8a, 0x69, 0x51], ash: [0xac, 0x94, 0x7d], birch: [0xb8, 0xa0, 0x88] };
 const FLOOR_TEX = { 'oak-floor': ['floor-oak', 1.3], 'ash-floor': ['birch', 1.0], 'concrete-floor': ['concrete', 1.6], 'tile-floor': ['tile', 1.2] };
 const TEX_METRES = { oak: 0.9, walnut: 0.9, ash: 0.9, birch: 0.9 };
 const PLASTER_METRES = 1.0;
@@ -73,7 +77,9 @@ export function neededTextures(project) {
   for (const pl of project.placements || []) {
     const p = (project.pieces || []).find((x) => x.id === pl.pieceId);
     if (!p) continue;
-    wood(p.carcass.material); wood(p.fronts.material); if (p.worktop) wood(p.worktop);
+    const S = surfacesOf(p);
+    for (const sp of [S.front, S.carcass, S.interior, S.upper]) if (sp) wood(sp.material);
+    if (p.worktop) wood(p.worktop);
   }
   wood('oak'); // room doors
   const f = FLOOR_TEX[project.room.floor];
@@ -108,25 +114,45 @@ function pbrLib(THREE, lib, tex, { transmissive }) {
     return m;
   };
   const wood = (id) => {
-    const name = WOOD_TEX[id];
+    const cid = canonicalId(id);
+    const name = WOOD_TEX[cid];
     if (!name || !tex[name]) return null;
-    if (!cache.has(id)) cache.set(id, set(name, new THREE.MeshStandardMaterial()));
-    return cache.get(id);
+    if (!cache.has(cid)) {
+      const m = set(name, new THREE.MeshStandardMaterial());
+      const def = MATERIALS[cid];
+      if (def && def.tinted && TEX_MEAN[name]) { // the same texture, darkened towards the table's colour
+        const want = new THREE.Color(def.color).convertLinearToSRGB();
+        const mean = TEX_MEAN[name].map((v) => v / 255);
+        const r = [want.r / mean[0], want.g / mean[1], want.b / mean[2]].map((v) => Math.min(1.35, Math.max(0.25, v)));
+        m.color.setRGB(r[0], r[1], r[2], THREE.SRGBColorSpace);
+      }
+      cache.set(cid, m);
+    }
+    return cache.get(cid);
   };
-  const metal = () => {
-    if (!cache.has('metal')) cache.set('metal', new THREE.MeshStandardMaterial({ color: 0x2b2c2e, roughness: 0.3, metalness: 1 }));
-    return cache.get('metal');
-  };
-  const glass = () => {
-    if (!transmissive) return lib.glass();
-    if (!cache.has('glass')) cache.set('glass', new THREE.MeshPhysicalMaterial({ color: 0xeaf4f6, roughness: 0.03, metalness: 0, transmission: 1, ior: 1.45, thickness: 0.01, side: THREE.DoubleSide }));
-    return cache.get('glass');
+  const glassOf = (id) => {
+    if (!transmissive) return lib.glassOf(id);
+    const info = surfaceInfo({ material: id });
+    const key = `glass:${info.id}`;
+    if (!cache.has(key)) {
+      cache.set(key, new THREE.MeshPhysicalMaterial({
+        color: info.opacity > 0.3 ? info.color : 0xeaf4f6, roughness: info.roughness, metalness: 0, transmission: 1, ior: 1.45, thickness: 0.01,
+        attenuationColor: new THREE.Color(info.color), attenuationDistance: info.opacity > 0.3 ? 0.05 : 1e3, side: THREE.DoubleSide
+      }));
+    }
+    return cache.get(key);
   };
   const out = Object.create(lib);
-  out.veneer = (id) => wood(id) || lib.veneer(id);
-  out.get = (id) => (id === 'steel-black' ? metal() : wood(id) || lib.get(id));
-  out.handle = () => metal();
-  out.glass = glass;
+  out.surface = (spec) => {
+    const m = spec && wood(spec.material);
+    return m || lib.surface(spec);
+  };
+  out.veneer = (id) => out.surface({ material: id });
+  out.get = (id) => out.surface({ material: id });
+  out.handle = () => lib.handleOf('handle-black');
+  out.handleOf = (finish) => lib.handleOf(resolveHandleFinish(finish));
+  out.glass = () => glassOf('glass-clear');
+  out.glassOf = glassOf;
   out.dispose = () => { cache.forEach((m) => m.dispose()); };
   return out;
 }

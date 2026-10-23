@@ -700,7 +700,8 @@ function clampLook(raw, T, bundle, plinth, height) {
   const legsOk = (v) => v === 'wood' || isUsable(v, 'handle');
   const upper = isObj(lk.upper) ? cleanSurface(lk.upper, 'front', bundle.fronts) : lk.upper === null ? null : b.upper;
   const lo = Math.min(height - 20, plinth + 20), hi = Math.max(lo, height - 20);
-  const split = clamp(toInt(lk.split, b.split === null || b.split === undefined ? defaultSplit(height, plinth) : b.split), lo, hi);
+  const fallbackSplit = b.split === null || b.split === undefined ? defaultSplit(height, plinth) : b.split;
+  const split = clamp(lk.split === null || lk.split === undefined ? fallbackSplit : toInt(lk.split, fallbackSplit), lo, hi);
   return {
     design: pick(DESIGNS, DESIGN_ALIASES[lk.design] || lk.design, b.design),
     edge: pick(EDGES, lk.edge, b.edge),

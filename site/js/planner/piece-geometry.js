@@ -109,49 +109,178 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
   // ----- carcass -----
   const geo = pieceGeometry(piece);
   const ph = geo.plinth, top = ph + geo.Hc, innerH = geo.innerH;
-  const kind = piece.fronts.kind;
+  const kind = fr.kind;
   const sliding = kind === 'sliding';
   const hinged = kind === 'hinged' || kind === 'glass';
   const cD = sliding ? D - 2 * F - 1 : hinged ? D - F - 0.2 : D;   // carcass depth: fronts sit in front of it
   const zFront = cD + 0.2;
   const yf = ph + T;                                                // floor of every bay
-  box(g, 0, ph, 0, T, geo.Hc, cD, { grain: 'y', part: 'side' });
-  box(g, W - T, ph, 0, T, geo.Hc, cD, { grain: 'y', part: 'side' });
-  box(g, T, ph, 0, W - 2 * T, T, cD, { part: 'bottom' });
-  box(g, T, top - T, 0, W - 2 * T, T, cD, { part: 'top' });
-  box(g, T, yf, 0, W - 2 * T, innerH, 0.8, { grain: 'y', part: 'back' });
+  const outerSide = look.gables ? S.front : S.carcass;
+  // Sides, top, bottom and back: the inside faces take the inside material, the outer faces the carcass (or, with end panels, the front).
+  const sameInside = S.interior.material === S.carcass.material && S.interior.finish === S.carcass.finish;
+  const sidesM = (innerFace) => {
+    if (sameInside && !look.gables) return {};
+    const c = surf(S.carcass), i = surf(S.interior), o = surf(outerSide);
+    const arr = [c, c, c, c, c, c];
+    arr[innerFace] = i; arr[innerFace === 0 ? 1 : 0] = o;
+    return { materials: arr };
+  };
+  const faceM = (face) => {
+    if (sameInside) return {};
+    const c = surf(S.carcass), arr = [c, c, c, c, c, c];
+    arr[face] = surf(S.interior);
+    return { materials: arr };
+  };
+  box(g, 0, ph, 0, T, geo.Hc, cD, { ...sidesM(0), grain: 'y', part: 'side' });
+  box(g, W - T, ph, 0, T, geo.Hc, cD, { ...sidesM(1), grain: 'y', part: 'side' });
+  box(g, T, ph, 0, W - 2 * T, T, cD, { ...faceM(2), part: 'bottom' });
+  box(g, T, top - T, 0, W - 2 * T, T, cD, { ...faceM(3), part: 'top' });
+  box(g, T, yf, 0, W - 2 * T, innerH, 0.8, { spec: S.interior, grain: 'y', part: 'back' });
   const layout = bayLayout(piece);
-  layout.slice(0, -1).forEach((b) => box(g, b.x1, yf, 0.8, T, innerH, cD - 0.8, { grain: 'y', part: 'divider' }));
+  layout.slice(0, -1).forEach((b) => box(g, b.x1, yf, 0.8, T, innerH, cD - 0.8, { spec: S.interior, grain: 'y', part: 'divider' }));
   if (geo.slab > 0) {
     const wt = piece.worktop && piece.type !== 'window-seat';
-    box(g, 0, top, 0, W, geo.slab, D + (wt ? 1.5 : 0), { id: wt ? piece.worktop : piece.type === 'window-seat' ? piece.carcass.material : piece.worktop || piece.fronts.material, part: 'worktop' });
+    box(g, 0, top, 0, W, geo.slab, D + (wt ? 1.5 : 0), { spec: wt ? topSpec : piece.type === 'window-seat' ? S.carcass : topSpec, part: 'worktop' });
   }
-  if (ph > 0) box(g, 1, 0, Math.max(0, cD - 8), W - 2, ph, BOARD, { part: 'plinth' });
+
+  // ----- base: recessed or flush plinth, or legs -----
+  const base = look.base || 'recessed';
+  if (ph > 0 && base === 'legs') {
+    const metal = look.legs && look.legs !== 'wood';
+    const wood = surf(surfaceInfo(S.front).grain ? S.front : { material: 'oak' });
+    const lm = metal && lib.handleOf ? lib.handleOf(look.legs) : steel;
+    const count = legCount(W), cols = count / 2, inset = 6;
+    for (let r = 0; r < 2; r++) {
+      const zc = r === 0 ? 6 : Math.max(10, cD - 6);
+      for (let c = 0; c < cols; c++) {
+        const xc = inset + (c * (W - 2 * inset)) / (cols - 1);
+        const leg = metal
+          ? new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.9, ph, 14), lm)
+          : new THREE.Mesh(new THREE.CylinderGeometry(2.1, 1.3, ph, 16), wood);
+        leg.position.set(xc, ph / 2, zc);
+        leg.userData.part = 'leg';
+        g.add(shadow(leg));
+        box(g, xc - 2.6, ph - 0.4, zc - 2.6, 5.2, 0.4, 5.2, { material: dark, part: 'leg', cast: false });
+      }
+    }
+  } else if (ph > 0 && base === 'flush') {
+    box(g, 0.15, 0, D - BOARD, W - 0.3, ph, BOARD, { spec: S.carcass, part: 'plinth' });
+  } else if (ph > 0) {
+    box(g, 1, 0, Math.max(0, cD - 8), W - 2, ph, BOARD, { spec: S.carcass, part: 'plinth' });
+  }
+
+  // ----- top treatment and scribe strips -----
+  if (geo.cap > 0 && look.top === 'overhang') {
+    box(g, 0, top, 0, W, geo.cap, D + 2, { spec: S.front, part: 'top-cap' });
+  } else if (geo.cap > 0 && look.top === 'cornice') {
+    const shape = new THREE.Shape();
+    CORNICE_PROFILE.forEach(([z, y], i) => (i ? shape.lineTo(z, y) : shape.moveTo(z, y)));
+    shape.closePath();
+    const cg = new THREE.ExtrudeGeometry(shape, { depth: W, bevelEnabled: false, steps: 1 });
+    cg.rotateY(-Math.PI / 2);
+    cg.translate(W, top, D - 1.9);
+    const uv = cg.attributes.uv, ps = cg.attributes.position;
+    for (let i = 0; i < ps.count; i++) uv.setXY(i, ps.getX(i) / 160, (ps.getY(i) + ps.getZ(i)) / 60);
+    const cm = new THREE.Mesh(cg, surf(S.front));
+    cm.userData.part = 'cornice';
+    g.add(shadow(cm));
+  }
+  const scribing = !!look.scribe && piece.type !== 'desk';
+  if (scribing) {
+    box(g, 0, top - SCRIBE.top, zFront, W, SCRIBE.top, F, { spec: S.front, grain: 'x', part: 'scribe' });
+    for (const x of [0, W - SCRIBE.side]) box(g, x, ph, zFront, SCRIBE.side, geo.Hc, F, { spec: S.front, grain: 'y', part: 'scribe' });
+  }
+  const scribeTop = scribing ? SCRIBE.top : 0, scribeSide = scribing ? SCRIBE.side : 0;
+
+  // ----- fronts: one routine for every door and drawer front -----
+  const frontSpec = (role) => (role === 'upper' && S.upper ? S.upper : S.front);
+  const grainDir = fr.grainVertical ? 'y' : 'x';
+  // `design` is slab, shaker, ribbed or glass; a panel is built with its low left back corner at (x0, y0, 0) in `parent`
+  function frontPanel(parent, x0, y0, w, h, role, design, part) {
+    const spec = frontSpec(role);
+    const faceMat = surf(spec);
+    const edgeMat = surfaceInfo(spec).edgeGrain && lib.plyEdge ? lib.plyEdge(spec) : faceMat;
+    const d = design === 'shaker' && Math.min(w, h) < 14 ? 'slab' : design === 'ribbed' && w < 8 ? 'slab' : design;
+    if (d === 'glass' && h > 24 && w > 16) {
+      const st = 4.5;
+      const mk = (xa, ya0, ww, hh, grain) => box(parent, x0 + xa, y0 + ya0, 0, ww, hh, F, { spec, grain, part });
+      mk(0, 0, st, h, 'y'); mk(w - st, 0, st, h, 'y'); mk(st, 0, w - 2 * st, st, 'x'); mk(st, h - st, w - 2 * st, st, 'x');
+      box(parent, x0 + st, y0 + st, F / 2 - 0.25, w - 2 * st, h - 2 * st, 0.5, { material: glassMat, part: 'glass', cast: false });
+      return;
+    }
+    const dd = d === 'glass' ? 'slab' : d;
+    if (dd === 'slab' && (!look.edge || look.edge === 'square')) {
+      const m = box(parent, x0, y0, 0, w, h, F, { spec, grain: grainDir, part });
+      if (edgeMat !== faceMat && Array.isArray(m.material) === false) {
+        // plywood with its layers showing on the edges: +x, -x, +y, -y are edges
+        m.material = [edgeMat, edgeMat, edgeMat, edgeMat, faceMat, faceMat];
+      }
+      return;
+    }
+    const geoF = fieldGeometry(THREE, { w, h, t: F, design: dd, edge: look.edge, grain: grainDir, offU: rnd(), offV: rnd() });
+    const mesh = new THREE.Mesh(geoF, [faceMat, edgeMat]);
+    mesh.position.set(x0, y0, 0);
+    mesh.userData.part = part;
+    parent.add(shadow(mesh));
+  }
+  const designFor = (isDoor) => (kind === 'glass' && isDoor ? 'glass' : look.design === 'glass' ? 'slab' : look.design || 'slab');
 
   // ----- handles (origin: the front face of the panel; z grows outwards) -----
-  const handle = (parent, orient, len, x, y, z) => {
-    const h = piece.fronts.handle;
+  const SIZE = { short: 0.6, medium: 1, long: 1.6 }[fr.handleSize] || 1;
+  // `f` describes the front the handle belongs to: { what: 'door' | 'drawer' | 'slide', x, lo, hi, w, side }
+  const handle = (parent, f) => {
+    const h = fr.handle;
+    if (h === 'push') return;
+    const z = f.z;
+    const door = f.what !== 'drawer';
+    const height = f.hi - f.lo;
+    if (door) {
+      // length of a bar and where it sits
+      let len = Math.min(24, height * 0.4) * SIZE;
+      let y;
+      const pos = fr.doorHandle || 'auto';
+      if (pos === 'full') { len = Math.max(8, height - 12); y = (f.lo + f.hi) / 2; }
+      else if (pos === 'top') y = f.hi - 6 - len / 2;
+      else if (pos === 'bottom') y = f.lo + 6 + len / 2;
+      else if (pos === 'middle') y = (f.lo + f.hi) / 2;
+      else if (piece.type === 'kitchen-wall') y = f.lo + 8 + len / 2 - 4;
+      else if (piece.type === 'kitchen-base' || piece.type === 'island' || piece.type === 'desk') y = f.hi - 8 - len / 2 + 4;
+      else y = Math.min(f.hi - 8, Math.max(f.lo + 8, 100));
+      y = Math.min(f.hi - 3, Math.max(f.lo + 3, y));
+      drawHandle(parent, h, 'v', len, f.x, y, z, f);
+    } else {
+      const len = Math.min(30 * SIZE, f.w * 0.5);
+      const y = fr.drawerHandle === 'top' ? f.hi - 3.2 : f.lo + height * 0.55;
+      drawHandle(parent, h, 'h', len, f.x, y, z, f);
+    }
+  };
+  function drawHandle(parent, h, orient, len, x, y, z, f) {
     if (h === 'bar') {
       const vert = orient === 'v';
       box(parent, x - (vert ? 0.6 : len / 2), y - (vert ? len / 2 : 0.6), z + 1.6, vert ? 1.2 : len, vert ? len : 1.2, 1.2, { material: handleMat, part: 'handle' });
-      const off = len / 2 - 3;
+      const off = Math.max(1, len / 2 - 3);
       for (const s of [-1, 1]) box(parent, x + (vert ? -0.4 : s * off - 0.4), y + (vert ? s * off - 0.4 : -0.4), z, 0.8, 0.8, 1.6, { material: handleMat, part: 'handle' });
     } else if (h === 'knob') {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 10), handleMat);
-      m.position.set(x, y, z + 2.4);
+      const r = 1.6 * (0.8 + 0.2 * SIZE + (SIZE > 1 ? 0.1 : 0));
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 10), handleMat);
+      m.position.set(x, y, z + r + 0.8);
       parent.add(shadow(m));
-      cyl(parent, x, y, z + 1, 0.45, 2, 'z', handleMat, 8);
-    } else if (h === 'groove') {
+      cyl(parent, x, y, z + 0.5, 0.45, 1.2, 'z', handleMat, 8);
+    } else if (h === 'cup') {
+      // a half-round scoop with its open side up, mounted on the front
+      const r = 2.2 * (0.8 + 0.2 * SIZE), L = 7 + 3 * SIZE;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 18, 1, true, Math.PI, Math.PI), new THREE.MeshStandardMaterial({ color: handleMat.color, roughness: handleMat.roughness, metalness: handleMat.metalness, side: THREE.DoubleSide }));
+      m.rotation.z = Math.PI / 2;
+      m.position.set(x, y + r * 0.5, z + r);
+      parent.add(shadow(m));
+      box(parent, x - L / 2, y + r * 0.5 - 0.15, z, L, 0.3, r, { material: handleMat, part: 'handle', cast: false });
+    } else if (h === 'edge') {
+      // routed finger pull: a dark recess along the edge
       const vert = orient === 'v';
-      const L = Math.min(len * 2.2, 50);
+      const L = Math.min(Math.max(len * 2.2, 12), 50);
       box(parent, x - (vert ? 0.55 : Math.min(L, 40) / 2), y - (vert ? L / 2 : 0.55), z + 0.05, vert ? 1.1 : Math.min(L, 40), vert ? L : 1.1, 0.2, { material: dark, part: 'handle', cast: false });
-    } else {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.25, 18), handleMat);
-      m.rotation.x = Math.PI / 2;
-      m.position.set(x, y, z + 0.15);
-      parent.add(m);
     }
-  };
+  }
 
   // ----- items -----
   const fronts = []; // panels that stand in front of a bay: { bay, lo, hi } in absolute y, so doors can be cut around them
@@ -181,7 +310,7 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
     if (!def) return;
     const bx = b.x0, bw = b.width, ya = yf + it.y;
     const zi0 = 0.8, zi1 = cD - 1, dz = zi1 - zi0;
-    const edge0 = bi === 0 ? GAP : bx - T / 2 + GAP, edge1 = bi === piece.bays.length - 1 ? W - GAP : bx + bw + T / 2 - GAP;
+    const edge0 = bi === 0 ? GAP + scribeSide : bx - T / 2 + GAP, edge1 = bi === piece.bays.length - 1 ? W - GAP - scribeSide : bx + bw + T / 2 - GAP;
     const spec = DRAWERS[it.kind] ? DRAWERS[it.kind](it) : null;
     if (spec) {
       const grp = new THREE.Group();
@@ -193,8 +322,16 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
         const zf = outer ? zFront : cD - 3.7;
         const fx0 = outer ? edge0 : bx + 0.3, fx1 = outer ? edge1 : bx + bw - 0.3;
         if (!spec.open) {
-          box(grp, fx0, y0 + GAP, zf, fx1 - fx0, spec.h - 2 * GAP, outer ? F : 1.2, { id: outer ? piece.fronts.material : piece.carcass.material, grain: piece.fronts.grainVertical ? 'y' : 'x', part: 'drawer-front' });
-          if (outer && def.handles(it)) handle(grp, 'h', Math.min(30, (fx1 - fx0) * 0.5), (fx0 + fx1) / 2, y0 + spec.h * 0.55, zf + F);
+          if (outer) {
+            const fg = new THREE.Group();
+            fg.position.z = zf;
+            grp.add(fg);
+            const role = S.upper && y0 + spec.h / 2 >= look.split ? 'upper' : 'front';
+            frontPanel(fg, fx0, y0 + GAP, fx1 - fx0, spec.h - 2 * GAP, role, designFor(false), 'drawer-front');
+            if (def.handles(it)) handle(fg, { what: 'drawer', x: (fx0 + fx1) / 2, lo: y0 + GAP, hi: y0 + spec.h - GAP, w: fx1 - fx0, z: F });
+          } else {
+            box(grp, fx0, y0 + GAP, zf, fx1 - fx0, spec.h - 2 * GAP, 1.2, { spec: S.interior, grain: grainDir, part: 'drawer-front' });
+          }
         }
         drawerBox(grp, bx + 0.6, bw - 1.2, y0, spec.h, spec.open ? cD - 3 : zf, Math.min(dz - 4, 45), it.material === 'wire' ? steel : bodyMat);
       }
@@ -318,36 +455,21 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
 
   // ----- fronts -----
   if (hinged && mode !== 'hidden') {
-    const glass = kind === 'glass';
-    const handleY = (lo, hi) => {
-      if (piece.type === 'kitchen-wall') return lo + 8;
-      if (piece.type === 'kitchen-base' || piece.type === 'island' || piece.type === 'desk') return hi - 8;
-      return Math.min(hi - 8, Math.max(lo + 8, 100));
-    };
-    const leaf = (hx, side, w, lo, hi) => {
+    const leaf = (hx, side, w, lo, hi, role) => {
       const grp = new THREE.Group();
       grp.position.set(hx, 0, zFront);
       grp.rotation.y = mode === 'ajar' ? (side === 'left' ? -1.1 : 1.1) : 0;
       const x0 = side === 'left' ? 0 : -w;
-      const h = hi - lo;
-      if (glass && h > 24 && w > 16) {
-        const st = 4.5;
-        const mk = (xa, ya0, ww, hh, grain) => box(grp, xa, ya0, 0, ww, hh, F, { id: piece.fronts.material, grain, part: 'door' });
-        mk(x0, lo, st, h, 'y'); mk(x0 + w - st, lo, st, h, 'y'); mk(x0 + st, lo, w - 2 * st, st, 'x'); mk(x0 + st, hi - st, w - 2 * st, st, 'x');
-        box(grp, x0 + st, lo + st, F / 2 - 0.25, w - 2 * st, h - 2 * st, 0.5, { material: lib.glass(), part: 'glass', cast: false });
-      } else {
-        box(grp, x0, lo, 0, w, h, F, { id: piece.fronts.material, grain: piece.fronts.grainVertical ? 'y' : 'x', part: 'door' });
-      }
-      const len = Math.min(24, h * 0.4);
-      handle(grp, 'v', len, side === 'left' ? w - 3.5 : -w + 3.5, handleY(lo, hi), F);
+      frontPanel(grp, x0, lo, w, hi - lo, role, designFor(true), 'door');
+      handle(grp, { what: 'door', x: side === 'left' ? w - 3.5 : -w + 3.5, lo, hi, w, z: F });
       g.add(grp);
     };
     piece.bays.forEach((bay, bi) => {
       if (bay.door === 'none') return;
       const b = layout[bi];
-      const fx0 = bi === 0 ? GAP : b.x0 - T / 2 + GAP, fx1 = bi === piece.bays.length - 1 ? W - GAP : b.x1 + T / 2 - GAP;
-      // free stretches of the front, cut around drawer fronts
-      let segs = [[ph + GAP, top - GAP]];
+      const fx0 = (bi === 0 ? GAP + scribeSide : b.x0 - T / 2 + GAP), fx1 = (bi === piece.bays.length - 1 ? W - GAP - scribeSide : b.x1 + T / 2 - GAP);
+      // free stretches of the front, cut around drawer fronts, then split at the two-tone line
+      let segs = [[ph + GAP, top - GAP - scribeTop]];
       for (const f of fronts.filter((x) => x.bay === bi)) {
         segs = segs.flatMap(([a, c]) => {
           const out = [];
@@ -356,23 +478,26 @@ export function buildPiece(piece, THREE, lib, opts = {}) {
           return out;
         });
       }
-      for (const [lo, hi] of segs) {
-        if (hi - lo < 6) continue;
-        if (bay.door === 'double' || fx1 - fx0 > 90) {
-          const w = (fx1 - fx0 - 0.3) / 2;
-          leaf(fx0, 'left', w, lo, hi); leaf(fx1, 'right', w, lo, hi);
-        } else leaf(bay.door === 'right' ? fx1 : fx0, bay.door === 'right' ? 'right' : 'left', fx1 - fx0, lo, hi);
+      for (const [lo0, hi0] of segs) {
+        if (hi0 - lo0 < 6) continue;
+        for (const seg of roleSegments(lo0, hi0, piece)) {
+          if (seg.hi - seg.lo < 6) continue;
+          if (bay.door === 'double' || fx1 - fx0 > 90) {
+            const w = (fx1 - fx0 - 0.3) / 2;
+            leaf(fx0, 'left', w, seg.lo, seg.hi, seg.role); leaf(fx1, 'right', w, seg.lo, seg.hi, seg.role);
+          } else leaf(bay.door === 'right' ? fx1 : fx0, bay.door === 'right' ? 'right' : 'left', fx1 - fx0, seg.lo, seg.hi, seg.role);
+        }
       }
     });
   } else if (sliding && mode !== 'hidden') {
     const n = Math.max(2, Math.ceil(W / 100)), ov = 3;
-    const pw = (W + (n - 1) * ov) / n, lo = ph + GAP, hi = top - GAP;
+    const pw = (W + (n - 1) * ov) / n, lo = ph + GAP, hi = top - GAP - scribeTop;
     for (let i = 0; i < n; i++) {
       const grp = new THREE.Group();
       const frontRow = i % 2 === 0;
       grp.position.set(i * (pw - ov) + (mode === 'ajar' && i % 2 ? -pw * 0.55 : 0), 0, frontRow ? D - F : D - 2 * F - 0.6);
-      box(grp, 0, lo, 0, pw, hi - lo, F, { id: piece.fronts.material, grain: piece.fronts.grainVertical ? 'y' : 'x', part: 'door' });
-      handle(grp, 'v', 20, i % 2 ? 4 : pw - 4, Math.min(hi - 10, Math.max(lo + 10, 100)), F);
+      frontPanel(grp, 0, lo, pw, hi - lo, 'front', designFor(false), 'door');
+      handle(grp, { what: 'slide', x: i % 2 ? 4 : pw - 4, lo, hi, w: pw, z: F });
       g.add(grp);
     }
     box(g, 0, top - 0.5, cD, W, 1.2, 2 * F + 1, { material: steel, part: 'rail' });

@@ -122,7 +122,7 @@ export function startRender(opts) {
       import('three-gpu-pathtracer'),
       import('three/addons/loaders/RGBELoader.js'),
       import('three/addons/postprocessing/Pass.js'),
-      import('../configurator/materials.js'),
+      import('./material-lib.js'),
       import('./render-scene.js')
     ]);
     if (stopRequested || disposed) return finish('stopped');
@@ -163,7 +163,7 @@ export function startRender(opts) {
     cam.near = Math.min(cam.near, 0.05); cam.far = Math.max(cam.far, 120);
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
-    const lib = mats.createMaterialLib(THREE);
+    const lib = mats.createPlannerLib(THREE);
     R.built = scn.buildRenderScene({ project, THREE, lib, fronts, camera: cam, hiddenWalls, hdr, background: cssColor('--paper', '#f6f6f3'), tex });
 
     const tracer = new PT.WebGLPathTracer(renderer);

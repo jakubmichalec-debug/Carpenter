@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createMaterialLib } from '../configurator/materials.js';
+import { createPlannerLib } from './material-lib.js';
 import { roomBounds } from './plan-geom.js';
 import {
   buildFloor, buildWall, floorSignature, wallSignature, disposeGroup, setWallFade, setWallHighlight, buildPiece, pieceSignature
@@ -35,7 +35,7 @@ export function createViewer(canvas, { onWallPick = null, onPiecePick = null } =
   scene.environment = envTex;
   scene.environmentIntensity = 0.55;
 
-  const lib = createMaterialLib(THREE);
+  const lib = createPlannerLib(THREE);
   const accent = new THREE.Color(cssColor('--oak', '#4f6f85'));
   const alert = new THREE.Color(cssColor('--err', '#b2452f'));
 
