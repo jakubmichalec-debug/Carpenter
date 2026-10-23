@@ -55,7 +55,7 @@ export function snapWallOffset(project, pieceId, wallId, offset, { dist = 6, ele
   const piece = pieceOf(project, pieceId), wall = wallById(project.room, wallId);
   if (!piece || !wall) return { offset: Math.round(offset), snap: null };
   const pl = placementOf(project, pieceId);
-  const elev = elevation !== undefined ? elevation : pl ? pl.elevation : TYPES[piece.type].defaults.elevation;
+  const elev = elevation !== undefined ? elevation : pl ? pl.elevation : defaultElevation(piece);
   const max = Math.max(0, Math.floor(wall.length - piece.width + EPS));
   const cands = [{ at: 0, kind: 'start' }, { at: wall.length - piece.width, kind: 'end' }];
   for (const r of blockedRanges(project, piece, wall, elev)) {
@@ -128,7 +128,7 @@ export function freeSpotOnWall(project, pieceId, wallId, prefer = 0, elevation) 
   const piece = pieceOf(project, pieceId), wall = wallById(project.room, wallId);
   if (!piece || !wall) return null;
   const pl = placementOf(project, pieceId);
-  const elev = elevation !== undefined ? elevation : pl ? pl.elevation : TYPES[piece.type].defaults.elevation;
+  const elev = elevation !== undefined ? elevation : pl ? pl.elevation : defaultElevation(piece);
   const max = Math.floor(wall.length - piece.width + EPS);
   if (max < 0) return null;
   let spans = [[0, max]];
@@ -245,7 +245,7 @@ export function bestCorner(project, pieceId, near) {
   const spots = cornerSpots(project, pieceId);
   if (!spots.length) return null;
   const piece = pieceOf(project, pieceId);
-  const elevation = TYPES[piece.type].defaults.elevation;
+  const elevation = defaultElevation(piece);
   const scored = spots.map((s) => {
     const spec = { mode: 'wall', wallId: s.wallId, offset: s.offset, elevation };
     const fp = footprintOf(placePiece(project, pieceId, { ...spec, snap: false }), { pieceId, ...spec });
@@ -287,17 +287,17 @@ export function suggestPlacement(project, pieceId) {
     const ok = tried.find((s) => problemsOf(project, pieceId, s) === 0);
     return ok || tried[0] || { mode: 'free', x: Math.round(cx), z: Math.round(cz), rotation: 0 };
   }
-  const top = T.defaults.elevation + piece.height;
+  const top = defaultElevation(piece) + piece.height;
   const roomy = (w) => w.length >= piece.width - EPS;
   const lowEnough = (w) => minCeiling(ceilingProfile(room, w), 0, w.length) >= top - 0.5;
   const order = [...walls].sort((a, b) => (roomy(b) - roomy(a)) || (lowEnough(b) - lowEnough(a)) || (b.length - a.length));
   for (const w of order) {
     if (!roomy(w)) continue;
-    const spot = freeSpotOnWall(project, pieceId, w.id, 0, T.defaults.elevation);
+    const spot = freeSpotOnWall(project, pieceId, w.id, 0, defaultElevation(piece));
     if (spot === null) continue;
-    const spec = { mode: 'wall', wallId: w.id, offset: spot, elevation: T.defaults.elevation };
+    const spec = { mode: 'wall', wallId: w.id, offset: spot, elevation: defaultElevation(piece) };
     if (problemsOf(project, pieceId, spec) === 0) return spec;
   }
   const w = order[0];
-  return { mode: 'wall', wallId: w.id, offset: 0, elevation: T.defaults.elevation };
+  return { mode: 'wall', wallId: w.id, offset: 0, elevation: defaultElevation(piece) };
 }

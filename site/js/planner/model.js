@@ -1,8 +1,25 @@
 // Planner v2 model: pure data and helpers, no DOM, no Three.js. All lengths in cm.
 // Shapes are specified in CONTRACTS.md, section "Planner v2".
-import { MATERIALS, FLOORS, WALL_COLORS, HANDLES, clampDesign } from '../configurator/model.js';
+import { FLOORS, WALL_COLORS, clampDesign } from '../configurator/model.js';
+import {
+  MATERIALS, isUsable, resolveMaterial, resolveFinish, cleanSurface, thicknessOf, resolveHandleFinish, handleFinishes
+} from './materials.js';
 
-export { MATERIALS, FLOORS, WALL_COLORS, HANDLES };
+export { MATERIALS, FLOORS, WALL_COLORS };
+
+// ---------- the look of a piece: option lists (the materials themselves live in materials.js) ----------
+export const HANDLES = ['bar', 'long-bar', 'knob', 'cup', 'edge', 'leather', 'groove', 'push'];
+export const HANDLE_SIZES = ['short', 'medium', 'long'];
+export const DOOR_HANDLE_POS = ['auto', 'top', 'middle', 'bottom', 'full'];
+export const DRAWER_HANDLE_POS = ['centre', 'top'];
+export const DESIGNS = ['slab', 'shaker', 'fluted', 'vgroove', 'cane', 'glass'];
+export const EDGES = ['square', 'chamfer', 'round'];
+export const BASES = ['none', 'recessed', 'flush', 'legs'];
+export const TOPS = ['flush', 'overhang', 'cornice'];
+export const GAPS = [2, 3, 4];            // mm between fronts
+export const TOP_CAP = { flush: 0, overhang: 2.5, cornice: 5 };   // cm of height the top treatment takes
+export const SCRIBE = { top: 2.5, side: 1.5 };                    // cm of filler strip when scribing is on
+export const legCount = (width) => (width <= 120 ? 4 : width <= 240 ? 6 : 8);
 
 // ---------- constants ----------
 export const LAYOUT_T = 2;          // layout thickness of a side or divider (18 mm board + 2 mm reveal, rounded up)
@@ -34,7 +51,7 @@ const toNum = (v, fallback) => {
 };
 const has = (obj, key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
 const safeId = (v, fallback) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,24}$/.test(v) ? v : fallback);
-const pickable = (id) => typeof id === 'string' && has(MATERIALS, id) && MATERIALS[id].pickable !== false;
+const pickable = (id) => isUsable(id);
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export function cloneProject(p) {
@@ -512,27 +529,116 @@ export const TYPES = {
   }
 };
 
+// ---------- sizes: standard presets per type ----------
+const SP = (label, width, height, depth) => ({ label, width, height, depth });
+export const SIZE_PRESETS = {
+  wardrobe: [SP('Slim, 100 cm', 100, 240, 55), SP('Standard, 150 cm', 150, 240, 60), SP('Wide, 240 cm', 240, 240, 60), SP('Wall to wall, 300 cm', 300, 260, 60)],
+  'kitchen-base': [SP('Narrow, 40 cm', 40, 90, 60), SP('Standard, 60 cm', 60, 90, 60), SP('Wide, 90 cm', 90, 90, 60), SP('Extra wide, 120 cm', 120, 90, 60)],
+  'kitchen-wall': [SP('Narrow, 40 cm', 40, 70, 35), SP('Standard, 60 cm', 60, 70, 35), SP('Tall, 60 x 90 cm', 60, 90, 35), SP('Wide, 90 cm', 90, 70, 35)],
+  'tall-cabinet': [SP('Slim, 40 cm', 40, 220, 55), SP('Standard, 60 cm', 60, 220, 60), SP('Wide, 90 cm', 90, 220, 60)],
+  'wall-unit': [SP('Small, 80 cm', 80, 120, 28), SP('Standard, 160 cm', 160, 200, 30), SP('Full wall, 300 cm', 300, 240, 35)],
+  desk: [SP('Compact, 100 cm', 100, 75, 55), SP('Standard, 140 cm', 140, 75, 65), SP('Wide, 200 cm', 200, 75, 70)],
+  table: [SP('Four seats, 140 cm', 140, 75, 80), SP('Six seats, 180 cm', 180, 75, 90), SP('Eight seats, 240 cm', 240, 75, 100)],
+  'window-seat': [SP('Small, 120 cm', 120, 45, 40), SP('Standard, 160 cm', 160, 45, 45), SP('Long, 240 cm', 240, 45, 50)],
+  'under-stairs': [SP('Small, 90 cm', 90, 100, 55), SP('Standard, 120 cm', 120, 120, 60), SP('Large, 180 cm', 180, 150, 70)],
+  island: [SP('Small, 120 cm', 120, 90, 80), SP('Standard, 180 cm', 180, 90, 90), SP('Large, 240 cm', 240, 90, 100)]
+};
+for (const [id, t] of Object.entries(TYPES)) {
+  t.sizePresets = SIZE_PRESETS[id];
+  t.allowTop = ['wardrobe', 'tall-cabinet', 'kitchen-wall', 'wall-unit', 'under-stairs'].includes(id);
+}
+
+// ---------- styles: one click sets the whole look ----------
+const LOOK0 = { design: 'slab', edge: 'square', glass: 'glass-clear', base: 'recessed', legs: 'wood', top: 'flush', gables: false, gap: 3, scribe: false, upper: null, split: null };
+const FRONT0 = { kind: 'hinged', grainVertical: false, finish: 'matte', handleFinish: 'black', handleSize: 'medium', doorHandle: 'auto', drawerHandle: 'centre' };
+function style(label, blurb, o) {
+  return {
+    label, blurb,
+    fronts: { ...FRONT0, ...o.fronts },
+    carcass: o.carcass || 'birch-ply', carcassFinish: o.carcassFinish || 'matte',
+    interior: o.interior || null,
+    plinth: o.plinth === undefined ? 10 : o.plinth,
+    worktop: o.worktop === undefined ? null : o.worktop,
+    look: { ...LOOK0, ...o.look }
+  };
+}
+const S = (material, handle, extra = {}) => ({ material, handle, ...extra });
+
 export const STYLES = {
-  'flat-oak':        { label: 'Flat oak',        fronts: { kind: 'hinged',  material: 'oak',              handle: 'bar',    grainVertical: true }, carcass: 'birch-ply', plinth: 10, worktop: null },
-  'walnut-grooved':  { label: 'Walnut, grooved', fronts: { kind: 'hinged',  material: 'walnut',           handle: 'groove', grainVertical: true }, carcass: 'birch-ply', plinth: 10, worktop: null },
-  'white-minimal':   { label: 'White minimal',   fronts: { kind: 'hinged',  material: 'lacquer-white',    handle: 'push',   grainVertical: false }, carcass: 'birch-ply', plinth: 10, worktop: null },
-  'sage-kitchen':    { label: 'Sage kitchen',    fronts: { kind: 'hinged',  material: 'lacquer-sage',     handle: 'bar',    grainVertical: false }, carcass: 'birch-ply', plinth: 10, worktop: 'oak' },
-  'charcoal-sliding':{ label: 'Charcoal sliding',fronts: { kind: 'sliding', material: 'lacquer-charcoal', handle: 'groove', grainVertical: false }, carcass: 'birch-ply', plinth: 10, worktop: null },
-  'open-ash':        { label: 'Open ash',        fronts: { kind: 'open',    material: 'ash',              handle: 'knob',   grainVertical: true }, carcass: 'ash',       plinth: 0,  worktop: null },
-  'glass-oak':       { label: 'Glass and oak',   fronts: { kind: 'glass',   material: 'oak',              handle: 'bar',    grainVertical: true }, carcass: 'birch-ply', plinth: 10, worktop: null }
+  // the original seven keep their ids and their look
+  'flat-oak':        style('Flat oak', 'Plain oak doors, bar handles.', { fronts: S('oak', 'bar', { grainVertical: true }) }),
+  'walnut-grooved':  style('Walnut, grooved', 'Walnut with finger grooves.', { fronts: S('walnut', 'groove', { grainVertical: true }) }),
+  'white-minimal':   style('White minimal', 'Warm white, push to open.', { fronts: S('lacquer-white', 'push') }),
+  'sage-kitchen':    style('Sage kitchen', 'Sage doors with an oak top.', { fronts: S('lacquer-sage', 'bar'), worktop: 'oak' }),
+  'charcoal-sliding':{ ...style('Charcoal sliding', 'Sliding doors in soft black.', { fronts: S('lacquer-charcoal', 'groove', { kind: 'sliding' }) }) },
+  'open-ash':        style('Open ash', 'Open shelves in pale ash.', { fronts: S('ash', 'knob', { kind: 'open', grainVertical: true }), carcass: 'ash', plinth: 0, look: { base: 'none' } }),
+  'glass-oak':       style('Glass and oak', 'Oak frames with clear glass.', { fronts: S('oak', 'bar', { kind: 'glass', grainVertical: true }), look: { design: 'glass' } }),
+  // new
+  'scandi-ash':      style('Scandinavian ash', 'Pale ash, soft edges, short steel bars.', {
+    fronts: S('ash', 'bar', { grainVertical: true, handleSize: 'short', handleFinish: 'brushed', finish: 'satin' }), look: { edge: 'round' } }),
+  'japandi-oak':     style('Japandi oak', 'White-oiled oak, leather tabs, raised on legs.', {
+    fronts: S('oak-white', 'leather', { grainVertical: true, handleFinish: 'leather-tan' }), plinth: 14, look: { base: 'legs', legs: 'wood', edge: 'round' } }),
+  'shaker-sage':     style('Shaker sage', 'Framed sage doors, brass knobs, a crown on top.', {
+    fronts: S('lacquer-sage', 'knob', { handleFinish: 'brass', finish: 'satin' }), worktop: 'oak', look: { design: 'shaker', top: 'cornice', scribe: true } }),
+  'midcentury-walnut': style('Mid-century walnut', 'Walnut on tapered legs with short brass bars.', {
+    fronts: S('walnut', 'bar', { grainVertical: true, handleSize: 'short', handleFinish: 'brass', finish: 'satin' }), carcass: 'walnut', plinth: 20,
+    look: { base: 'legs', legs: 'wood', edge: 'round' } }),
+  'fluted-oak':      style('Fluted oak', 'Ribbed oak fronts with slim edge pulls.', {
+    fronts: S('oak', 'edge', { grainVertical: true, handleFinish: 'black' }), look: { design: 'fluted' } }),
+  'cane-oak':        style('Cane and oak', 'Oak frames with woven cane and brass knobs.', {
+    fronts: S('oak', 'knob', { grainVertical: true, handleFinish: 'brass' }), look: { design: 'cane' } }),
+  'handleless-white': style('Handleless white', 'Warm white, tight 2 mm gaps, nothing to grab.', {
+    fronts: S('lacquer-white', 'push'), look: { gap: 2, scribe: true } }),
+  'navy-oak':        style('Two-tone navy and oak', 'Navy below, oak above, brass bars.', {
+    fronts: S('lacquer-navy', 'bar', { handleFinish: 'brass', finish: 'satin' }), look: { upper: { material: 'oak', finish: 'matte' } } }),
+  'smoked-oak':      style('Dark smoked oak', 'Deep brown oak, chamfered edges, long black bars.', {
+    fronts: S('oak-smoked', 'long-bar', { grainVertical: true }), carcass: 'oak-smoked', look: { edge: 'chamfer' } }),
+  'industrial-black': style('Industrial black and steel', 'Soft black with long steel bars on steel legs.', {
+    fronts: S('lacquer-charcoal', 'long-bar', { handleFinish: 'brushed', finish: 'satin' }), plinth: 15, look: { base: 'legs', legs: 'brushed' } }),
+  'coastal-blue':    style('Coastal blue', 'Dusty blue shaker doors with end panels.', {
+    fronts: S('lacquer-blue', 'knob', { handleFinish: 'brushed', finish: 'satin' }), look: { design: 'shaker', gables: true } }),
+  'terracotta-brass': style('Terracotta and brass', 'Clay doors, rounded edges, brass cup pulls.', {
+    fronts: S('lacquer-clay', 'cup', { handleFinish: 'brass' }), interior: { material: 'birch-ply' }, look: { edge: 'round' } }),
+  'olive-walnut':    style('Olive and walnut', 'Olive doors with a walnut inside and top.', {
+    fronts: S('lacquer-olive', 'bar', { handleFinish: 'bronze' }), interior: { material: 'walnut' }, worktop: 'walnut' }),
+  'glass-display':   style('Glass display', 'Black frames, reeded glass, brass bars.', {
+    fronts: S('lacquer-charcoal', 'bar', { kind: 'glass', handleFinish: 'brass', finish: 'satin' }), interior: { material: 'oak-white' },
+    look: { design: 'glass', glass: 'glass-reeded' } }),
+  'greige-vgroove':  style('Greige V-groove', 'Grooved greige panels with bronze knobs.', {
+    fronts: S('lacquer-greige', 'knob', { handleFinish: 'bronze' }), look: { design: 'vgroove' } })
 };
 
-function styleBundle(type, styleId) {
+// The default split height for a two-tone piece: a bit above the middle.
+export const defaultSplit = (height, plinth = 0) => Math.round(plinth + (height - plinth) * 0.6);
+
+// Everything a style sets, made valid for a type: ids that are not in the material table fall back, so a style survives
+// a change of stock.
+export function styleBundle(type, styleId) {
   const T = TYPES[type];
   const st = STYLES[has(STYLES, styleId) ? styleId : T.defaultStyle];
+  const f = st.fronts;
+  const kind = T.defaults.fronts !== 'none' && T.allowedFronts.includes(f.kind) ? f.kind : T.defaults.fronts;
+  const front = cleanSurface(f, 'front', { material: 'oak' });
+  const handle = HANDLES.includes(f.handle) ? f.handle : 'bar';
+  const look = { ...st.look };
+  look.glass = resolveMaterial(look.glass, 'glass');
+  look.upper = look.upper ? cleanSurface(look.upper, 'front', front) : null;
+  look.legs = look.legs === 'wood' || (isUsable(look.legs, 'handle') && !MATERIALS[look.legs].leather) ? look.legs : 'wood';
+  const plinth = T.allowPlinth && T.defaults.plinth > 0 ? st.plinth : 0;
+  if (!T.allowPlinth || plinth === 0) look.base = 'none';
+  else if (look.base === 'none') look.base = 'recessed';
+  if (!T.allowTop) look.top = 'flush';
   return {
     fronts: {
-      kind: T.defaults.fronts !== 'none' && T.allowedFronts.includes(st.fronts.kind) ? st.fronts.kind : T.defaults.fronts,
-      material: st.fronts.material, handle: st.fronts.handle, grainVertical: st.fronts.grainVertical
+      kind, material: front.material, finish: front.finish, handle,
+      grainVertical: f.grainVertical,
+      handleFinish: resolveHandleFinish(f.handleFinish, handle), handleSize: f.handleSize, doorHandle: f.doorHandle, drawerHandle: f.drawerHandle
     },
-    carcass: { material: st.carcass },
-    plinth: T.allowPlinth && T.defaults.plinth > 0 ? st.plinth : 0,
-    worktop: T.allowWorktop ? (st.worktop !== null ? st.worktop : T.defaults.worktop) : null
+    carcass: cleanSurface({ material: st.carcass, finish: st.carcassFinish }, 'carcass', { material: 'birch-ply' }),
+    interior: st.interior ? cleanSurface(st.interior, 'interior') : null,
+    plinth,
+    worktop: T.allowWorktop ? (st.worktop !== null && isUsable(st.worktop, 'top') ? st.worktop : T.defaults.worktop) : null,
+    look
   };
 }
 
@@ -540,21 +646,24 @@ function styleBundle(type, styleId) {
 export function pieceGeometry(p, bays) {
   const T = TYPES[p.type];
   const n = Math.max(1, bays || (Array.isArray(p.bays) && p.bays.length) || 1);
-  const stone = p.worktop && MATERIALS[p.worktop] && MATERIALS[p.worktop].kind === 'stone';
-  const wt = p.worktop ? (stone ? 3 : 3.8) : 0;
+  const wt = p.worktop ? thicknessOf(p.worktop) : 0;
   let slab = 0;
-  if (p.type === 'desk' || p.type === 'table') slab = stone ? 3 : 3.8;
+  if (p.type === 'desk' || p.type === 'table') slab = p.worktop ? wt : 3.8;
   else if (p.type === 'window-seat') slab = 3.2;
   else if (p.type === 'kitchen-base' || p.type === 'island') slab = wt;
   const plinth = T.allowPlinth ? p.plinth || 0 : 0;
-  const Hc = Math.max(0, p.height - plinth - slab);
+  const cap = T.allowTop && p.look ? TOP_CAP[p.look.top] || 0 : 0;
+  const Hc = Math.max(0, p.height - plinth - slab - cap);
   return {
-    slab, plinth, Hc,
+    slab, plinth, cap, Hc,
     innerH: Math.max(0, r1(Hc - 2 * LAYOUT_T)),
     innerW: Math.max(0, p.width - 2 * LAYOUT_T - (n - 1) * LAYOUT_T),
     outerBayW: p.width / n
   };
 }
+
+// Where a wall-hung piece goes when it is first placed: its own elevation, which the Furniture step sets.
+export const defaultElevation = (piece) => (piece && Number.isFinite(piece.elevation) ? piece.elevation : TYPES[piece.type].defaults.elevation);
 
 export const maxBaysFor = (type, width) => {
   const L = TYPES[type].limits.bays;
@@ -593,28 +702,74 @@ function defaultItems(type, i, g, bayW) {
   return pre ? pre.build({ innerH: g.innerH, bayW, from: 0, type }) : [];
 }
 
+// The look of a piece (design, edges, base, top, gap, two-tone, handles) from any object; missing or unknown values fall
+// back to the style's, so every project saved before these options existed loads with its old look.
+function clampLook(raw, T, bundle, plinth, height) {
+  const lk = isObj(raw.look) ? raw.look : {};
+  const b = bundle.look;
+  const pick = (list, v, d) => (list.includes(v) ? v : d);
+  let base = pick(BASES, lk.base, b.base);
+  if (!T.allowPlinth || plinth === 0) base = 'none';
+  else if (base === 'none') base = 'recessed';
+  const legsOk = (v) => v === 'wood' || (isUsable(v, 'handle') && !MATERIALS[v].leather);
+  const upper = isObj(lk.upper) ? cleanSurface(lk.upper, 'front', bundle.fronts) : lk.upper === null ? null : b.upper;
+  const lo = Math.min(height - 20, plinth + 20), hi = Math.max(lo, height - 20);
+  const split = clamp(toInt(lk.split, b.split === null || b.split === undefined ? defaultSplit(height, plinth) : b.split), lo, hi);
+  return {
+    design: pick(DESIGNS, lk.design, b.design),
+    edge: pick(EDGES, lk.edge, b.edge),
+    glass: resolveMaterial(lk.glass, 'glass', b.glass),
+    base,
+    legs: legsOk(lk.legs) ? lk.legs : b.legs,
+    top: T.allowTop ? pick(TOPS, lk.top, b.top) : 'flush',
+    gables: lk.gables === undefined ? b.gables : !!lk.gables,
+    gap: pick(GAPS, toInt(lk.gap, b.gap), b.gap),
+    scribe: lk.scribe === undefined ? b.scribe : !!lk.scribe,
+    upper,
+    split
+  };
+}
+
 // Takes any object, returns a valid piece or null (unknown type).
 export function clampPiece(raw, fallbackId = 'p0') {
   if (!isObj(raw) || !has(TYPES, raw.type)) return null;
   const T = TYPES[raw.type], D = T.defaults, L = T.limits;
   const fr = isObj(raw.fronts) ? raw.fronts : {};
   const bundle = styleBundle(raw.type, raw.style);
+  const front = cleanSurface(fr, 'front', bundle.fronts);
+  const handle = HANDLES.includes(fr.handle) ? fr.handle : bundle.fronts.handle;
+  const plinth = T.allowPlinth ? clamp(toInt(raw.plinth, bundle.plinth), 0, 30) : 0;
+  const height = clamp(toInt(raw.height, D.height), L.height[0], L.height[1]);
+  const look = clampLook(raw, T, bundle, plinth, height);
+  let kind = T.allowedFronts.includes(fr.kind) ? fr.kind : bundle.fronts.kind;
+  if (kind === 'glass') look.design = 'glass';
+  else if (look.design === 'glass') look.design = 'slab';
+  const interior = isObj(raw.interior) ? (isUsable(raw.interior.material, 'interior') ? cleanSurface(raw.interior, 'interior') : null)
+    : raw.interior === undefined ? bundle.interior : null;
   const piece = {
     id: safeId(raw.id, fallbackId),
     type: raw.type,
     style: has(STYLES, raw.style) || raw.style === 'custom' ? raw.style : T.defaultStyle,
     width: clamp(toInt(raw.width, D.width), L.width[0], L.width[1]),
-    height: clamp(toInt(raw.height, D.height), L.height[0], L.height[1]),
+    height,
     depth: clamp(toInt(raw.depth, D.depth), L.depth[0], L.depth[1]),
-    carcass: { material: pickable(raw.carcass && raw.carcass.material) ? raw.carcass.material : bundle.carcass.material },
+    elevation: clamp(toInt(raw.elevation, D.elevation), L.elevation[0], L.elevation[1]),
+    carcass: cleanSurface(raw.carcass, 'carcass', bundle.carcass),
+    interior,
     fronts: {
-      kind: T.allowedFronts.includes(fr.kind) ? fr.kind : bundle.fronts.kind,
-      material: pickable(fr.material) ? fr.material : bundle.fronts.material,
-      handle: HANDLES.includes(fr.handle) ? fr.handle : bundle.fronts.handle,
-      grainVertical: fr.grainVertical === undefined ? bundle.fronts.grainVertical : !!fr.grainVertical
+      kind,
+      material: front.material,
+      finish: front.finish,
+      handle,
+      grainVertical: fr.grainVertical === undefined ? bundle.fronts.grainVertical : !!fr.grainVertical,
+      handleFinish: resolveHandleFinish(fr.handleFinish !== undefined ? fr.handleFinish : bundle.fronts.handleFinish, handle),
+      handleSize: HANDLE_SIZES.includes(fr.handleSize) ? fr.handleSize : bundle.fronts.handleSize,
+      doorHandle: DOOR_HANDLE_POS.includes(fr.doorHandle) ? fr.doorHandle : bundle.fronts.doorHandle,
+      drawerHandle: DRAWER_HANDLE_POS.includes(fr.drawerHandle) ? fr.drawerHandle : bundle.fronts.drawerHandle
     },
-    plinth: T.allowPlinth ? clamp(toInt(raw.plinth, bundle.plinth), 0, 20) : 0,
-    worktop: T.allowWorktop ? (pickable(raw.worktop) ? raw.worktop : raw.worktop === undefined ? bundle.worktop : null) : null,
+    look,
+    plinth,
+    worktop: T.allowWorktop ? (isUsable(raw.worktop, 'top') ? raw.worktop : raw.worktop === null ? null : bundle.worktop) : null,
     radiatorCutout: !!raw.radiatorCutout,
     bays: []
   };
@@ -942,6 +1097,9 @@ export function createPiece(type, style, overrides = {}) {
     width: o.width ?? T.defaults.width, height: o.height ?? T.defaults.height, depth: o.depth ?? T.defaults.depth,
     carcass: { ...b.carcass, ...(isObj(o.carcass) ? o.carcass : {}) },
     fronts: { ...b.fronts, ...(isObj(o.fronts) ? o.fronts : {}) },
+    interior: o.interior,
+    look: isObj(o.look) ? o.look : undefined,
+    elevation: o.elevation,
     plinth: o.plinth ?? b.plinth,
     worktop: o.worktop === undefined ? b.worktop : o.worktop,
     radiatorCutout: !!o.radiatorCutout
@@ -1085,12 +1243,20 @@ export function updatePiece(project, id, patch) {
   let base = cur;
   if (has(STYLES, pt.style) && pt.style !== cur.style) {
     const b = styleBundle(cur.type, pt.style);
-    base = { ...cur, style: pt.style, fronts: { ...b.fronts }, carcass: { ...b.carcass }, plinth: b.plinth, worktop: b.worktop };
+    base = { ...cur, style: pt.style, fronts: { ...b.fronts }, carcass: { ...b.carcass }, interior: b.interior, look: { ...b.look, split: null }, plinth: b.plinth, worktop: b.worktop };
   }
+  const T = TYPES[cur.type];
+  const look = isObj(pt.look) ? { ...pt.look } : null;
+  const fr = isObj(pt.fronts) ? { ...pt.fronts } : {};
+  // glass fronts and the glass design go together
+  if (look && look.design === 'glass' && !fr.kind && T.allowedFronts.includes('glass')) fr.kind = 'glass';
+  else if (look && look.design && look.design !== 'glass' && base.fronts.kind === 'glass' && !fr.kind) fr.kind = T.allowedFronts.includes('hinged') ? 'hinged' : 'none';
   const merged = {
     ...base, ...pt, id,
-    fronts: { ...base.fronts, ...(isObj(pt.fronts) ? pt.fronts : {}) },
-    carcass: { ...base.carcass, ...(isObj(pt.carcass) ? pt.carcass : {}) }
+    fronts: { ...base.fronts, ...fr },
+    carcass: { ...base.carcass, ...(isObj(pt.carcass) ? pt.carcass : {}) },
+    interior: 'interior' in pt ? (isObj(pt.interior) ? { ...(base.interior || {}), ...pt.interior } : null) : base.interior,
+    look: { ...base.look, ...(look || {}) }
   };
   if (!merged.style || (!has(STYLES, merged.style) && merged.style !== 'custom')) merged.style = cur.style;
   let c = clampPiece(merged, id);
@@ -1219,7 +1385,7 @@ function resolvePlacement(project, pieceId, spec) {
   const piece = project.pieces.find((p) => p.id === pieceId);
   if (!piece || !isObj(spec)) return null;
   const T = TYPES[piece.type];
-  const elevation = clamp(toInt(spec.elevation, T.defaults.elevation), T.limits.elevation[0], T.limits.elevation[1]);
+  const elevation = clamp(toInt(spec.elevation, defaultElevation(piece)), T.limits.elevation[0], T.limits.elevation[1]);
   if (spec.mode === 'wall') {
     const wall = wallById(project.room, spec.wallId);
     if (!wall) return { pieceId, mode: 'wall', wallId: String(spec.wallId || ''), offset: toInt(spec.offset, 0), elevation };

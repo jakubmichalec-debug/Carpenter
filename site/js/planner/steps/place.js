@@ -121,7 +121,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     if (!piece || !wall) return;
     const pl = placementOf(id);
     const fp = pl && footprintOf(project(), pl);
-    const elevation = pl ? pl.elevation : TYPES[piece.type].defaults.elevation;
+    const elevation = pl ? pl.elevation : defaultElevation(piece);
     const prefer = fp ? G.projectOnWall(wall, { x: fp.cx, z: fp.cz }).u - piece.width / 2 : (wall.length - piece.width) / 2;
     // a free spot when there is one; otherwise it goes where it was asked and the clash is shown (editing is never blocked)
     const off = G.freeSpotOnWall(project(), id, wallId, prefer, elevation);
