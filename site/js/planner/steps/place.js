@@ -6,6 +6,7 @@ import { TYPES, OPENING_TYPES, wallsOf, wallById, footprintOf, pieceLabel, defau
 import { WALL_T, wallQuads, wallPoint, roomBounds } from '../plan-geom.js';
 import * as G from '../place-geom.js';
 import { esc, clamp, fieldHtml, wireFields, syncFields, ICON_NOTE, ICON_TRASH } from './shared.js';
+import { createTabs, roving, scrollCue } from './ui.js';
 
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 const wallNo = (id) => String(id).replace(/^w/, '');
@@ -29,55 +30,66 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
   let drag = null;       // a piece (or its turn handle) being dragged
 
   root.innerHTML = `
-    <header class="pl-sec__head">
-      <p class="eyebrow">Step 4 of 5</p>
-      <h2 id="pl-h-place">Place</h2>
-      <p class="pl-lede">Put each piece where it will stand. Drag it on the plan, or use the arrow keys and the boxes below. Pieces snap to walls, corners and each other, and keep clear of doors and windows.</p>
-    </header>
-    <p class="pl-addnote" id="pl-p-status" role="status"></p>
-    <ul class="pl-notes" id="pl-p-notes" aria-label="Placement checks"></ul>
-
-    <section class="pl-sec" aria-labelledby="pl-p-h-wait" id="pl-p-wait-sec" hidden>
-      <header class="pl-sec__row"><h3 id="pl-p-h-wait">Not placed yet</h3></header>
-      <ul class="pl-waiting" id="pl-p-waiting"></ul>
-    </section>
-
-    <section class="pl-sec" aria-labelledby="pl-p-h-room" id="pl-p-room-sec">
-      <header class="pl-sec__row"><h3 id="pl-p-h-room">In the room</h3></header>
-      <div class="pl-chips" id="pl-p-placed" role="group" aria-label="Choose a placed piece"></div>
-      <p class="pl-hint" id="pl-p-roomhint"></p>
-    </section>
-
-    <section class="pl-sec" aria-labelledby="pl-p-h-pos" id="pl-p-pos-sec" hidden>
-      <header class="pl-sec__row">
-        <h3 id="pl-p-h-pos">Position</h3>
-        <button type="button" class="pl-btn pl-btn--quiet" id="pl-p-out">${ICON_TRASH}Take out<span class="visually-hidden"> of the room</span></button>
-      </header>
-      <p class="pl-where" id="pl-p-where" aria-live="polite"></p>
-      <div class="pl-chips pl-chips--modes" id="pl-p-modes" role="group" aria-label="How it stands">
-        <button type="button" class="pl-chip pl-chip--plain" data-mode="wall" aria-pressed="false">Against a wall</button>
-        <button type="button" class="pl-chip pl-chip--plain" data-mode="corner" aria-pressed="false">In a corner</button>
-        <button type="button" class="pl-chip pl-chip--plain" data-mode="free" aria-pressed="false">Free-standing</button>
+    <section class="pl-sec" data-sec="pieces">
+      <h3 class="visually-hidden">Pieces</h3>
+      <p class="pl-addnote" id="pl-p-status" role="status"></p>
+      <div class="pl-listbox" id="pl-p-wait-sec" hidden>
+        <h4 class="pl-sec__sub" id="pl-p-h-wait">Not placed yet</h4>
+        <ul class="pl-waiting" id="pl-p-waiting" aria-labelledby="pl-p-h-wait"></ul>
       </div>
-      <div class="pl-form pl-form--grid" id="pl-p-fields"></div>
-    </section>
-
-    <section class="pl-sec" aria-labelledby="pl-p-h-next" id="pl-p-next-sec">
-      <header class="pl-sec__row"><h3 id="pl-p-h-next">What next?</h3></header>
-      <div class="pl-actions">
+      <div class="pl-listbox" id="pl-p-room-sec">
+        <h4 class="pl-sec__sub" id="pl-p-h-room">In the room</h4>
+        <div class="pl-chips" id="pl-p-placed" role="radiogroup" aria-labelledby="pl-p-h-room"></div>
+        <p class="pl-hint" id="pl-p-roomhint"></p>
+      </div>
+      <div class="pl-actions" id="pl-p-next-sec">
         <button type="button" class="pl-btn pl-btn--accent" id="pl-p-add">${ICON_PLUS}Add another piece</button>
         <button type="button" class="pl-btn pl-btn--ghost" id="pl-p-edit">Edit this piece</button>
         <button type="button" class="pl-btn pl-btn--ghost" id="pl-p-edit-in">Edit the inside</button>
       </div>
       <p class="pl-hint" id="pl-p-nexthint"></p>
+    </section>
+
+    <section class="pl-sec" data-sec="position">
+      <h3 class="visually-hidden">Position</h3>
+      <p class="pl-inspector__empty" id="pl-p-nopos">Pick a piece that is in the room to set where it stands.</p>
+      <div id="pl-p-pos-sec" hidden>
+        <div class="pl-sec__row">
+          <p class="pl-where" id="pl-p-where" aria-live="polite"></p>
+          <button type="button" class="pl-btn pl-btn--quiet" id="pl-p-out">${ICON_TRASH}Take out<span class="visually-hidden"> of the room</span></button>
+        </div>
+        <div class="pl-chips pl-chips--modes" id="pl-p-modes" role="radiogroup" aria-label="How it stands">
+          <button type="button" role="radio" class="pl-chip pl-chip--plain" data-mode="wall" aria-checked="false" tabindex="-1">Against a wall</button>
+          <button type="button" role="radio" class="pl-chip pl-chip--plain" data-mode="corner" aria-checked="false" tabindex="-1">In a corner</button>
+          <button type="button" role="radio" class="pl-chip pl-chip--plain" data-mode="free" aria-checked="false" tabindex="-1">Free-standing</button>
+        </div>
+        <div class="pl-form pl-form--grid" id="pl-p-fields"></div>
+      </div>
+    </section>
+
+    <section class="pl-sec" data-sec="clashes">
+      <h3 class="visually-hidden">Clashes</h3>
+      <p class="pl-okline" id="pl-p-okline" hidden>${ICON_CHECK}<span>Everything fits where you put it. Nothing overlaps, covers a door or window, or blocks a door.</span></p>
+      <ul class="pl-notes" id="pl-p-notes" aria-label="Placement checks"></ul>
     </section>`;
-  planBox.innerHTML = `<svg id="pl-place-svg" role="group" aria-label="Plan of the room with your pieces, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>
+  planBox.innerHTML = `<svg id="pl-place-svg" tabindex="-1" role="group" aria-label="Plan of the room with your pieces, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>
     <p class="pl-canvas-hint" id="pl-place-hint">Drag a piece to move it, or click a wall to put it there. Arrow keys move 1 cm (Shift 10 cm), R turns a free piece, Delete takes it out.</p>`;
 
   const $ = (sel) => root.querySelector(sel);
   const svg = planBox.querySelector('#pl-place-svg');
   const notesEl = $('#pl-p-notes'), placedEl = $('#pl-p-placed'), waitEl = $('#pl-p-waiting'), fieldsEl = $('#pl-p-fields');
   const posSec = $('#pl-p-pos-sec'), waitSec = $('#pl-p-wait-sec');
+  const sections = createTabs({
+    root, prefix: 'pl-p', label: 'Place sections',
+    items: [{ id: 'pieces', label: 'Pieces' }, { id: 'position', label: 'Position' }, { id: 'clashes', label: 'Clashes' }]
+  });
+  sections.show('pieces');
+  let clashCount = 0;
+  roving(placedEl, { selector: '[data-piece]', selects: true });
+  roving($('#pl-p-modes'), { selector: '[data-mode]', selects: true });
+  roving($('#pl-p-next-sec'), { selector: 'button' });
+  scrollCue(waitEl, 'y', { grow: false });
+  scrollCue(placedEl, 'y', { grow: false });
 
   // ---------- lookups ----------
   const project = () => state.project;
@@ -274,7 +286,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
       rows.push(fieldHtml('pl:x', 'Across (x)', pl.x, { min: Math.floor(b.minX), max: Math.ceil(b.maxX), sliderStep: 5 }));
       rows.push(fieldHtml('pl:z', 'Down (z)', pl.z, { min: Math.floor(b.minZ), max: Math.ceil(b.maxZ), sliderStep: 5 }));
       rows.push(fieldHtml('pl:rot', 'Turn', pl.rotation, { min: 0, max: 345, step: 15, unit: '°', sliderStep: 15 }));
-      rows.push(`<div class="pl-row pl-row--buttons"><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-turn="-15">${ICON_TURN(true)}Turn left 15°</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-turn="15">${ICON_TURN(false)}Turn right 15°</button></div>`);
+      rows.push(`<div class="pl-row pl-row--buttons" role="group" aria-label="Turn"><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-turn="-15">${ICON_TURN(true)}Turn left 15°</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-turn="15">${ICON_TURN(false)}Turn right 15°</button></div>`);
     } else {
       const walls = wallsOf(room);
       const wall = walls.find((w) => w.id === pl.wallId);
@@ -283,13 +295,14 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
       if (wall) {
         const max = Math.max(0, Math.floor(wall.length - piece.width));
         rows.push(fieldHtml('pl:offset', 'From the start of the wall', pl.offset, { min: 0, max, sliderStep: 5 }));
-        rows.push('<div class="pl-row pl-row--buttons"><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="start">To the start</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="mid">Centre</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="end">To the end</button></div>');
+        rows.push('<div class="pl-row pl-row--buttons" role="group" aria-label="Slide along the wall"><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="start">To the start</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="mid">Centre</button><button type="button" class="pl-btn pl-btn--ghost pl-btn--small" data-slide="end">To the end</button></div>');
       } else {
-        rows.push('<p class="pl-hint">The wall this piece stood on is gone. Pick a wall, or use Find a free spot in the list above.</p>');
+        rows.push('<p class="pl-hint">The wall this piece stood on is gone. Pick a wall, or use Find a free spot under Clashes.</p>');
       }
     }
     if (T.limits.elevation[1] > 0) rows.push(fieldHtml('pl:elev', 'Height above the floor', pl.elevation, { min: T.limits.elevation[0], max: T.limits.elevation[1], sliderStep: 5 }));
     fieldsEl.innerHTML = rows.join('');
+    fieldsEl.querySelectorAll('.pl-row--buttons').forEach((g) => roving(g, { selector: 'button' }));
   }
   function syncWallSelect() {
     const pl = placementOf(state.ui.pieceId), sel = $('#pl-p-wall');
@@ -597,7 +610,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
         const state2 = c && c.blocking.length ? ' is-clash' : c && c.warn.length ? ' is-warn' : '';
         const label = pl.mode === 'free' ? 'Free' : `Wall ${wallNo(pl.wallId)}`;
         const status = c && c.blocking.length ? ', has a problem' : c && c.warn.length ? ', needs a look' : '';
-        return `<button type="button" class="pl-chip pl-chip--piece${state2}" data-piece="${esc(piece.id)}" aria-pressed="${piece.id === state.ui.pieceId}"><span>${esc(nameOf(piece.id))}<span class="visually-hidden">${esc(status)}</span></span><i>${esc(label)}</i></button>`;
+        return `<button type="button" role="radio" class="pl-chip pl-chip--piece${state2}" data-piece="${esc(piece.id)}" aria-checked="${piece.id === state.ui.pieceId}" tabindex="-1"><span class="pl-chip__name">${esc(nameOf(piece.id))}<span class="visually-hidden">${esc(status)}</span></span><i>${esc(label)}</i></button>`;
       }).join('');
       const waiting = prj.pieces.filter((p) => !prj.placements.some((pl) => pl.pieceId === p.id));
       waitSec.hidden = !waiting.length;
@@ -610,7 +623,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     }
     placedEl.querySelectorAll('[data-piece]').forEach((b) => {
       const on = b.dataset.piece === state.ui.pieceId;
-      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+      if (b.getAttribute('aria-checked') !== String(on)) b.setAttribute('aria-checked', String(on));
     });
   }
 
@@ -624,7 +637,9 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
       return `<li class="pl-note pl-note--stack${e.blocking ? ' pl-note--clash' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>`
         + `<span class="pl-note__actions"><button type="button" class="pl-link" data-show="${esc(id)}">Show</button>${fix}</span></li>`;
     });
-    if (!items.length && placedIds.size) items.push(`<li class="pl-note pl-note--ok"><span class="pl-note__icon">${ICON_CHECK}</span><span class="pl-note__text">Everything fits where you put it. Nothing overlaps, covers a door or window, or blocks a door.</span></li>`);
+    clashCount = items.length;
+    $('#pl-p-okline').hidden = !(!items.length && placedIds.size);
+    sections.setBadge('clashes', items.length);
     const html = items.join('');
     if (html !== notesKey) { notesKey = html; notesEl.innerHTML = html; }
   }
@@ -632,12 +647,13 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
   function renderInspector() {
     const piece = selected(), pl = piece && placementOf(piece.id);
     posSec.hidden = !pl;
+    $('#pl-p-nopos').hidden = !!pl;
     if (!pl) { inspKey = ''; return; }
     const room = project().room;
     const key = `${piece.id}|${pl.mode}|${piece.width}|${wallsOf(room).map((w) => `${w.id}:${Math.round(w.length)}`).join()}|${wallById(room, pl.wallId) ? 1 : 0}`;
     if (key !== inspKey) { inspKey = key; buildFields(piece, pl); }
     const mode = modeOf(pl);
-    $('#pl-p-modes').querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    $('#pl-p-modes').querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
     $('#pl-p-where').textContent = `${nameOf(piece.id)}: ${whereText(pl).toLowerCase()}${mode === 'corner' ? ', in the corner' : ''}.`;
     syncFields(fieldsEl, lookup);
     syncWallSelect();
@@ -653,8 +669,10 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     }
     $('#pl-p-nexthint').textContent = !prj.pieces.length ? 'You have not designed a piece yet. Add one, then come back to place it.'
       : !prj.placements.length ? 'Place at least one piece before you review.'
-        : placed ? 'Changes you make to a piece keep its place here. If a change makes it clash, it shows up above.' : 'Add another piece, or press Next to review the room.';
+        : placed ? 'Changes you make to a piece keep its place here. If a change makes it clash, it shows under Clashes.' : 'Add another piece, or press Next to review the room.';
   }
+
+  const placementOf2 = () => project().placements.filter((pl) => pieceOf(pl.pieceId));
 
   // ---------- update ----------
   const ro = new ResizeObserver(() => { planKey = ''; if (!root.hidden) renderPlan(); });
@@ -680,5 +698,5 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
   }
 
   update(state);
-  return { update, show, destroy() { ro.disconnect(); } };
+  return { update, show, sections, status: () => ({ count: clashCount, ok: placementOf2().length > 0, jump: 'clashes' }), destroy() { ro.disconnect(); } };
 }

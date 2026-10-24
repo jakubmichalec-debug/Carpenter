@@ -8,13 +8,15 @@ export const ICON_NOTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx
 export const ICON_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13M10.5 11v6M13.5 11v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // A number input with an optional slider. `bind` names the value, `data-min` and `data-max` are what typing may reach.
+// The slider is a second way to the same number for pointer users; it stays out of the Tab order (the number box,
+// which also answers the arrow keys, is the keyboard route), but it still shows a focus ring when it is clicked.
 export function fieldHtml(bind, label, value, { min, max, step = 1, unit = 'cm', slider = true, sliderStep, id } = {}) {
   const uid = `pl-n-${(id || bind).replace(/\W/g, '-')}`;
   return `
-    <div class="pl-row">
+    <div class="pl-row${slider ? ' pl-row--slider' : ''}">
       <label class="pl-row__label" for="${uid}">${esc(label)}</label>
       <span class="pl-field"><input class="pl-field__input" type="number" inputmode="decimal" id="${uid}" data-bind="${esc(bind)}" data-min="${min}" data-max="${max}" min="${min}" max="${max}" step="${step}" value="${value}"><span class="pl-field__unit" aria-hidden="true">${unit}</span></span>
-      ${slider ? `<input class="pl-range" type="range" data-bind="${esc(bind)}" data-min="${min}" data-max="${max}" min="${min}" max="${max}" step="${sliderStep || step}" value="${value}" aria-label="${esc(label)} slider">` : ''}
+      ${slider ? `<input class="pl-range" type="range" data-bind="${esc(bind)}" data-min="${min}" data-max="${max}" min="${min}" max="${max}" step="${sliderStep || step}" value="${value}" aria-label="${esc(label)} slider" tabindex="-1">` : ''}
     </div>`;
 }
 
@@ -57,13 +59,14 @@ export function syncFields(root, current) {
   });
 }
 
-// The switcher between pieces: one chip each, plus the placed or not state.
+// The switcher between pieces: one radio chip each (the name in the body font, the size in mono), plus the placed or
+// not state. The caller makes the row a roving group with role="radiogroup".
 export function pieceChipsHtml(project, selectedId) {
   if (!project.pieces.length) return '';
   return project.pieces.map((p) => {
     const placed = project.placements.some((pl) => pl.pieceId === p.id);
     const n = project.pieces.filter((x) => x.type === p.type).findIndex((x) => x.id === p.id) + 1;
-    return `<button type="button" class="pl-chip pl-chip--piece" data-piece="${esc(p.id)}" aria-pressed="${p.id === selectedId}"><span>${esc(TYPES[p.type].label)} ${n}</span><i class="${placed ? 'is-placed' : ''}">${p.width}×${p.height}</i></button>`;
+    return `<button type="button" role="radio" class="pl-chip pl-chip--piece" data-piece="${esc(p.id)}" aria-checked="${p.id === selectedId}" tabindex="-1"><span class="pl-chip__name">${esc(TYPES[p.type].label)} ${n}</span><i class="${placed ? 'is-placed' : ''}">${p.width}\u00d7${p.height}</i></button>`;
   }).join('');
 }
 

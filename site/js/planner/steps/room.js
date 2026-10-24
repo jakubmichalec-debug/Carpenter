@@ -4,6 +4,8 @@ import {
   TEMPLATES, TEMPLATE_PARAMS, OPENING_TYPES, FLOORS, WALL_COLORS, LIMITS, SWINGS, wallsOf, area, roomFromTemplate
 } from '../model.js';
 import { WALL_T, wallQuads, wallPoint, ceilingProfile, PLAN_HANDLES, roomBounds, snapTo } from '../plan-geom.js';
+import { fieldHtml } from './shared.js';
+import { createTabs, roving, scrollCue } from './ui.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
@@ -57,42 +59,35 @@ const openingName = (room, o) => {
 const wallNo = (id) => String(id).replace(/^w/, '');
 const friendly = (msg) => msg.replace(/\b[Ww]all w(\d+)\b/g, (m, n) => `${m[0] === 'W' ? 'Wall' : 'wall'} ${n}`);
 
-export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { store, announce = () => {}, confirmShape }) {
+export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { store, announce = () => {}, confirmShape, issues }) {
   let state = store.getState();
   let validation = { errors: [] };
   let currentTemplate = null;
   let planKey = '', inspectorKey = '', chipsKey = '', noticeId = state.ui.notice ? state.ui.notice.id : 0, noticeTimer = 0;
+  let issueCount = 0;
   let frozen = null; // plan transform kept while a handle is dragged, so the drawing does not rescale under the pointer
   let drag = null;
 
   const SHORT = { rect: 'Rectangle', 'l-shape': 'L-shape', alcoves: 'Alcoves', attic: 'Attic', hallway: 'Hallway', bay: 'Bay window' };
   root.innerHTML = `
-    <header class="pl-sec__head">
-      <p class="eyebrow">Step 1 of 5</p>
-      <h2 id="pl-h-shape">Your room</h2>
-      <p class="pl-lede">Pick the closest shape, then set its measurements or drag the round handles on the plan (arrow keys nudge by 1 cm, Shift by 10). Click a wall to work on it.</p>
-    </header>
-    <ul class="pl-notes" id="pl-notes" aria-label="Room checks"></ul>
-
-    <section class="pl-sec" aria-labelledby="pl-h-tpl">
-      <header class="pl-sec__row"><h3 id="pl-h-tpl">Shape</h3></header>
+    <section class="pl-sec" data-sec="shape">
+      <h3 class="visually-hidden">Shape</h3>
       <div class="pl-cards" role="radiogroup" aria-label="Room shape" id="pl-cards">
         ${Object.entries(TEMPLATES).map(([id, t]) => `
           <label class="pl-card" title="${esc(t.label)}"><input type="radio" name="pl-template" value="${id}" aria-label="${esc(t.label)}"><span class="pl-card__body">${thumbSvg(id)}<span class="pl-card__name" aria-hidden="true">${esc(SHORT[id])}</span></span></label>`).join('')}
       </div>
     </section>
 
-    <section class="pl-sec" aria-labelledby="pl-h-meas">
-      <header class="pl-sec__row">
-        <h3 id="pl-h-meas">Measurements</h3>
-        <p class="pl-stat" aria-live="polite"><span class="pl-stat__label">Floor area</span> <b id="pl-area">0.0 m\u00b2</b></p>
-      </header>
+    <section class="pl-sec" data-sec="size">
+      <h3 class="visually-hidden">Size</h3>
+      <p class="pl-stat" aria-live="polite"><span class="pl-stat__label">Floor area</span> <b id="pl-area">0.0 m\u00b2</b></p>
       <div class="pl-form" id="pl-form"></div>
     </section>
 
-    <section class="pl-sec" aria-labelledby="pl-h-wall">
-      <header class="pl-sec__row">
-        <h3 id="pl-h-wall">Walls and openings</h3>
+    <section class="pl-sec" data-sec="walls">
+      <h3 class="visually-hidden">Walls and openings</h3>
+      <div class="pl-wallbar">
+        <div class="pl-chips pl-chips--row" id="pl-chips" role="radiogroup" aria-label="Choose a wall"></div>
         <div class="pl-menu" id="pl-add">
           <button type="button" class="pl-btn pl-btn--accent" id="pl-add-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="pl-add-menu">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Add
@@ -101,15 +96,13 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
             ${Object.entries(OPENING_TYPES).map(([k, t]) => `<li role="none"><button type="button" role="menuitem" data-add="${k}">${TYPE_ICON[k]}<span>${t.label}</span></button></li>`).join('')}
           </ul>
         </div>
-      </header>
+      </div>
       <p class="pl-addnote" id="pl-addnote" role="status"></p>
-      <div class="pl-chips" id="pl-chips" role="group" aria-label="Choose a wall"></div>
-      <p class="pl-hint" id="pl-elev-hint"></p>
       <div class="pl-inspector" id="pl-inspector" aria-live="off"></div>
     </section>
 
-    <section class="pl-sec" aria-labelledby="pl-h-fin">
-      <header class="pl-sec__row"><h3 id="pl-h-fin">Finishes</h3></header>
+    <section class="pl-sec" data-sec="finish">
+      <h3 class="visually-hidden">Finishes</h3>
       <div class="pl-finish">
         <fieldset class="pl-fieldset">
           <legend>Floor</legend>
@@ -126,22 +119,23 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
         <div class="pl-form pl-form--one" id="pl-skirt"></div>
       </div>
     </section>`;
-  planBox.innerHTML = '<svg id="pl-plan-svg" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>';
-  elevBox.innerHTML = '<svg id="pl-elev-svg" role="group" aria-label="Elevation of the selected wall" xmlns="http://www.w3.org/2000/svg"></svg>';
+  planBox.innerHTML = '<svg id="pl-plan-svg" tabindex="-1" role="group" aria-label="Plan of the room, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>';
+  elevBox.innerHTML = '<svg id="pl-elev-svg" tabindex="-1" role="group" aria-label="Elevation of the selected wall" xmlns="http://www.w3.org/2000/svg"></svg>';
 
   const $ = (sel) => root.querySelector(sel);
   const planSvg = planBox.querySelector('#pl-plan-svg'), elevSvg = elevBox.querySelector('#pl-elev-svg');
-  const formEl = $('#pl-form'), notesEl = $('#pl-notes'), chipsEl = $('#pl-chips'), inspEl = $('#pl-inspector');
+  const formEl = $('#pl-form'), notesEl = issues, chipsEl = $('#pl-chips'), inspEl = $('#pl-inspector');
+  const sections = createTabs({
+    root, prefix: 'pl-r', label: 'Room sections',
+    items: [{ id: 'shape', label: 'Shape' }, { id: 'size', label: 'Size' }, { id: 'walls', label: 'Walls & openings' }, { id: 'finish', label: 'Finishes' }]
+  });
+  sections.show('shape', { silent: false });
+  roving(chipsEl, { selector: '[data-chip]', selects: true });
+  scrollCue(chipsEl, 'x');
+  root.addEventListener('pl-section', () => { planKey = ''; if (!root.hidden) renderPlan(); }); // the plan handles are Tab stops, except while the same numbers are in boxes beside it
   const addBtn = $('#pl-add-btn'), addMenu = $('#pl-add-menu');
 
   // ---------- fields ----------
-  const fieldHtml = (bind, label, value, { min, max, step = 1, unit = 'cm', slider = true, sliderStep }) => `
-    <div class="pl-row">
-      <label class="pl-row__label" for="pl-n-${bind.replace(/\W/g, '-')}">${esc(label)}</label>
-      <span class="pl-field"><input class="pl-field__input" type="number" inputmode="decimal" id="pl-n-${bind.replace(/\W/g, '-')}" data-bind="${bind}" data-min="${min}" data-max="${max}" min="${min}" max="${max}" step="${step}" value="${value}"><span class="pl-field__unit" aria-hidden="true">${unit}</span></span>
-      ${slider ? `<input class="pl-range" type="range" data-bind="${bind}" data-min="${min}" data-max="${max}" min="${min}" max="${max}" step="${sliderStep || step}" value="${value}" aria-label="${esc(label)} slider">` : ''}
-    </div>`;
-
   const lookup = (bind) => {
     const room = state.project.room;
     if (bind === 'height') return room.height;
@@ -360,7 +354,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
         const arrow = horizontal
           ? 'M-5 0L-9.5 0M-9.5 0L-6.5 -2.6M-9.5 0L-6.5 2.6M5 0L9.5 0M9.5 0L6.5 -2.6M9.5 0L6.5 2.6'
           : 'M0 -5L0 -9.5M0 -9.5L-2.6 -6.5M0 -9.5L2.6 -6.5M0 5L0 9.5M0 9.5L-2.6 6.5M0 9.5L2.6 6.5';
-        out.push(`<g class="pl-handle${drag && drag.param === h.param ? ' is-active' : ''}" transform="translate(${f1(X(c.x))} ${f1(Z(c.z))})" tabindex="0" role="slider" data-handle="${h.param}"`
+        out.push(`<g class="pl-handle${drag && drag.param === h.param ? ' is-active' : ''}" transform="translate(${f1(X(c.x))} ${f1(Z(c.z))})" tabindex="${sections.current() === 'size' ? -1 : 0}" role="slider" data-handle="${h.param}"`
           + ` aria-label="${esc(label)}: drag, or use the arrow keys" aria-orientation="${horizontal ? 'horizontal' : 'vertical'}"`
           + ` aria-valuemin="${spec.min}" aria-valuemax="${spec.max}" aria-valuenow="${val}" aria-valuetext="${val} ${PARAM_UNIT[h.param] === '°' ? 'degrees' : 'centimetres'}">`
           + `<circle class="pl-handle__hit" r="19"/><circle class="pl-handle__dot" r="11"/><path class="pl-handle__arrows" d="${arrow}"/></g>`);
@@ -471,12 +465,12 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
       chipsKey = key;
       chipsEl.innerHTML = walls.map((w) => {
         const n = room.openings.filter((o) => o.wallId === w.id).length;
-        return `<button type="button" class="pl-chip" data-chip="${w.id}" aria-pressed="false"><b>${wallNo(w.id)}</b><span>${Math.round(w.length)} cm</span>${n ? `<i aria-label="${n} ${n === 1 ? 'opening' : 'openings'}">${n}</i>` : ''}</button>`;
+        return `<button type="button" role="radio" class="pl-chip" data-chip="${w.id}" aria-checked="false" tabindex="-1"><b aria-hidden="true">${wallNo(w.id)}</b><span class="visually-hidden">Wall ${wallNo(w.id)}, </span><span>${Math.round(w.length)}</span><span class="visually-hidden"> centimetres</span>${n ? `<i aria-label="${n} ${n === 1 ? 'opening' : 'openings'}">${n}</i>` : ''}</button>`;
       }).join('');
     }
     chipsEl.querySelectorAll('[data-chip]').forEach((b) => {
       const on = b.dataset.chip === state.ui.wallId;
-      if (b.getAttribute('aria-pressed') !== String(on)) b.setAttribute('aria-pressed', String(on));
+      if (b.getAttribute('aria-checked') !== String(on)) b.setAttribute('aria-checked', String(on));
     });
   }
   chipsEl.addEventListener('click', (e) => {
@@ -655,14 +649,14 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
     if (!o) {
       const here = room.openings.filter((x) => x.wallId === state.ui.wallId);
       inspEl.innerHTML = here.length
-        ? `<p class="pl-inspector__empty">On this wall: ${here.map((x) => `<button type="button" class="pl-link" data-pick="${x.id}">${esc(openingName(room, x))}</button>`).join(', ')}. Pick one to change its size and position.</p>`
-        : '<p class="pl-inspector__empty">Use <b>Add</b> to put a door, window, radiator or socket on this wall.</p>';
+        ? `<p class="pl-inspector__empty">On this wall: ${here.map((x) => `<button type="button" class="pl-link" data-pick="${x.id}">${esc(openingName(room, x))}</button>`).join(', ')}. Pick one to change it.</p>`
+        : '<p class="pl-inspector__empty">Nothing on this wall yet. Use <b>Add</b> for a door, window, radiator or socket.</p>';
       return;
     }
     const S = OPENING_TYPES[o.type];
     const fields = [
-      fieldHtml('open:offset', 'Distance from the left', o.offset, { min: 0, max: 2000, slider: false }),
-      o.type === 'door' ? '' : fieldHtml('open:bottom', 'Height above the floor', o.bottom, { min: S.bottom[0], max: S.bottom[1], slider: false }),
+      fieldHtml('open:offset', 'From the left', o.offset, { min: 0, max: 2000, slider: false }),
+      o.type === 'door' ? '' : fieldHtml('open:bottom', 'Above the floor', o.bottom, { min: S.bottom[0], max: S.bottom[1], slider: false }),
       fieldHtml('open:width', 'Width', o.width, { min: S.width[0], max: S.width[1], slider: false }),
       fieldHtml('open:height', 'Height', o.height, { min: S.height[0], max: S.height[1], slider: false })
     ];
@@ -751,9 +745,9 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
       return `<li class="pl-note${e.blocking ? ' pl-note--block' : ''}"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(friendly(e.message))}</span>${actions ? `<span class="pl-note__actions">${actions}</span>` : ''}</li>`;
     });
     if (placementIssues) {
-      items.push(`<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? '1 placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in step 4, Place.</span></li>`);
+      items.push(`<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${placementIssues === 1 ? '1 placed piece needs' : `${placementIssues} placed pieces need`} a second look. You can fix ${placementIssues === 1 ? 'it' : 'them'} in the Place step.</span></li>`);
     }
-    if (!items.length) items.push(`<li class="pl-note pl-note--ok"><span class="pl-note__icon">${ICON_CHECK}</span><span class="pl-note__text">The room looks good. Nothing needs your attention.</span></li>`);
+    issueCount = items.length;
     const html = items.join('');
     if (notesEl.dataset.html !== html) { notesEl.dataset.html = html; notesEl.innerHTML = html; }
   }
@@ -800,9 +794,6 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
       noticeTimer = setTimeout(() => { el.textContent = ''; }, 6000);
     }
     renderNotes();
-    $('#pl-elev-hint').textContent = state.ui.openingId
-      ? 'Drag it along the wall or up and down. Arrow keys nudge by 1 cm, Shift by 10 cm. Delete removes it.'
-      : 'Click an opening to edit it, or drag it along the wall.';
   }
 
   function show() {
@@ -811,5 +802,5 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
   }
 
   update(state);
-  return { update, show, destroy() { ro.disconnect(); } };
+  return { update, show, sections, status: () => ({ count: issueCount, ok: true }), destroy() { ro.disconnect(); } };
 }

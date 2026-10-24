@@ -6,6 +6,7 @@ import {
 } from '../model.js';
 import { bayLayout, bayAt, suggestY, dragDivider, resizeBay, nudgeY, itemsProblems, changeBayCount } from '../interior-geom.js';
 import { esc, clamp, fieldHtml, wireFields, syncFields, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
+import { createTabs, roving, scrollCue } from './ui.js';
 import { drawItem, thumbSvg } from './interior-draw.js';
 import { MATERIALS, materialsFor } from '../materials.js';
 import { BACKS } from '../model.js';
@@ -35,9 +36,11 @@ const VALUE_LABEL = {
 };
 const valueLabel = (name, v) => (VALUE_LABEL[name] && VALUE_LABEL[name][v]) || (String(v).charAt(0).toUpperCase() + String(v).slice(1));
 const BACK_LABEL = { closed: 'Closed', open: 'Open to the wall', mirror: 'Mirror' };
+const ICON_MINUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const DOOR_LABEL = { left: 'Hinged on the left', right: 'Hinged on the right', double: 'Two doors', none: 'No door' };
 
-export function createInteriorStep(root, { insideBox, dock, store, announce = () => {}, showInside = () => {} }) {
+export function createInteriorStep(root, { insideBox, store, announce = () => {}, showInside = () => {}, issues }) {
   let state = store.getState();
   let validation = { errors: [] };
   let chipsKey = '', baysKey = '', paletteKey = '', inspKey = '', notesKey = '', drawKey = '';
@@ -49,69 +52,76 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   let suppressClick = false;
 
   root.innerHTML = `
-    <header class="pl-sec__head">
-      <p class="eyebrow">Step 3 of 5</p>
-      <h2 id="pl-h-interior">Inside</h2>
-      <p class="pl-lede" id="pl-i-lede">Pick a bay, then add what goes in it. Drag items up and down, or select one and use the arrow keys (Shift moves ten steps). One step is 32 mm.</p>
-    </header>
-    <p class="pl-skip"><button type="button" class="pl-link" id="pl-i-jump">Jump to the items you can add</button></p>
-    <div id="pl-i-empty" hidden></div>
-    <div id="pl-i-main">
-      <ul class="pl-notes" id="pl-i-notes" aria-label="Interior checks"></ul>
-      <section class="pl-sec" id="pl-i-pieces-sec" aria-labelledby="pl-i-h-piece">
-        <header class="pl-sec__row"><h3 id="pl-i-h-piece">Piece</h3></header>
-        <div class="pl-chips" id="pl-i-chips" role="group" aria-label="Choose a piece to edit"></div>
-      </section>
+    <div class="pl-sec pl-sec--empty" id="pl-i-empty" hidden></div>
 
-      <section class="pl-sec" aria-labelledby="pl-i-h-bays">
-        <header class="pl-sec__row">
-          <h3 id="pl-i-h-bays">Bays</h3>
-          <div class="pl-stepper2" role="group" aria-label="Number of bays">
-            <button type="button" class="pl-icon" id="pl-i-less" aria-label="One bay fewer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-            <output class="pl-stepper2__n" id="pl-i-count" aria-live="polite"></output>
-            <button type="button" class="pl-icon" id="pl-i-more" aria-label="One bay more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-          </div>
-        </header>
-        <div class="pl-chips" id="pl-i-baychips" role="group" aria-label="Choose a bay"></div>
-        <div class="pl-form pl-form--grid" id="pl-i-bayform"></div>
-        <p class="pl-hint" id="pl-i-bayhint"></p>
-      </section>
-
-      <section class="pl-sec pl-sec--add" id="pl-i-addsec" aria-labelledby="pl-i-h-add">
-        <header class="pl-sec__row"><h3 id="pl-i-h-add">Add to <span id="pl-i-addbay">bay 1</span></h3></header>
-        <div class="pl-presetrow">
-          <div class="pl-chips" id="pl-i-presets" role="group" aria-label="Start this bay from a preset"></div>
-          <label class="pl-check pl-check--small"><input type="checkbox" id="pl-i-all"><span>Apply to all bays</span></label>
+    <section class="pl-sec" data-sec="layout">
+      <h3 class="visually-hidden">Layout</h3>
+      <div class="pl-chips" id="pl-i-chips" role="radiogroup" aria-label="Choose a piece to edit"></div>
+      <div class="pl-countrow">
+        <span class="pl-countrow__label" id="pl-i-countlabel">Sections</span>
+        <div class="pl-stepper2" role="group" aria-labelledby="pl-i-countlabel">
+          <button type="button" class="pl-icon" id="pl-i-less" aria-label="One section fewer">${ICON_MINUS}</button>
+          <output class="pl-stepper2__n" id="pl-i-count" aria-live="polite"></output>
+          <button type="button" class="pl-icon" id="pl-i-more" aria-label="One section more">${ICON_PLUS}</button>
         </div>
-        <div class="pl-palette" id="pl-i-palette" role="group" aria-label="Items you can add"></div>
-        <p class="pl-hint" id="pl-i-palhint">Press an item to add it to the selected bay. On a computer you can also drag it into the drawing; on a phone drag it by its handle.</p>
-      </section>
+      </div>
+      <div class="pl-chips pl-chips--row" id="pl-i-baychips" role="radiogroup" aria-label="Choose a section"></div>
+      <div class="pl-presetbox">
+        <h4 class="pl-sec__sub" id="pl-i-prelabel">Start <span class="pl-i-addbay">section 1</span> from</h4>
+        <div class="pl-chips pl-chips--row" id="pl-i-presets" role="group" aria-labelledby="pl-i-prelabel"></div>
+        <label class="pl-check pl-check--small"><input type="checkbox" id="pl-i-all"><span>Apply to all sections</span></label>
+      </div>
+      <div class="pl-actions"><button type="button" class="pl-btn pl-btn--ghost" id="pl-i-keep">Keep the suggested inside</button></div>
+    </section>
 
-      <section class="pl-sec" id="pl-i-itemssec" aria-labelledby="pl-i-h-items">
-        <header class="pl-sec__row"><h3 id="pl-i-h-items">In <span id="pl-i-itemsbay">bay 1</span></h3></header>
-        <div class="pl-itemlist" id="pl-i-list" role="group" aria-label="Items in this bay"></div>
-        <div class="pl-inspector" id="pl-i-insp"></div>
-      </section>
-    </div>`;
-  insideBox.innerHTML = `<svg id="pl-in-svg" role="group" aria-label="Front view of the piece with the doors hidden" xmlns="http://www.w3.org/2000/svg"></svg>
-    <p class="pl-canvas-hint" id="pl-in-hint">Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize bays.</p>`;
+    <section class="pl-sec" data-sec="add">
+      <h3 class="visually-hidden">Add items</h3>
+      <p class="pl-hint" id="pl-i-palhint">Press an item to add it to <b class="pl-i-addbay">section 1</b>, or drag it into the drawing.</p>
+      <div class="pl-palette" id="pl-i-palette" role="group" aria-label="Items you can add"></div>
+    </section>
 
-  const $ = (sel) => root.querySelector(sel) || dock.querySelector(sel);
+    <section class="pl-sec" data-sec="options">
+      <h3 class="visually-hidden">Section options</h3>
+      <div class="pl-chips pl-chips--row" id="pl-i-baychips2" role="radiogroup" aria-label="Choose a section"></div>
+      <div class="pl-optbox" id="pl-i-optbox">
+        <div class="pl-form pl-form--grid" id="pl-i-bayform"></div>
+      </div>
+    </section>
+
+    <section class="pl-sec" data-sec="item">
+      <h3 class="visually-hidden">Selected item</h3>
+      <div class="pl-itemlist" id="pl-i-list" role="radiogroup" aria-label="Items in this section"></div>
+      <div class="pl-inspector" id="pl-i-insp"></div>
+    </section>`;
+  insideBox.innerHTML = `<svg id="pl-in-svg" tabindex="-1" role="group" aria-label="Front view of the piece with the doors hidden" xmlns="http://www.w3.org/2000/svg"></svg>
+    <p class="pl-canvas-hint" id="pl-in-hint">Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize sections.</p>`;
+
+  const $ = (sel) => root.querySelector(sel);
   const svg = insideBox.querySelector('#pl-in-svg');
   const palEl = $('#pl-i-palette');
-  // on wide screens the palette sits in a strip under the drawing, so it is always in reach; on phones it stays in the flow
-  const addSec = $('#pl-i-addsec'), itemsSec = $('#pl-i-itemssec');
-  const wide = matchMedia('(min-width: 1280px)');
-  const placePalette = () => {
-    if (wide.matches) { if (addSec.parentNode !== dock) dock.appendChild(addSec); }
-    else if (addSec.parentNode === dock) itemsSec.before(addSec);
-  };
-  wide.addEventListener('change', placePalette);
-  placePalette();
-  $('#pl-i-jump').addEventListener('click', () => {
-    const first = palEl.querySelector('.pl-tile__add');
-    if (first) { first.scrollIntoView({ block: 'nearest', inline: 'nearest' }); first.focus(); }
+  const sections = createTabs({
+    root, prefix: 'pl-i', label: 'Interior sections',
+    items: [{ id: 'layout', label: 'Layout' }, { id: 'add', label: 'Add items' }, { id: 'options', label: 'Options', title: 'Section options' }, { id: 'item', label: 'Item', title: 'Selected item' }]
   });
+  sections.show('layout');
+  const notesEl = issues;
+  let issueCount = 0;
+  let autoItem = null;   // the item last opened in "Selected item": picking another one opens the section again
+  let justAdded = false; // an item added from the palette is selected, but the palette stays open for the next one
+  roving($('#pl-i-chips'), { selector: '[data-piece]', selects: true });
+  roving($('#pl-i-baychips'), { selector: '[data-bay]', selects: true });
+  roving($('#pl-i-baychips2'), { selector: '[data-bay]', selects: true });
+  roving($('#pl-i-presets'), { selector: '[data-preset]' });
+  roving($('.pl-stepper2'), { selector: 'button' });
+  roving(palEl, { selector: '.pl-tile__add' });
+  roving($('#pl-i-list'), { selector: '[data-pick]', selects: true });
+  scrollCue(palEl, 'y');
+  scrollCue($('#pl-i-baychips'), 'x');
+  scrollCue($('#pl-i-baychips2'), 'x');
+  scrollCue($('#pl-i-presets'), 'x');
+  scrollCue($('#pl-i-list'), 'y', { grow: false });
+  scrollCue($('#pl-i-optbox'), 'y');
+  $('#pl-i-keep').addEventListener('click', () => { store.dispatch({ type: 'ui/step', step: 3 }); });
   const inspEl = $('#pl-i-insp');
   const cur = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
   const curBay = (p) => (p ? p.bays[clamp(state.ui.bay, 0, p.bays.length - 1)] : null);
@@ -133,11 +143,13 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     if (!p || !ITEMS[kind]) return;
     const at = y === undefined ? suggestY(p, bay, kind) : y;
     const n = p.bays[bay].items.length;
+    justAdded = true;
     store.dispatch({ type: 'piece/item/add', bay, item: { kind, y: at } });
+    justAdded = false;
     store.dispatch({ type: 'history/seal' });
     const q = cur();
-    if (q && q.bays[bay].items.length > n) { announce(`${ITEMS[kind].label} added to bay ${bay + 1}.`); showInside(); }
-    else announce(`Bay ${bay + 1} is full.`);
+    if (q && q.bays[bay].items.length > n) { announce(`${ITEMS[kind].label} added to section ${bay + 1}.`); showInside(); }
+    else announce(`Section ${bay + 1} is full.`);
   }
 
   // ---------- numbers ----------
@@ -177,10 +189,12 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     const b = e.target.closest('[data-piece]');
     if (b) store.dispatch({ type: 'ui/piece', id: b.dataset.piece });
   });
-  $('#pl-i-baychips').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-bay]');
-    if (b) store.dispatch({ type: 'ui/bay', bay: Number(b.dataset.bay) });
-  });
+  for (const id of ['#pl-i-baychips', '#pl-i-baychips2']) {
+    $(id).addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bay]');
+      if (b) store.dispatch({ type: 'ui/bay', bay: Number(b.dataset.bay) });
+    });
+  }
   const stepBays = (d) => {
     const p = cur();
     if (!p) return;
@@ -188,11 +202,11 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     store.dispatch({ type: 'piece/update', patch: { bays: changeBayCount(p, n) } });
     store.dispatch({ type: 'history/seal' });
     const q = cur();
-    if (q.bays.length === p.bays.length) announce('The number of bays cannot change further.');
-    else if (d > 0) announce(`${q.bays.length} bays. The widest bay was split in two.`);
+    if (q.bays.length === p.bays.length) announce('The number of sections cannot change further.');
+    else if (d > 0) announce(`${q.bays.length} sections. The widest section was split in two.`);
     else {
       const lost = p.bays[p.bays.length - 1].items.length;
-      announce(`${q.bays.length} bays. The last bay's width went to its neighbour${lost ? `, and its ${lost === 1 ? 'item was' : `${lost} items were`} removed. Undo brings ${lost === 1 ? 'it' : 'them'} back` : ''}.`);
+      announce(`${q.bays.length} sections. The last section's width went to its neighbour${lost ? `, and its ${lost === 1 ? 'item was' : `${lost} items were`} removed. Undo brings ${lost === 1 ? 'it' : 'them'} back` : ''}.`);
     }
   };
   $('#pl-i-less').addEventListener('click', () => stepBays(-1));
@@ -211,7 +225,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       });
       store.dispatch({ type: 'piece/update', patch: { bays } });
       store.dispatch({ type: 'history/seal' });
-      announce(el.dataset.bayopt === 'colour' ? `Bay ${k + 1} colour changed.` : `Bay ${k + 1} back panel: ${BACK_LABEL[el.value].toLowerCase()}.`);
+      announce(el.dataset.bayopt === 'colour' ? `Section ${k + 1} colour changed.` : `Section ${k + 1} back panel: ${BACK_LABEL[el.value].toLowerCase()}.`);
       return;
     }
     if (!p || !el.dataset.door) return;
@@ -224,7 +238,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     if (!b || !p) return;
     store.dispatch({ type: 'piece/bays', bays: p.bays.length });
     store.dispatch({ type: 'history/seal' });
-    announce('Bays set to equal widths.');
+    announce('Sections set to equal widths.');
   });
   $('#pl-i-presets').addEventListener('click', (e) => {
     const b = e.target.closest('[data-preset]');
@@ -237,7 +251,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       store.dispatch({ type: 'ui/bay', bay: keep });
     } else store.dispatch({ type: 'piece/preset', bay: keep, preset: b.dataset.preset });
     store.dispatch({ type: 'history/seal' });
-    announce(`${all ? 'Every bay' : `Bay ${keep + 1}`} started from "${b.textContent.trim()}". Undo brings the old layout back.`);
+    announce(`${all ? 'Every section' : `Section ${keep + 1}`} started from "${b.textContent.trim()}". Undo brings the old layout back.`);
     showInside();
   });
   palEl.addEventListener('click', (e) => {
@@ -265,11 +279,11 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   function removeSelected() {
     const p = cur(), it = selectedItem(p);
     if (!it) return;
-    announce(`${itemName(it)} removed from bay ${state.ui.bay + 1}.`);
+    announce(`${itemName(it)} removed from section ${state.ui.bay + 1}.`);
     store.dispatch({ type: 'piece/item/remove', bay: state.ui.bay, index: state.ui.item });
     store.dispatch({ type: 'history/seal' });
   }
-  $('#pl-i-notes').addEventListener('click', (e) => {
+  notesEl.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     const p = cur();
     if (!b || !p) return;
@@ -355,6 +369,13 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       if (bb.back === 'mirror') out.push(`<rect class="pl-bay-mirror" x="${gx}" y="${gy}" width="${gw}" height="${gh}" aria-hidden="true"/><path class="pl-i-sheen" d="M${f1(X(b.x0) + b.width * s * 0.25)} ${gy}l-14 ${gh}M${f1(X(b.x0) + b.width * s * 0.42)} ${gy}l-14 ${gh}" aria-hidden="true"/>`);
       else if (bb.back === 'open') out.push(`<rect class="pl-bay-open" x="${gx}" y="${gy}" width="${gw}" height="${gh}" fill="url(#pl-wall-i)" aria-hidden="true"/>`);
     });
+    // one Tab stop for all the items: the selected one, or the first of the selected section
+    let itemStop = state.ui.item !== null ? `${state.ui.bay}:${state.ui.item}` : null;
+    if (!itemStop) {
+      const sb = clamp(state.ui.bay, 0, p.bays.length - 1);
+      const k = p.bays[sb].items.length ? sb : p.bays.findIndex((bb) => bb.items.length);
+      if (k >= 0) itemStop = `${k}:0`;
+    }
     lay.forEach((b) => {
       const bay = p.bays[b.index];
       out.push(`<g clip-path="url(#pl-clip-bay-${b.index})">`);
@@ -372,14 +393,14 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
         const [lo, hi] = rangeOf(p, b.index, it);
         const hitH = Math.max(bodyH, 16);
         const hitY = bodyY - (hitH - bodyH) / 2;
-        const label = `${describeItem(it)}, bay ${b.index + 1}`;
+        const label = `${describeItem(it)}, section ${b.index + 1}`;
         let g2 = '';
         if (zr && (zr.h > bodyH + 2)) g2 += `<rect class="pl-i-zone" x="${f1(zr.x + 1)}" y="${f1(zr.y)}" width="${f1(zr.w - 2)}" height="${f1(zr.h)}" rx="3"/>`;
         g2 += drawItem(it, { x, y: bodyTop, w, h: bodyH }, { zone: zr });
         g2 += `<rect class="pl-iv__hit" x="${f1(x)}" y="${f1(hitY)}" width="${f1(w)}" height="${f1(hitH)}"/>`;
         g2 += `<rect class="pl-iv__ring" x="${f1(x + 1)}" y="${f1(hitY - 1)}" width="${f1(w - 2)}" height="${f1(hitH + 2)}" rx="3"/>`;
-        out.push(`<g class="pl-iv${selected ? ' is-selected' : ''}${ip ? ' is-warn' : ''}" data-item="${b.index}:${ii}" data-focus="item:${b.index}:${ii}" tabindex="0" role="slider" aria-orientation="vertical"`
-          + ` aria-label="${esc(label)}" aria-valuemin="${f1(lo)}" aria-valuemax="${f1(hi)}" aria-valuenow="${cm(it.y)}" aria-valuetext="${esc(`${label}, ${cm(it.y)} cm above the bay floor`)}">`
+        out.push(`<g class="pl-iv${selected ? ' is-selected' : ''}${ip ? ' is-warn' : ''}" data-item="${b.index}:${ii}" data-focus="item:${b.index}:${ii}" tabindex="${itemStop === `${b.index}:${ii}` ? 0 : -1}" role="slider" aria-orientation="vertical"`
+          + ` aria-label="${esc(label)}" aria-valuemin="${f1(lo)}" aria-valuemax="${f1(hi)}" aria-valuenow="${cm(it.y)}" aria-valuetext="${esc(`${label}, ${cm(it.y)} cm above the floor of the section`)}">`
           + `<title>${esc(describeItem(it))}${ip ? `: ${esc(ip.map((e) => e.message).join(' '))}` : ''}</title>${g2}</g>`);
       });
       out.push('</g>');
@@ -416,9 +437,9 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       const dx = X(b.x1), w = Math.max(3, T * s), mid = Y(ph + g.Hc / 2);
       const next = lay[b.index + 1];
       out.push(`<rect class="pl-p-board" x="${f1(dx)}" y="${f1(Y(top - T))}" width="${f1(w)}" height="${f1(g.innerH * s)}" aria-hidden="true"/>`
-        + `<g class="pl-div" data-div="${b.index}" data-focus="div:${b.index}" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Divider between bay ${b.index + 1} and bay ${b.index + 2}"`
-        + ` aria-valuemin="20" aria-valuemax="${b.width + next.width - 20}" aria-valuenow="${b.width}" aria-valuetext="Bay ${b.index + 1} is ${b.width} cm wide, bay ${b.index + 2} is ${next.width} cm">`
-        + `<title>Drag to resize bays ${b.index + 1} and ${b.index + 2}</title>`
+        + `<g class="pl-div" data-div="${b.index}" data-focus="div:${b.index}" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Divider between section ${b.index + 1} and section ${b.index + 2}"`
+        + ` aria-valuemin="20" aria-valuemax="${b.width + next.width - 20}" aria-valuenow="${b.width}" aria-valuetext="Section ${b.index + 1} is ${b.width} cm wide, section ${b.index + 2} is ${next.width} cm">`
+        + `<title>Drag to resize sections ${b.index + 1} and ${b.index + 2}</title>`
         + `<rect class="pl-div__hit" x="${f1(dx + w / 2 - 12)}" y="${f1(Y(top - T))}" width="24" height="${f1(g.innerH * s)}"/>`
         + `<circle class="pl-div__dot" cx="${f1(dx + w / 2)}" cy="${f1(mid)}" r="11"/><path class="pl-div__arrows" d="M${f1(dx + w / 2 - 6)} ${f1(mid)}h12M${f1(dx + w / 2 - 6)} ${f1(mid)}l3 -3M${f1(dx + w / 2 - 6)} ${f1(mid)}l3 3M${f1(dx + w / 2 + 6)} ${f1(mid)}l-3 -3M${f1(dx + w / 2 + 6)} ${f1(mid)}l-3 3"/></g>`);
     });
@@ -432,7 +453,7 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       const bp = prob.bays[b.index];
       const label = wide ? `${b.index + 1} · ${b.width}` : `${b.index + 1}`;
       const tw = Math.max(24, label.length * 7.4 + 16);
-      out.push(`<g class="pl-baytab${sel ? ' is-selected' : ''}${bp ? ' is-warn' : ''}" data-baytab="${b.index}" data-focus="tab:${b.index}" tabindex="0" role="button" aria-pressed="${sel}" aria-label="Bay ${b.index + 1}, ${b.width} cm wide">`
+      out.push(`<g class="pl-baytab${sel ? ' is-selected' : ''}${bp ? ' is-warn' : ''}" data-baytab="${b.index}" data-focus="tab:${b.index}" tabindex="-1" role="button" aria-pressed="${sel}" aria-label="Section ${b.index + 1}, ${b.width} cm wide">`
         + `<rect x="${f1(cx - tw / 2)}" y="${f1(tabY - 12)}" width="${f1(tw)}" height="24" rx="12"/><text x="${f1(cx)}" y="${f1(tabY)}" text-anchor="middle" dominant-baseline="central">${label}</text></g>`);
     });
     // overall dimensions
@@ -542,7 +563,15 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
         if (to < 0 || to >= p.bays.length) { e.preventDefault(); return; }
         e.preventDefault();
         store.dispatch({ type: 'piece/item/move', bay, index: idx, toBay: to, coalesce: `key:item:${p.id}` });
-        announce(`${itemName(it)} moved to bay ${to + 1}.`);
+        announce(`${itemName(it)} moved to section ${to + 1}.`);
+        return;
+      } else if (e.key === 'PageDown' || e.key === 'PageUp') {
+        // the next or previous item in this section, top to bottom
+        e.preventDefault();
+        const order = p.bays[bay].items.map((x, i) => ({ y: x.y, i })).sort((a, b) => b.y - a.y).map((x) => x.i);
+        const at = order.indexOf(idx);
+        const to = order[at + (e.key === 'PageDown' ? 1 : -1)];
+        if (to !== undefined) store.dispatch({ type: 'ui/item', bay, index: to });
         return;
       } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeSelected(); return; }
       else if (e.key === 'Escape') { e.preventDefault(); store.dispatch({ type: 'ui/item', bay, index: null }); return; }
@@ -629,10 +658,12 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
         const p = cur();
         const n = p ? p.bays[h.bay].items.length : 0;
         store.dispatch({ type: 'ui/bay', bay: h.bay });
+        justAdded = true;
         store.dispatch({ type: 'piece/item/add', bay: h.bay, item: { kind: was.kind, y: h.y } });
+        justAdded = false;
         store.dispatch({ type: 'history/seal' });
         const q = cur();
-        announce(q && q.bays[h.bay].items.length > n ? `${ITEMS[was.kind].label} added to bay ${h.bay + 1}.` : `Bay ${h.bay + 1} is full.`);
+        announce(q && q.bays[h.bay].items.length > n ? `${ITEMS[was.kind].label} added to section ${h.bay + 1}.` : `Section ${h.bay + 1} is full.`);
       }
       drawKey = '';
       renderInside();
@@ -643,28 +674,33 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pal && pal.started) endPal(null, true); });
 
   // ---------- sidebar rendering ----------
+  const bayChipsHtml = (p) => {
+    const prob = problems();
+    return p.bays.map((b, i) => `<button type="button" role="radio" class="pl-chip pl-chip--bay${prob.bays[i] ? ' is-warn' : ''}" title="${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}" data-bay="${i}" aria-checked="${i === state.ui.bay}" tabindex="-1"><b aria-hidden="true">${i + 1}</b><span class="visually-hidden">Section ${i + 1}, </span><span>${b.width} cm</span><span class="visually-hidden">, ${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}</span></button>`).join('');
+  };
   function renderBays(p) {
     const lim = TYPES[p.type].limits.bays;
     const max = maxBaysFor(p.type, p.width);
-    $('#pl-i-count').textContent = `${p.bays.length} ${p.bays.length === 1 ? 'bay' : 'bays'}`;
+    $('#pl-i-count').textContent = `${p.bays.length} ${p.bays.length === 1 ? 'section' : 'sections'}`;
     $('#pl-i-less').disabled = p.bays.length <= lim[0];
     $('#pl-i-more').disabled = p.bays.length >= max;
-    const key = JSON.stringify([p.id, p.bays.map((b) => [b.width, b.door, b.colour || '', b.back || '']), state.ui.bay, p.fronts.kind, problemsKey(p)]);
+    const key = JSON.stringify([p.id, p.bays.map((b) => [b.width, b.door, b.colour || '', b.back || '', b.items.length]), state.ui.bay, p.fronts.kind, problemsKey(p)]);
     if (key === baysKey) return;
     baysKey = key;
-    const prob = problems();
-    $('#pl-i-baychips').innerHTML = p.bays.map((b, i) => `<button type="button" class="pl-chip pl-chip--bay${prob.bays[i] ? ' is-warn' : ''}" title="${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}" data-bay="${i}" aria-pressed="${i === state.ui.bay}"><b>${i + 1}</b><span>${b.width} cm</span><span class="visually-hidden">, ${b.items.length} ${b.items.length === 1 ? 'item' : 'items'}</span></button>`).join('');
+    const chips = bayChipsHtml(p);
+    $('#pl-i-baychips').innerHTML = chips;
+    $('#pl-i-baychips2').innerHTML = chips;
     const b = curBay(p), k = clamp(state.ui.bay, 0, p.bays.length - 1);
     const hingedKind = p.fronts.kind === 'hinged' || p.fronts.kind === 'glass';
-    $('#pl-i-bayform').innerHTML = (p.bays.length > 1 ? fieldHtml(`bayw:${k}`, `Width of bay ${k + 1}`, b.width, { min: 20, max: 400, slider: false, id: 'bayw' }) : '')
-      + (hingedKind ? `<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-i-door">Door on bay ${k + 1}</label><select class="pl-select" id="pl-i-door" data-door="1">${DOOR_SIDES.map((d) => `<option value="${d}"${d === b.door ? ' selected' : ''}>${DOOR_LABEL[d]}</option>`).join('')}</select></div>` : '')
-      + (p.bays.length > 1 ? '<button type="button" class="pl-link" data-equal="1">Make all bays the same width</button>' : '')
-      + bayOptionsHtml(p, b, k);
-    $('#pl-i-bayhint').textContent = p.bays.length > 1
-      ? `Drag a divider in the drawing, or type a width. The other bays keep their size, only the neighbour gives or takes. Inside width ${pieceGeometry(p).innerW} cm.`
-      : 'One bay. Add more with the plus button, up to ' + max + '.';
+    $('#pl-i-bayform').innerHTML = (p.bays.length > 1 ? fieldHtml(`bayw:${k}`, `Width of section ${k + 1}`, b.width, { min: 20, max: 400, slider: false, id: 'bayw' }) : '')
+      + (hingedKind ? `<div class="pl-row pl-row--select"><label class="pl-row__label" for="pl-i-door">Door on section ${k + 1}</label><select class="pl-select" id="pl-i-door" data-door="1">${DOOR_SIDES.map((d) => `<option value="${d}"${d === b.door ? ' selected' : ''}>${DOOR_LABEL[d]}</option>`).join('')}</select></div>` : '')
+      + (p.bays.length > 1 ? `<button type="button" class="pl-link pl-bayform__equal" data-equal="1">Make all sections the same width</button>` : '')
+      + bayOptionsHtml(p, b, k)
+      + `<p class="pl-hint pl-bayform__hint">${p.bays.length > 1
+        ? `Drag a divider in the drawing, or type a width. Inside width ${pieceGeometry(p).innerW} cm.`
+        : `One section. Add more with the plus button in Layout, up to ${max}.`}</p>`;
   }
-  // Interior colour and back panel of the selected bay.
+  // Interior colour and back panel of the selected section.
   function bayOptionsHtml(p, b, k) {
     const cur2 = b.colour || '';
     const colourOpt = (v, label, swatch) => `<label class="pl-mat" data-opt="bay-colour:${esc(v)}"><input type="radio" name="pl-bay-colour" data-bayopt="colour" value="${esc(v)}"${v === cur2 ? ' checked' : ''}>${swatch}<span class="pl-mat__name">${esc(label)}</span></label>`;
@@ -672,8 +708,8 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
     const colours = [colourOpt('', 'Same as the piece', same), ...materialsFor('bay').map((id) => colourOpt(id, MATERIALS[id].label, `<span class="pl-sw pl-sw--${MATERIALS[id].family}" style="--c:${MATERIALS[id].color}"></span>`))].join('');
     const back = b.back || 'closed';
     const backs = BACKS.map((v) => `<label class="pl-opt"><input type="radio" name="pl-bay-back" data-bayopt="back" value="${v}"${v === back ? ' checked' : ''}><span class="pl-opt__body">${BACK_LABEL[v]}</span></label>`).join('');
-    return `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Inside colour of bay ${k + 1}</legend><div class="pl-mats">${colours}</div></fieldset>`
-      + `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Back panel of bay ${k + 1}</legend><div class="pl-opts">${backs}</div><p class="pl-hint pl-group__hint">${back === 'open' ? 'No back board: the wall shows. Good for a shallow recess or to save money.' : back === 'mirror' ? 'A full-height mirror on the back wall of this bay.' : 'A back board in the inside colour.'}</p></fieldset>`;
+    return `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Inside colour of section ${k + 1}</legend><div class="pl-mats">${colours}</div></fieldset>`
+      + `<fieldset class="pl-fieldset pl-group pl-bayopt"><legend>Back panel of section ${k + 1}</legend><div class="pl-opts">${backs}</div><p class="pl-hint pl-group__hint">${back === 'open' ? 'No back board: the wall shows. Good for a shallow recess or to save money.' : back === 'mirror' ? 'A full-height mirror on the back wall of this section.' : 'A back board in the inside colour.'}</p></fieldset>`;
   }
   function problemsKey(p) {
     const q = problems();
@@ -683,17 +719,17 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   function renderPalette(p) {
     const key = `${p.type}:${state.ui.bay}`;
     const bay = clamp(state.ui.bay, 0, p.bays.length - 1);
-    $('#pl-i-addbay').textContent = `bay ${bay + 1}`;
-    $('#pl-i-itemsbay').textContent = `bay ${bay + 1}`;
+    root.querySelectorAll('.pl-i-addbay').forEach((el) => { const t = `section ${bay + 1}`; if (el.textContent !== t) el.textContent = t; });
     if (key === paletteKey) return;
     paletteKey = key;
     palEl.innerHTML = TYPES[p.type].palette.filter((k) => ITEMS[k]).map((k) => `
       <div class="pl-tile" data-kind="${k}">
-        <button type="button" class="pl-tile__add" aria-label="Add ${esc(ITEMS[k].label)} to bay ${bay + 1}">${thumbSvg(k)}<span class="pl-tile__name">${esc(ITEMS[k].label)}</span></button>
+        <button type="button" class="pl-tile__add" aria-label="Add ${esc(ITEMS[k].label)} to section ${bay + 1}">${thumbSvg(k)}<span class="pl-tile__name">${esc(ITEMS[k].label)}</span></button>
         <span class="pl-tile__grip" title="Drag into the drawing" aria-hidden="true"><svg viewBox="0 0 12 18"><circle cx="3.5" cy="4" r="1.3"/><circle cx="8.5" cy="4" r="1.3"/><circle cx="3.5" cy="9" r="1.3"/><circle cx="8.5" cy="9" r="1.3"/><circle cx="3.5" cy="14" r="1.3"/><circle cx="8.5" cy="14" r="1.3"/></svg></span>
       </div>`).join('');
     const pres = presetsFor(p.type);
-    $('#pl-i-presets').innerHTML = pres.length ? `<span class="pl-chips__label" id="pl-i-prelabel">Start from</span>${pres.map((x) => `<button type="button" class="pl-chip pl-chip--plain" data-preset="${x.id}">${esc(x.label)}</button>`).join('')}` : '';
+    $('#pl-i-presets').innerHTML = pres.map((x) => `<button type="button" class="pl-chip pl-chip--plain" data-preset="${x.id}" tabindex="-1">${esc(x.label)}</button>`).join('');
+    $('#pl-i-presets').closest('.pl-presetbox').hidden = !pres.length;
   }
 
   function renderItems(p) {
@@ -706,17 +742,18 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       const prob = problems();
       const order = bay.items.map((it, i) => ({ it, i })).sort((a, b) => b.it.y - a.it.y);
       $('#pl-i-list').innerHTML = order.length
-        ? order.map(({ it, i }) => `<button type="button" class="pl-li${prob.items[`${bi}:${i}`] ? ' is-warn' : ''}" data-pick="${i}" aria-pressed="${i === state.ui.item}"><span>${esc(describeItem(it))}</span><i>${cm(it.y)} cm</i></button>`).join('')
-        : '<p class="pl-inspector__empty">Nothing in this bay yet. Press an item above to add it.</p>';
+        ? order.map(({ it, i }) => `<button type="button" role="radio" class="pl-li${prob.items[`${bi}:${i}`] ? ' is-warn' : ''}" data-pick="${i}" aria-checked="${i === state.ui.item}" tabindex="-1"><span>${esc(describeItem(it))}</span><i>${cm(it.y)} cm</i></button>`).join('')
+        : `<p class="pl-inspector__empty">Nothing in section ${bi + 1} yet. Add items from the Add items section.</p>`;
+      $('#pl-i-list').setAttribute('aria-label', `Items in section ${bi + 1}`);
     }
     const enumKey = sel ? JSON.stringify(Object.entries(ITEMS[sel.kind].params).filter(([, sp]) => sp.type !== 'int').map(([n]) => sel[n])) : '';
     const ik = sel ? `${p.id}:${bi}:${state.ui.item}:${sel.kind}:${enumKey}` : 'none';
     if (ik === inspKey.insp) return;
     inspKey = { ...inspKey, insp: ik };
-    if (!sel) { inspEl.innerHTML = ''; return; }
+    if (!sel) { inspEl.innerHTML = bay.items.length ? '<p class="pl-inspector__empty">Pick an item above, or select one in the drawing, to change it.</p>' : ''; return; }
     const d = ITEMS[sel.kind];
     const [lo, hi] = rangeOf(p, bi, sel);
-    const fields = [fieldHtml('item:y', 'Height above the bay floor', sel.y, { min: 0, max: Math.max(lo, hi), step: 0.1, sliderStep: GRID, id: 'item-y' })];
+    const fields = [fieldHtml('item:y', 'Height above floor', sel.y, { min: 0, max: Math.max(lo, hi), step: 0.1, sliderStep: GRID, id: 'item-y', slider: false })];
     for (const [name, spec] of Object.entries(d.params)) {
       if (d.when && d.when[name] && !d.when[name](sel)) continue;
       const label = PARAM_LABEL[name] || name;
@@ -733,11 +770,13 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       <div class="pl-inspector__card">
         <div class="pl-inspector__head">
           <span class="pl-inspector__icon">${thumbSvg(sel.kind, 30, 22)}</span>
-          <div><p class="pl-inspector__title">${esc(d.label)}</p><p class="pl-inspector__sub">Bay ${bi + 1}</p></div>
+          <div><p class="pl-inspector__title">${esc(d.label)}</p><p class="pl-inspector__sub">Section ${bi + 1}</p></div>
           <button type="button" class="pl-btn pl-btn--quiet" data-delete="1">${ICON_TRASH}Delete<span class="visually-hidden"> ${esc(d.label)}</span></button>
         </div>
-        <div class="pl-form pl-form--grid">${fields.join('')}</div>
+        <div class="pl-scrollwrap"><div class="pl-form pl-form--grid pl-form--fields" data-scrollbox>${fields.join('')}</div></div>
       </div>`;
+    const box = inspEl.querySelector('[data-scrollbox]');
+    if (box) scrollCue(box, 'y');
   }
   inspKey = { list: '', insp: '' };
 
@@ -759,29 +798,33 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   }
 
   // ---------- update ----------
-  const empty = $('#pl-i-empty'), main = $('#pl-i-main');
+  const empty = $('#pl-i-empty');
   empty.addEventListener('click', (e) => {
     const b = e.target.closest('[data-go]');
     if (b) store.dispatch({ type: 'ui/step', step: 1 });
   });
 
   function update(next, info = {}) {
+    const before = state;
     state = next;
     validation = info.validation || validation;
     const p = cur();
     const ok = hasInterior(p);
-    main.hidden = !ok;
+    sections.setEnabled(ok);
     empty.hidden = ok;
     if (!ok) {
       empty.innerHTML = p
-        ? `<div class="pl-soon"><p class="pl-soon__text">A ${esc(TYPES[p.type].label.toLowerCase())} has no inside to fit out. You can go on and place it in the room.</p></div>`
-        : `<div class="pl-soon"><p class="pl-soon__text">There is no piece to fit out yet. Pick a type in the furniture step first.</p><button type="button" class="pl-btn pl-btn--accent" data-go="1">Go to furniture</button></div>`;
+        ? `<p class="pl-soon__text">A ${esc(TYPES[p.type].label.toLowerCase())} has no inside to fit out. You can go on and place it in the room.</p>`
+        : `<p class="pl-soon__text">There is no piece to fit out yet. Pick a type in the Furniture step first.</p><button type="button" class="pl-btn pl-btn--accent" data-go="1">Go to Furniture</button>`;
+      issueCount = 0;
+      notesEl.innerHTML = '';
+      notesKey = '';
     }
     if (ok) {
       const project = state.project;
       const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId]);
       if (ck !== chipsKey) { chipsKey = ck; $('#pl-i-chips').innerHTML = pieceChipsHtml(project, state.ui.pieceId); }
-      $('#pl-i-pieces-sec').hidden = project.pieces.length < 2;
+      $('#pl-i-chips').hidden = project.pieces.length < 2;
       renderBays(p);
       renderPalette(p);
       renderItems(p);
@@ -790,16 +833,24 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
       if (door) { const b = curBay(p); if (b && door.value !== b.door) door.value = b.door; }
       const list = problems();
       const flat = [...list.piece, ...Object.values(list.bays).flat(), ...Object.values(list.items).flat()];
+      issueCount = flat.length;
+      sections.setBadge('item', Object.keys(list.items).length ? 1 : 0, 'to check');
       const html = flat.length ? notesHtml(flat, actionsFor) : '';
-      if (html !== notesKey) { notesKey = html; $('#pl-i-notes').innerHTML = html; }
+      if (html !== notesKey) { notesKey = html; notesEl.innerHTML = html; }
       const sel = selectedItem(p);
       insideBox.querySelector('#pl-in-hint').textContent = sel
-        ? `${itemName(sel)}, ${cm(sel.y)} cm up. Arrow up and down move it one step (Shift: ten steps), left and right change bay. Delete removes it.`
-        : 'Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize bays.';
+        ? `${itemName(sel)}, ${cm(sel.y)} cm up. Arrow up and down move it one step (Shift: ten steps), left and right change section. Delete removes it.`
+        : 'Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize sections.';
+      // picking an item (in the drawing or the list) opens its section; one just added from the palette does not
+      const key = sel ? `${state.ui.pieceId}:${state.ui.bay}:${state.ui.item}` : null;
+      if (key !== autoItem) {
+        autoItem = key;
+        if (key && !justAdded && sections.current() !== 'item') sections.show('item');
+      }
     }
-    dock.hidden = !ok;
     const dk = JSON.stringify([p, state.ui.bay, state.ui.item, validation.errors.length, hint, insideBox.clientWidth, insideBox.clientHeight]);
     if (dk !== drawKey) { drawKey = dk; if (!root.hidden) renderInside(); }
+    void before;
   }
 
   const ro = new ResizeObserver(() => { drawKey = ''; if (!root.hidden) renderInside(); });
@@ -807,5 +858,5 @@ export function createInteriorStep(root, { insideBox, dock, store, announce = ()
   function show() { drawKey = ''; renderInside(); }
 
   update(state);
-  return { update, show, destroy() { ro.disconnect(); } };
+  return { update, show, sections, status: () => ({ count: issueCount, ok: hasInterior(cur()) }), destroy() { ro.disconnect(); } };
 }

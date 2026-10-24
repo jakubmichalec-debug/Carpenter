@@ -1,13 +1,13 @@
-// Step 2: Furniture. Pick a type (which adds an unplaced piece), a style and a size. A switcher lists the pieces
-// already made, so one can be picked again, edited or deleted. Leaving the step is always allowed.
-import { TYPES, STYLES, MATERIALS, updatePiece, pieceLabel } from '../model.js';
+// Step 2: Furniture. Four sections: Pieces (the list, "+ Add a piece", and the type cards while one is being added),
+// Style, Look and Size. Leaving the step is always allowed.
+import { TYPES, STYLES, updatePiece, pieceLabel } from '../model.js';
 import { quoteProject } from '../pricing.js';
 import { esc, pieceChipsHtml, notesHtml, ICON_TRASH } from './shared.js';
 import { createLookPanel, styleCardHtml } from './look-panel.js';
-
-const HANDLE_LABEL = { bar: 'bar handles', knob: 'knobs', cup: 'cup pulls', edge: 'finger pulls', push: 'push to open' };
+import { createTabs, roving, scrollCue } from './ui.js';
 
 const ICON = (d) => `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const TYPE_ICON = {
   wardrobe: ICON('<rect x="4" y="3" width="24" height="25" rx="1.5"/><path d="M16 3v25M13 15v3M19 15v3M6 28v2M26 28v2"/>'),
   'kitchen-base': ICON('<path d="M4 11h24M5 11v17h22V11M5 19h22M12 15h8M12 24h8"/>'),
@@ -21,59 +21,71 @@ const TYPE_ICON = {
   island: ICON('<path d="M2 10h28M4 10v18h24V10M12 10v18M20 10v18M7 17h2M15 17h2M23 17h2"/>')
 };
 
-export function createFurnitureStep(root, { store, announce = () => {}, confirmAction }) {
+export function createFurnitureStep(root, { store, announce = () => {}, confirmAction, issues }) {
   let state = store.getState();
   let validation = { errors: [] };
   let styleKey = '', chipsKey = '', notesKey = '', priceTimer = 0;
+  let issueCount = 0;
+  let wasAdding = true;   // true while no piece is being edited: the next piece picked moves on to Style
 
   const typeCards = Object.entries(TYPES).map(([id, t]) => `
-    <button type="button" class="pl-type" data-type="${id}" aria-pressed="false">
+    <button type="button" class="pl-type" data-type="${id}">
       <span class="pl-type__icon">${TYPE_ICON[id] || ''}</span>
       <span class="pl-type__name">${esc(t.label)}</span>
-      <span class="pl-type__size">${t.defaults.width} \u00d7 ${t.defaults.height} cm</span>
+      <span class="pl-type__size">${t.defaults.width} × ${t.defaults.height} cm</span>
     </button>`).join('');
 
   root.innerHTML = `
-    <header class="pl-sec__head">
-      <p class="eyebrow">Step 2 of 5</p>
-      <h2 id="pl-h-furniture">Furniture</h2>
-      <p class="pl-lede">Pick what you want built, choose its look and set its size. You place it in the room later.</p>
-    </header>
-    <ul class="pl-notes" id="pl-f-notes" aria-label="Piece checks"></ul>
-
-    <section class="pl-sec" aria-labelledby="pl-h-pieces" id="pl-f-pieces-sec">
-      <header class="pl-sec__row">
-        <h3 id="pl-h-pieces">Your pieces</h3>
-        <button type="button" class="pl-btn pl-btn--quiet" id="pl-f-delete">${ICON_TRASH}Delete<span class="visually-hidden"> this piece</span></button>
-      </header>
-      <div class="pl-chips" id="pl-f-chips" role="group" aria-label="Choose a piece to edit"></div>
-    </section>
-
-    <section class="pl-sec" aria-labelledby="pl-h-type">
-      <header class="pl-sec__row"><h3 id="pl-h-type">Type</h3></header>
-      <div class="pl-types" id="pl-f-types" role="group" aria-label="Piece type">${typeCards}</div>
-      <p class="pl-hint" id="pl-f-typehint"></p>
-    </section>
-
-    <div id="pl-f-rest">
-      <section class="pl-sec" aria-labelledby="pl-h-style">
-        <header class="pl-sec__row"><h3 id="pl-h-style">Style</h3></header>
-        <p class="pl-hint pl-hint--tight">One click sets the whole look. A price shows what the style adds to or takes off this piece.</p>
-        <div class="pl-styles" id="pl-f-styles" role="group" aria-label="Style"></div>
-      </section>
-
-      <section class="pl-sec" aria-labelledby="pl-h-tune">
-        <header class="pl-sec__row"><h3 id="pl-h-tune">Fine-tune the look</h3></header>
+    <section class="pl-sec" data-sec="pieces">
+      <h3 class="visually-hidden">Pieces</h3>
+      <div class="pl-piecebox" id="pl-f-listbox">
+        <div class="pl-chips" id="pl-f-chips" role="radiogroup" aria-label="Your pieces"></div>
+        <div class="pl-actions">
+          <button type="button" class="pl-btn pl-btn--accent" id="pl-f-add">${ICON_PLUS}Add a piece</button>
+          <button type="button" class="pl-btn pl-btn--quiet" id="pl-f-delete">${ICON_TRASH}Delete<span class="visually-hidden"> this piece</span></button>
+        </div>
         <p class="pl-summary" id="pl-f-summary"></p>
-        <p class="pl-hint pl-hint--tight">Prices show what an option adds to or takes off this piece, VAT included. No price means no change.</p>
-        <div class="pl-look" id="pl-f-look"></div>
-      </section>
-    </div>`;
+      </div>
+      <div class="pl-typebox" id="pl-f-typebox">
+        <div class="pl-sec__row">
+          <h4 class="pl-sec__sub" id="pl-f-typeh">What do you want to build?</h4>
+          <button type="button" class="pl-btn pl-btn--quiet pl-btn--small" id="pl-f-cancel">Cancel</button>
+        </div>
+        <div class="pl-types" id="pl-f-types" role="group" aria-labelledby="pl-f-typeh">${typeCards}</div>
+        <p class="pl-hint" id="pl-f-typehint"></p>
+      </div>
+    </section>
+
+    <section class="pl-sec" data-sec="style">
+      <h3 class="visually-hidden">Style</h3>
+      <p class="pl-hint">One click sets the whole look. A price is what the style adds or takes off.</p>
+      <div class="pl-styles" id="pl-f-styles" role="radiogroup" aria-label="Style"></div>
+    </section>
+
+    <section class="pl-sec" data-sec="look">
+      <h3 class="visually-hidden">Look</h3>
+      <div class="pl-look" id="pl-f-look"></div>
+    </section>
+
+    <section class="pl-sec" data-sec="size">
+      <h3 class="visually-hidden">Size</h3>
+      <div class="pl-sizebox" id="pl-f-size"></div>
+    </section>`;
 
   const $ = (sel) => root.querySelector(sel);
-  const chipsEl = $('#pl-f-chips'), notesEl = $('#pl-f-notes'), rest = $('#pl-f-rest'), delBtn = $('#pl-f-delete'), stylesEl = $('#pl-f-styles');
+  const chipsEl = $('#pl-f-chips'), notesEl = issues, delBtn = $('#pl-f-delete'), stylesEl = $('#pl-f-styles');
+  const sections = createTabs({
+    root, prefix: 'pl-f', label: 'Furniture sections',
+    items: [{ id: 'pieces', label: 'Pieces' }, { id: 'style', label: 'Style' }, { id: 'look', label: 'Look' }, { id: 'size', label: 'Size' }]
+  });
+  sections.show('pieces');
+  roving(chipsEl, { selector: '[data-piece]', selects: true });
+  roving($('#pl-f-types'), { selector: '[data-type]' });
+  roving(stylesEl, { selector: '[data-style]', selects: true });
+  scrollCue(stylesEl, 'y');
+  scrollCue(chipsEl, 'y', { grow: false });
   const current = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
-  const look = createLookPanel($('#pl-f-look'), { store, announce });
+  const look = createLookPanel($('#pl-f-look'), { store, announce, sizeHost: $('#pl-f-size') });
 
   // ---------- clicks ----------
   $('#pl-f-types').addEventListener('click', (e) => {
@@ -83,8 +95,13 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     store.dispatch({ type: 'piece/add', pieceType: b.dataset.type });
     store.dispatch({ type: 'history/seal' });
     const p = current();
-    if (p) announce(`${pieceLabel(state.project, p.id)} ${state.project.pieces.length > before ? 'added' : 'chosen'}.`);
+    if (p) announce(`${pieceLabel(state.project, p.id)} ${state.project.pieces.length > before ? 'added' : 'chosen'}. Choose its style next.`);
     else announce('There is no room for another piece.');
+  });
+  $('#pl-f-add').addEventListener('click', () => { store.dispatch({ type: 'ui/new-piece' }); });
+  $('#pl-f-cancel').addEventListener('click', () => {
+    const p = current();
+    if (p) { store.dispatch({ type: 'ui/piece', id: p.id }); $('#pl-f-add').focus(); }
   });
   stylesEl.addEventListener('click', (e) => {
     const b = e.target.closest('[data-style]');
@@ -124,7 +141,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
   function stylePrices() {
     priceTimer = 0;
     const p = current();
-    if (!p || state.ui.starting) return;
+    if (!p || state.ui.starting || sections.current() !== 'style') return;
     const solo = (piece) => ({ v: 2, room: state.project.room, pieces: [piece], placements: [] });
     const total = (piece) => quoteProject(solo(piece), { vat: true }).cents.total;
     const base = total(p);
@@ -134,17 +151,12 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
       const next = updatePiece(solo(p), p.id, { style: b.dataset.style }).pieces[0];
       const d = next ? total(next) - base : 0;
       const n = Math.round(Math.abs(d) / 100);
-      el.textContent = n === 0 ? '' : `${d > 0 ? '+' : '\u2212'}\u20ac${n.toLocaleString('en-IE')}`;
+      el.textContent = n === 0 ? '' : `${d > 0 ? '+' : '−'}€${n.toLocaleString('en-IE')}`;
       el.classList.toggle('is-neg', d < 0);
     });
   }
-  const label = (id) => (MATERIALS[id] ? MATERIALS[id].label : id);
-  function summary(p) {
-    const fronts = p.look.upper ? `${label(p.fronts.material)} below, ${label(p.look.upper.material)} above` : label(p.fronts.material);
-    const handle = p.fronts.kind === 'open' || p.fronts.kind === 'none' ? '' : `, ${HANDLE_LABEL[p.fronts.handle] || p.fronts.handle}`;
-    const custom = p.style === 'custom' ? ' Your own mix: pick a style to start again.' : '';
-    return `${p.width} \u00d7 ${p.height} \u00d7 ${p.depth} cm, ${fronts.toLowerCase().replace(/^./, (c) => c.toUpperCase())}${handle}.${custom}`;
-  }
+  root.addEventListener('pl-section', (e) => { if (e.detail.id === 'style') { if (priceTimer) clearTimeout(priceTimer); priceTimer = setTimeout(stylePrices, 60); } });
+  const summary = (p) => `${pieceLabel(state.project, p.id)}: ${p.width} × ${p.height} × ${p.depth} cm, ${STYLES[p.style] ? STYLES[p.style].label.toLowerCase() : 'your own mix'}.`;
 
   // ---------- update ----------
   function update(next, info = {}) {
@@ -152,33 +164,45 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     validation = info.validation || validation;
     const p = current();
     const project = state.project;
-
-    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId, !!state.ui.starting]);
-    if (ck !== chipsKey) { chipsKey = ck; chipsEl.innerHTML = pieceChipsHtml(project, state.ui.starting ? null : state.ui.pieceId) || '<p class="pl-hint">No pieces yet. Pick a type below to start.</p>'; }
-    $('#pl-f-pieces-sec').hidden = !project.pieces.length;
-    delBtn.disabled = !p;
     const starting = !!state.ui.starting;
-    rest.hidden = !p || starting;
+    const adding = starting || !project.pieces.length;
 
-    root.querySelectorAll('[data-type]').forEach((b) => b.setAttribute('aria-pressed', String(!!p && !starting && p.type === b.dataset.type)));
+    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId, starting]);
+    if (ck !== chipsKey) { chipsKey = ck; chipsEl.innerHTML = pieceChipsHtml(project, starting ? null : state.ui.pieceId); }
+    $('#pl-f-listbox').hidden = !project.pieces.length;
+    $('#pl-f-typebox').hidden = !adding;
+    $('#pl-f-add').hidden = adding;
+    $('#pl-f-cancel').hidden = !(starting && !!p);
+    delBtn.disabled = !p || starting;
+    delBtn.hidden = adding;
+    $('#pl-f-summary').textContent = p && !adding ? summary(p) : '';
     $('#pl-f-typehint').textContent = !p ? 'Pick a type to add a piece. You can add as many as you need.'
-      : starting ? 'Pick a type for your next piece. The ones you have made stay in your list.'
-      : state.ui.fresh ? 'Not the right type? Pick another and it replaces this one.'
-        : 'Picking a type adds a new piece. The ones you have shaped stay in your list.';
-    if (!p || starting) { notesEl.innerHTML = ''; notesKey = ''; return; }
+      : state.ui.fresh ? 'Not the right type? Pick another and it replaces the piece you just added.'
+        : 'The pieces you have made stay in your list.';
+
+    // only the Pieces section means anything until a piece is being edited
+    const editing = !!p && !adding;
+    for (const id of ['style', 'look', 'size']) sections.setHidden(id, !editing);
+    if (adding && sections.current() !== 'pieces') sections.show('pieces');
+    else if (editing && wasAdding && sections.current() === 'pieces' && state.ui.fresh) { sections.show('style'); }
+    wasAdding = adding;
+
+    if (!editing) { notesEl.innerHTML = ''; notesKey = ''; issueCount = 0; return; }
 
     buildStyles(p);
-    stylesEl.querySelectorAll('[data-style]').forEach((b) => b.setAttribute('aria-pressed', String(p.style === b.dataset.style)));
-    $('#pl-f-summary').textContent = summary(p);
+    stylesEl.querySelectorAll('[data-style]').forEach((b) => {
+      const on = String(p.style === b.dataset.style);
+      if (b.getAttribute('aria-checked') !== on) b.setAttribute('aria-checked', on);
+    });
     look.sync(p, state);
-    if (priceTimer) clearTimeout(priceTimer);
-    priceTimer = setTimeout(stylePrices, 220);
+    if (sections.current() === 'style') { if (priceTimer) clearTimeout(priceTimer); priceTimer = setTimeout(stylePrices, 220); }
 
     const list = (validation.errors || []).filter((e) => e.ref && e.ref.type === 'piece' && e.ref.id === p.id && e.code !== 'piece-unplaced');
+    issueCount = list.length;
     const html = notesHtml(list);
     if (html !== notesKey) { notesKey = html; notesEl.innerHTML = html; }
   }
 
   update(state);
-  return { update, show() { /* nothing to measure */ } };
+  return { update, show() { /* nothing to measure */ }, sections, status: () => ({ count: issueCount, ok: !!current() && !state.ui.starting }) };
 }
