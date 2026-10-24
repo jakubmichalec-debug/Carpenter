@@ -208,6 +208,16 @@ export function scrollCue(scroller, axis = 'y', { grow = true } = {}) {
     else if (right > scroller.scrollLeft + scroller.clientWidth) scroller.scrollLeft = right - scroller.clientWidth + 28;
   }
   scroller.addEventListener('scroll', measure, { passive: true });
+  // a sideways row also follows an ordinary vertical wheel, as long as it can still move that way
+  if (axis === 'x') scroller.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || e.ctrlKey) return;
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    if (max <= 0) return;
+    const next = Math.max(0, Math.min(max, scroller.scrollLeft + e.deltaY));
+    if (next === scroller.scrollLeft) return;
+    e.preventDefault();
+    scroller.scrollLeft = next;
+  }, { passive: false });
   new ResizeObserver(measure).observe(scroller);
   new MutationObserver(() => { reveal(); measure(); }).observe(scroller, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-checked'] });
   reveal();

@@ -1058,10 +1058,19 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
 .pl-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .pl-card__body { min-height: 66px; padding: 8px 4px 6px; }
 .pl-card__name { font-size: 13px; }
-.pl-wallbar { display: flex; align-items: flex-start; gap: 10px; }
+.pl-wallbar { display: flex; align-items: center; gap: 10px; }
 .pl-wallbar .pl-chips { flex: 1 1 auto; min-width: 0; }
+/* one wall at a time: ‹ Wall 2 of 6 · 380 cm · Window, Door › */
+.pl-wallnav { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px; height: 52px; padding: 0 4px; border: 1px solid var(--sand); border-radius: 14px; background: var(--paper); }
+.pl-wallnav__step { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; transition: background var(--dur-1) var(--ease-out); }
+.pl-wallnav__step:hover { background: var(--bone); }
+.pl-wallnav__step svg { width: 20px; height: 20px; }
+.pl-wallnav__now { flex: 1 1 auto; min-width: 0; margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 6px; align-items: baseline; text-align: left; }
+.pl-wallnav__now b { font-weight: 600; color: var(--ink); }
+.pl-wallnav__of { font-size: var(--step--1); color: var(--ink-3); }
+.pl-wallnav__meta { grid-column: 1 / -1; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-wallbar .pl-menu { flex: none; }
-.pl-wallbar .pl-btn { height: 36px; padding: 0 1em 0 .8em; }
+.pl-wallbar .pl-btn { height: 52px; padding: 0 1.1em 0 .9em; border-radius: 14px; }
 .pl-wallbar .pl-chip { padding-right: 10px; }
 .pl-finish { gap: 14px; }
 .pl-fieldset legend { margin-bottom: 8px; }
@@ -1397,3 +1406,6 @@ svg[tabindex="-1"]:focus { outline: none; }
 /* a piece on the plan is small: an invisible outline widens its target to at least 24 px on a computer and 44 px on a touch screen */
 .pl-pc__hit { fill: transparent; stroke: transparent; stroke-width: 24px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 @media (pointer: coarse), (max-width: 899px) { .pl-pc__hit { stroke-width: 44px; } }
+
+/* cards and chips are controls, not text: a drag across them must not highlight their labels */
+.pl-app :is(button, [role=radio], [role=tab], .pl-style) { user-select: none; -webkit-user-select: none; }

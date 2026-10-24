@@ -75,7 +75,9 @@ function boot() {
 
 /* ------------------------------------------------------------------ Lenis */
 function initLenis() {
-  if (reduced) return;
+  // pages with <html data-scroll="native"> (the planner: the page itself never scrolls, only its inner lists, whose
+  // wheel events Lenis would swallow) keep native scrolling and no endless rAF loop
+  if (reduced || document.documentElement.dataset.scroll === 'native') return;
   import('lenis').then((mod) => {
     const Lenis = mod.default || mod.Lenis;
     const lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.95, smoothWheel: true });

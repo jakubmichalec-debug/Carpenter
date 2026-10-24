@@ -5,7 +5,7 @@ import {
 } from '../model.js';
 import { WALL_T, wallQuads, wallPoint, ceilingProfile, PLAN_HANDLES, roomBounds, snapTo } from '../plan-geom.js';
 import { fieldHtml } from './shared.js';
-import { createTabs, roving, scrollCue } from './ui.js';
+import { createTabs } from './ui.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
@@ -87,7 +87,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
     <section class="pl-sec" data-sec="walls">
       <h3 class="visually-hidden">Walls and openings</h3>
       <div class="pl-wallbar">
-        <div class="pl-chips pl-chips--row" id="pl-chips" role="radiogroup" aria-label="Choose a wall"></div>
+        <div class="pl-wallnav" id="pl-chips" role="group" aria-label="Choose a wall"></div>
         <div class="pl-menu" id="pl-add">
           <button type="button" class="pl-btn pl-btn--accent" id="pl-add-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="pl-add-menu">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Add
@@ -130,8 +130,6 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
     items: [{ id: 'shape', label: 'Shape' }, { id: 'size', label: 'Size' }, { id: 'walls', label: 'Walls & openings' }, { id: 'finish', label: 'Finishes' }]
   });
   sections.show('shape', { silent: false });
-  roving(chipsEl, { selector: '[data-chip]', selects: true });
-  scrollCue(chipsEl, 'x');
   root.addEventListener('pl-section', () => { planKey = ''; if (!root.hidden) renderPlan(); }); // the plan handles are Tab stops, except while the same numbers are in boxes beside it
   const addBtn = $('#pl-add-btn'), addMenu = $('#pl-add-menu');
 
@@ -460,22 +458,28 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
   function renderChips() {
     const room = state.project.room;
     const walls = wallsOf(room);
-    const key = walls.map((w) => `${w.id}:${Math.round(w.length)}:${room.openings.filter((o) => o.wallId === w.id).length}`).join();
-    if (key !== chipsKey) {
-      chipsKey = key;
-      chipsEl.innerHTML = walls.map((w) => {
-        const n = room.openings.filter((o) => o.wallId === w.id).length;
-        return `<button type="button" role="radio" class="pl-chip" data-chip="${w.id}" aria-checked="false" tabindex="-1"><b aria-hidden="true">${wallNo(w.id)}</b><span class="visually-hidden">Wall ${wallNo(w.id)}, </span><span>${Math.round(w.length)}</span><span class="visually-hidden"> centimetres</span>${n ? `<i aria-label="${n} ${n === 1 ? 'opening' : 'openings'}">${n}</i>` : ''}</button>`;
-      }).join('');
-    }
-    chipsEl.querySelectorAll('[data-chip]').forEach((b) => {
-      const on = b.dataset.chip === state.ui.wallId;
-      if (b.getAttribute('aria-checked') !== String(on)) b.setAttribute('aria-checked', String(on));
-    });
+    // one wall at a time: ‹ Wall 2 of 6 · 380 cm · Window, Door ›  (the plan is the other way to pick one)
+    const i = Math.max(0, walls.findIndex((w) => w.id === state.ui.wallId));
+    const w = walls[i];
+    const here = w ? room.openings.filter((o) => o.wallId === w.id) : [];
+    const what = here.length ? here.map((o) => openingName(room, o)).join(', ') : 'nothing on it yet';
+    const key = `${walls.length}:${w && w.id}:${w && Math.round(w.length)}:${what}`;
+    if (key === chipsKey) return;
+    const focused = chipsEl.contains(document.activeElement) && document.activeElement.dataset.wallstep;
+    chipsKey = key;
+    chipsEl.innerHTML = w ? `
+      <button type="button" class="pl-wallnav__step" data-wallstep="-1" aria-label="Previous wall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <p class="pl-wallnav__now" aria-live="polite"><b>Wall ${wallNo(w.id)}</b> <span class="pl-wallnav__of">of ${walls.length}</span><span class="pl-wallnav__meta">${Math.round(w.length)} cm · ${esc(what)}</span></p>
+      <button type="button" class="pl-wallnav__step" data-wallstep="1" aria-label="Next wall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : '';
+    if (focused) { const b = chipsEl.querySelector(`[data-wallstep="${focused}"]`); if (b) b.focus(); }
   }
   chipsEl.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-chip]');
-    if (b) store.dispatch({ type: 'ui/wall', wallId: b.dataset.chip });
+    const b = e.target.closest('[data-wallstep]');
+    if (!b) return;
+    const walls = wallsOf(state.project.room);
+    const i = Math.max(0, walls.findIndex((w) => w.id === state.ui.wallId));
+    const next = walls[(i + Number(b.dataset.wallstep) + walls.length) % walls.length];
+    store.dispatch({ type: 'ui/wall', wallId: next.id });
   });
 
   // ---------- wall elevation ----------
