@@ -31,10 +31,10 @@ const HANDLE_NOTE = {
 const SIZE_LABEL = { short: 'Short', medium: 'Medium', long: 'Long' };
 const DOOR_POS_LABEL = { auto: 'Standard', top: 'Near the top', middle: 'Middle', bottom: 'Near the bottom', full: 'Full length' };
 const DRAWER_POS_LABEL = { centre: 'Centre', top: 'Top edge' };
-const BASE_LABEL = { none: 'No base', recessed: 'Recessed plinth', flush: 'Flush plinth', legs: 'Legs' };
+const BASE_LABEL = { none: 'No base', recessed: 'Recessed base', flush: 'Flush base', legs: 'Legs' };
 const TOP_LABEL = { flush: 'Flush', overhang: 'Overhang', cornice: 'Crown moulding' };
 const TOP_NOTE = { flush: 'The top is level with the sides.', overhang: 'A top that sticks out 2 cm at the front.', cornice: 'A stepped crown along the top front.' };
-const BASE_NOTE = { none: 'Sits on the floor.', recessed: 'A plinth set back 8 cm, so toes fit underneath.', flush: 'A plinth in line with the doors.', legs: 'Raised on legs, with air underneath.' };
+const BASE_NOTE = { none: 'Sits on the floor.', recessed: 'A base (plinth) set back 8 cm, so toes fit underneath.', flush: 'A base (plinth) in line with the doors.', legs: 'Raised on legs, with air underneath.' };
 const LEG_LABEL = (id) => (id === 'wood' ? 'Wood' : (MATERIALS[id] || { label: id }).label);
 
 // ---------- binds: what each control reads and changes ----------

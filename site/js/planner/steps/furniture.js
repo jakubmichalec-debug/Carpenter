@@ -8,7 +8,7 @@ import { createTabs, roving, scrollCue } from './ui.js';
 
 const ICON = (d) => `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-const TYPE_ICON = {
+export const TYPE_ICON = {
   wardrobe: ICON('<rect x="4" y="3" width="24" height="25" rx="1.5"/><path d="M16 3v25M13 15v3M19 15v3M6 28v2M26 28v2"/>'),
   'kitchen-base': ICON('<path d="M4 11h24M5 11v17h22V11M5 19h22M12 15h8M12 24h8"/>'),
   'kitchen-wall': ICON('<path d="M3 5h26M5 5v14h22V5M16 5v14M12 12v3M20 12v3"/>'),

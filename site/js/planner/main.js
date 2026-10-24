@@ -11,6 +11,8 @@ import { createFurnitureStep } from './steps/furniture.js';
 import { createInteriorStep } from './steps/interior.js';
 import { createPlaceStep } from './steps/place.js';
 import { createReviewStep } from './steps/review.js';
+import { createGuided } from './steps/guided.js';
+import * as F from './flow.js';
 import { roving, disclosure } from './steps/ui.js';
 import { issueStep } from './review-logic.js';
 import { clashesByPiece } from './place-geom.js';
@@ -140,6 +142,13 @@ const views = [
   })
 ];
 const review = views[4];
+// The guided flow asks one question per screen using these same step views; "Edit everything" switches to their tabs.
+const guided = createGuided({
+  store, announce, confirmAction, views, app: $('#pl-app'), host: $('#pl-gpanel'),
+  refresh: () => render(state), focusTitle: () => titleEl.focus({ preventScroll: true }), getValidation: () => validated()
+});
+guided.init({ landing: start.kind !== 'new' || exampleBase ? F.landing(state.project) : null });
+state = store.getState();
 let wallPicked = false;
 const sectionOf = {}; // the open section of each step, told by the steps' tabs
 
@@ -158,6 +167,7 @@ function renderStepper() {
   const v = validated();
   const issues = [0, 0, 0, 0, 0];
   for (const e of v.errors) issues[issueStep(e.ref, e.code)]++;
+  if (guided.active) { guided.renderStepper(stepButtons, issues); return; }
   stepButtons.forEach((b, i) => {
     const li = b.closest('.pl-step');
     const current = i === state.ui.step;
@@ -180,12 +190,20 @@ const issuesDisc = disclosure(statusBtn, issuesPop, { bind: false, onOpen: () =>
 const ICON_TICK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".16"/><path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_WARN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5M12 17.2v.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 let headStep = -1;
+let headKey = '';
+function renderGuidedHead() {
+  const h = guided.head();
+  if (h.key === headKey) return;
+  headKey = h.key;
+  titleEl.innerHTML = `${h.prefix ? `<span class="visually-hidden">${esc(h.prefix)}</span>` : ''}${esc(h.title)}`;
+  ledeEl.textContent = h.help;
+}
 function renderHead() {
   const s = state.ui.step;
+  if (guided.active) renderGuidedHead(); else headKey = '';
   if (s !== headStep) {
     headStep = s;
-    titleEl.textContent = LABELS[s];
-    ledeEl.textContent = META[s].lede;
+    if (!guided.active) { titleEl.textContent = LABELS[s]; ledeEl.textContent = META[s].lede; }
     tipsPop.innerHTML = `<h3>Keyboard tips</h3><ul>${META[s].tips.map((t) => `<li>${t}</li>`).join('')}<li>Ctrl+Z undoes, Ctrl+Shift+Z redoes.</li></ul>`;
     tipsDisc.close(); issuesDisc.close();
     issueLists.forEach((ul, i) => { ul.hidden = i !== s; });
@@ -217,13 +235,30 @@ statusBtn.addEventListener('click', () => {
   const s = state.ui.step;
   const st = views[s].status ? views[s].status() : { count: 0 };
   if (!st.count) return;
+  if (st.jump && guided.active) { const t = document.querySelector(`[data-panel="${s}"] [data-sec="${st.jump}"] .pl-link`); if (t) t.focus(); return; }
   if (st.jump && views[s].sections) { views[s].sections.show(st.jump, { focus: true }); return; }
   issuesDisc.toggle();
 });
 
 // ---------- bottom bar ----------
 const next = $('#pl-next'), back = $('#pl-back'), undoBtn = $('#pl-undo'), redoBtn = $('#pl-redo');
+const set0 = (el) => { if (!el.hidden) el.hidden = true; };
+const skipBtn = $('#pl-skip');
+function renderGuidedFooter() {
+  const f = guided.footer();
+  back.disabled = f.backDisabled;
+  const set = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden; };
+  set(next, f.nextHidden);
+  set(skipBtn, f.skipHidden);
+  set($('#pl-foot-review'), !f.review);
+  const label = $('#pl-next-label');
+  if (label.textContent !== f.label) label.textContent = f.label;
+  undoBtn.disabled = !state.past.length;
+  redoBtn.disabled = !state.future.length;
+}
 function renderFooter() {
+  if (guided.active) { renderGuidedFooter(); return; }
+  set0(skipBtn);
   const s = state.ui.step;
   back.disabled = s === 0;
   const last = s === LABELS.length - 1;
@@ -236,13 +271,27 @@ function renderFooter() {
 // undo and redo sit in the bottom bar on a computer and beside the title on a phone, where the bar is tight
 const hist = $('#pl-hist');
 function placeHistory() {
-  const host = phone.matches ? $('#pl-head-tools') : $('#pl-foot');
+  const host = phone.matches ? $('#pl-main-tools') : $('#pl-foot');
   if (hist.parentNode === host) return;
   if (phone.matches) host.insertBefore(hist, host.firstChild);
   else host.insertBefore(hist, $('#pl-pricebox'));
 }
-phone.addEventListener('change', placeHistory);
+// the Edit everything link sits at the end of the chapter bar on a computer and beside the question on a phone, where the bar is full
+function placeTips() {
+  // keyboard tips: in the chapter bar next to Edit everything on a computer, in the head on a phone
+  const host = phone.matches ? $('#pl-head-tools') : $('#pl-mode-slot');
+  const btn = $('#pl-tips-btn');
+  if (btn.parentNode !== host) host.appendChild(btn);
+}
+function placeMode() {
+  const host = phone.matches ? $('#pl-head-tools') : $('#pl-mode-slot');
+  const btn = $('#pl-mode');
+  if (btn.parentNode !== host) { host.insertBefore(btn, host.firstChild); }
+}
+phone.addEventListener('change', () => { placeHistory(); placeMode(); placeTips(); });
 placeHistory();
+placeMode();
+placeTips();
 roving(hist, { selector: '.pl-histbtn' });
 
 function showStep() {
@@ -254,14 +303,45 @@ function showStep() {
   views[s].show();
 }
 
-stepButtons.forEach((b, i) => b.addEventListener('click', () => store.dispatch({ type: 'ui/step', step: i })));
-next.addEventListener('click', () => store.dispatch({ type: 'ui/step', step: state.ui.step + 1 }));
-back.addEventListener('click', () => store.dispatch({ type: 'ui/step', step: state.ui.step - 1 }));
+stepButtons.forEach((b, i) => b.addEventListener('click', () => { if (guided.active) guided.goChapter(i); else store.dispatch({ type: 'ui/step', step: i }); }));
+next.addEventListener('click', () => { if (guided.active) guided.next(); else store.dispatch({ type: 'ui/step', step: state.ui.step + 1 }); });
+back.addEventListener('click', () => { if (guided.active) guided.back(); else store.dispatch({ type: 'ui/step', step: state.ui.step - 1 }); });
+$('#pl-skip').addEventListener('click', () => guided.skip());
+// the person can pick the tabbed editors ("Edit everything") or the questions; the choice is remembered
+const modeBtn = $('#pl-mode');
+function renderMode() {
+  const g = guided.active;
+  const t = g ? 'Edit everything' : 'Guided questions';
+  if (modeBtn.textContent !== t) modeBtn.textContent = t;
+  modeBtn.setAttribute('aria-label', g ? 'Edit everything: switch to the tabbed editor' : 'Guided questions: go back to one question at a time');
+}
+modeBtn.addEventListener('click', () => {
+  guided.setMode(guided.active ? 'expert' : 'guided');
+  announce(guided.active ? 'Guided questions.' : 'All the editors are open. Your design is unchanged.');
+  titleEl.focus({ preventScroll: true });
+});
+// Enter moves on from a question, unless it is pressed on something that has its own meaning for Enter
+document.addEventListener('keydown', (e) => {
+  if (!guided.active || e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.defaultPrevented) return;
+  const t = e.target;
+  if (document.querySelector('dialog[open]')) return;
+  const ok = t === document.body || t === titleEl || (t.matches && t.matches('input[type="radio"], .pl-panel, .pl-gpanel, #pl-main, main'));
+  if (!ok || next.hidden || next.disabled) return;
+  e.preventDefault();
+  next.click();
+});
 undoBtn.addEventListener('click', () => { store.dispatch({ type: 'history/undo' }); announce('Undone.'); });
 redoBtn.addEventListener('click', () => { store.dispatch({ type: 'history/redo' }); announce('Redone.'); });
 $('#pl-skip-controls').addEventListener('click', (e) => {
   e.preventDefault();
   const panel = panels[state.ui.step];
+  if (guided.active) {
+    // the first control of the question: its own answers, or the editor under them
+    const first = [...document.querySelectorAll('#pl-gpanel [data-gq]:not([hidden]) :is(button, input, select, textarea, [tabindex="0"]), [data-panel]:not([hidden]) [data-sec]:not([hidden]) :is(button, input, select, [tabindex="0"])')]
+      .find((el) => !el.disabled && el.tabIndex >= 0 && el.offsetParent !== null);
+    (first || titleEl).focus({ preventScroll: true });
+    return;
+  }
   const tab = panel.querySelector('[role="tab"][aria-selected="true"]:not([hidden])');
   const target = (tab && !tab.closest('[hidden]') && tab) || panel.querySelector('[role="tabpanel"]:not([hidden]) :is(button, input, select, [tabindex="0"]):not([disabled])') || titleEl;
   target.focus({ preventScroll: true });
@@ -309,7 +389,7 @@ function renderPricePop() {
   const q = quoteNow();
   const view = R.quoteView(q, state.project);
   if (!view.pieces.length) {
-    pricePop.innerHTML = '<p>No pieces yet. Add a piece in the Furniture step and its price appears here.</p>';
+    pricePop.innerHTML = '<p>No pieces yet. Choose what to build and its price appears here.</p>';
     return;
   }
   const t = view.totals;
@@ -335,6 +415,7 @@ const paneBtns = $$('[data-pane-btn]');
 paneBtns.forEach((b) => b.addEventListener('click', () => store.dispatch({ type: 'ui/pane', pane: b.dataset.paneBtn })));
 roving($('.pl-tabs'), { selector: '[data-pane-btn]', selects: true });
 function elevOn() {
+  if (guided.active) return guided.elevation();
   const room = state.project.room;
   return elevationVisible({
     section: sectionOf[0], wallPicked, openingId: state.ui.openingId,
@@ -454,7 +535,7 @@ async function bootViewer() {
     viewer.onViewChange((m) => top.setAttribute('aria-pressed', String(m === 'plan')));
     $('#pl-reset').addEventListener('click', () => viewer.resetView());
     stage.classList.add('is-ready');
-    window.gjPlanner = { store, viewer, review };
+    window.gjPlanner = { store, viewer, review, guided };
     review.viewerReady();
   } catch (err) {
     console.warn('The 3D view could not start.', err);
@@ -466,6 +547,8 @@ async function bootViewer() {
 function render(before) {
   const v = validated();
   views.forEach((view) => view.update(state, { validation: v }));
+  guided.update(state);
+  renderMode();
   renderStepper();
   renderFooter();
   renderPane();
@@ -475,7 +558,7 @@ function render(before) {
   if (!before || before.project !== state.project) schedulePrice();
   $('#pl-example').hidden = !exampleBase || state.project !== exampleBase;
   syncViewer(before);
-  if (stepChanged && before && userNav) {
+  if (stepChanged && before && userNav && !guided.active) {
     // a new step: the heading takes focus and the live region says where we are
     titleEl.focus({ preventScroll: true });
     announce(stepAnnouncement(state.ui.step));
@@ -483,7 +566,7 @@ function render(before) {
 }
 store.subscribe((s, before, action) => {
   state = s;
-  if (action && (action.type === 'ui/step')) userNav = true;
+  if (action && (action.type === 'ui/step')) { userNav = true; guided.moved(); }
   if (action && (action.type === 'ui/wall' || (action.type === 'ui/opening' && action.id))) wallPicked = true;
   if (action && action.type === 'project/load') wallPicked = false;
   render(before);
@@ -500,5 +583,5 @@ window.addEventListener('pagehide', () => { store.flush(); });
 
 render(null);
 renderPrice();
-window.gjPlanner = { store, viewer: null, review };
+window.gjPlanner = { store, viewer: null, review, guided };
 bootViewer();

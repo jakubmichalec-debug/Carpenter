@@ -232,14 +232,14 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
   function planLayout(room, W, Hb) {
     if (frozen && frozen.W === W && frozen.H === Hb) return frozen;
     const b = roomBounds(room);
-    const pad = W < 520 ? 46 : 62;
+    const pad = Math.min(W < 520 ? 46 : 62, Math.max(14, Math.round(Hb * 0.2))); // a short preview (a phone) gets a thinner margin
     const s = Math.max(0.05, Math.min((W - 2 * pad) / Math.max(1, b.width), (Hb - 2 * pad) / Math.max(1, b.depth)));
     return { W, H: Hb, s, ox: (W - b.width * s) / 2 - b.minX * s, oz: (Hb - b.depth * s) / 2 - b.minZ * s };
   }
 
   function renderPlan() {
     const W = Math.round(planBox.clientWidth), Hb = Math.round(planBox.clientHeight);
-    if (W < 120 || Hb < 120) return;
+    if (W < 120 || Hb < 70) return;
     const room = state.project.room;
     const L = planLayout(room, W, Hb);
     const { s, ox, oz, H } = L;
@@ -654,7 +654,7 @@ export function createRoomStep({ side: root, plan: planBox, elev: elevBox }, { s
       const here = room.openings.filter((x) => x.wallId === state.ui.wallId);
       inspEl.innerHTML = here.length
         ? `<p class="pl-inspector__empty">On this wall: ${here.map((x) => `<button type="button" class="pl-link" data-pick="${x.id}">${esc(openingName(room, x))}</button>`).join(', ')}. Pick one to change it.</p>`
-        : '<p class="pl-inspector__empty">Nothing on this wall yet. Use <b>Add</b> for a door, window, radiator or socket.</p>';
+        : '<p class="pl-inspector__empty">Nothing on this wall yet. Add a door, window, radiator or socket.</p>';
       return;
     }
     const S = OPENING_TYPES[o.type];

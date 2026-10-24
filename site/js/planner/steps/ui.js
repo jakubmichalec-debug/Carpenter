@@ -85,6 +85,7 @@ export function createTabs({ root, prefix, label, items, onChange = () => {} }) 
   const tabOf = (id) => list.querySelector(`[data-tab="${id}"]`);
   let current = null;
   let enabled = true;
+  let shownKey = null;
 
   function visibleIds() { return items.map((it) => it.id).filter((id) => !tabOf(id).hidden); }
   function syncBar() { list.hidden = !enabled || visibleIds().length < 2; }
@@ -93,6 +94,7 @@ export function createTabs({ root, prefix, label, items, onChange = () => {} }) 
     if (!panels[id] || tabOf(id).hidden) id = visibleIds()[0] || items[0].id;
     const changed = id !== current;
     current = id;
+    shownKey = null;
     for (const it of items) {
       const on = it.id === id, t = tabOf(it.id);
       if (t.getAttribute('aria-selected') !== String(on)) t.setAttribute('aria-selected', String(on));
@@ -111,14 +113,36 @@ export function createTabs({ root, prefix, label, items, onChange = () => {} }) 
     }
     return changed;
   }
+  // The guided flow shows one question at a time: any number of sections together (or none), with the tab bar out of sight.
+  // Returns true when the set changed.
+  function showMany(ids, { silent = false } = {}) {
+    const want = ids.filter((id) => panels[id]);
+    const first = want[0] || null;
+    for (const it of items) {
+      const on = want.includes(it.id) && enabled, t = tabOf(it.id);
+      const sel = it.id === first;
+      if (t.getAttribute('aria-selected') !== String(sel)) t.setAttribute('aria-selected', String(sel));
+      if (panels[it.id] && panels[it.id].hidden !== !on) panels[it.id].hidden = !on;
+    }
+    const key = want.join('|');
+    const changed = key !== shownKey || first !== current;
+    shownKey = key;
+    current = first;
+    if (changed && !silent) {
+      onChange(first || '');
+      root.dispatchEvent(new CustomEvent('pl-section', { bubbles: true, detail: { id: first || '' } }));
+    }
+    return changed;
+  }
   list.addEventListener('click', (e) => {
     const t = e.target.closest('[data-tab]');
-    if (t) show(t.dataset.tab);
+    if (t) { shownKey = null; show(t.dataset.tab); }
   });
   roving(list, { selector: '[role="tab"]', selects: true });
 
   return {
     show,
+    showMany,
     current: () => current,
     list,
     setHidden(id, hidden) {

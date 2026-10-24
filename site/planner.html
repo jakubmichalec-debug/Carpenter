@@ -84,39 +84,40 @@
         <li class="pl-step">
           <button type="button" class="pl-step__btn">
             <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">1</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
-            <span class="pl-step__label"><span class="visually-hidden">Step 1: </span>Room</span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 1: </span>Room<span class="pl-step__q"></span></span>
             <span class="pl-step__state visually-hidden"></span>
           </button>
         </li>
         <li class="pl-step">
           <button type="button" class="pl-step__btn">
             <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">2</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
-            <span class="pl-step__label"><span class="visually-hidden">Step 2: </span>Furniture</span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 2: </span>Furniture<span class="pl-step__q"></span></span>
             <span class="pl-step__state visually-hidden"></span>
           </button>
         </li>
         <li class="pl-step">
           <button type="button" class="pl-step__btn">
             <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">3</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
-            <span class="pl-step__label"><span class="visually-hidden">Step 3: </span>Interior<span class="pl-step__opt"> &middot; optional</span></span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 3: </span>Interior<span class="pl-step__opt"> &middot; optional</span><span class="pl-step__q"></span></span>
             <span class="pl-step__state visually-hidden"></span>
           </button>
         </li>
         <li class="pl-step">
           <button type="button" class="pl-step__btn">
             <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">4</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
-            <span class="pl-step__label"><span class="visually-hidden">Step 4: </span>Place</span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 4: </span>Place<span class="pl-step__q"></span></span>
             <span class="pl-step__state visually-hidden"></span>
           </button>
         </li>
         <li class="pl-step">
           <button type="button" class="pl-step__btn">
             <span class="pl-step__dot" aria-hidden="true"><span class="pl-step__num">5</span><svg class="pl-step__check" viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="pl-step__warn" viewBox="0 0 24 24"><path d="M12 6.5v7M12 17.2v.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span>
-            <span class="pl-step__label"><span class="visually-hidden">Step 5: </span>Review</span>
+            <span class="pl-step__label"><span class="visually-hidden">Step 5: </span>Review<span class="pl-step__q"></span></span>
             <span class="pl-step__state visually-hidden"></span>
           </button>
         </li>
       </ol>
+      <div class="pl-stepper__tools" id="pl-mode-slot"></div>
       </div>
     </nav>
 
@@ -139,13 +140,14 @@
       </div>
     </section>
 
-    <div class="pl-app" id="pl-app" data-pane="plan" data-kind="room" data-step="0" data-elev="off">
+    <div class="pl-app" id="pl-app" data-mode="guided" data-q="" data-pane="plan" data-kind="room" data-step="0" data-elev="off">
       <aside class="pl-side" id="pl-controls" aria-label="Step controls">
         <div class="pl-head">
           <div class="pl-head__row">
             <h2 class="pl-title" id="pl-title" tabindex="-1">Room</h2>
             <button type="button" class="pl-status" id="pl-status" aria-haspopup="false" aria-expanded="false" aria-controls="pl-issues"></button>
             <span class="pl-head__tools" id="pl-head-tools">
+              <button type="button" class="pl-modebtn" id="pl-mode">Edit everything</button>
               <button type="button" class="pl-icon pl-icon--tip" id="pl-tips-btn" aria-controls="pl-tips" aria-label="Keyboard tips" title="Keyboard tips">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.8.5-1.2.9-1.2 1.9M12 16.6v.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
             </span>
@@ -156,6 +158,7 @@
           <div class="pl-pop" id="pl-issues" role="region" aria-label="Things to check" hidden><ul class="pl-notes" id="pl-issues-list"></ul></div>
         </div>
         <div class="pl-panels" id="pl-panels">
+          <div class="pl-gpanel" id="pl-gpanel" hidden></div>
           <div data-panel="0" class="pl-panel"></div>
           <div data-panel="1" hidden class="pl-panel"></div>
           <div data-panel="2" hidden class="pl-panel"></div>
@@ -166,10 +169,13 @@
       </aside>
 
       <div class="pl-main">
+        <div class="pl-main__bar">
         <div class="pl-tabs" role="radiogroup" aria-label="Show">
           <button type="button" role="radio" data-pane-btn="plan" aria-checked="true">Plan</button>
           <button type="button" role="radio" data-pane-btn="wall" aria-checked="false">Wall</button>
           <button type="button" role="radio" data-pane-btn="3d" aria-checked="false">3D</button>
+        </div>
+        <div class="pl-main__tools" id="pl-main-tools"></div>
         </div>
         <div class="pl-areas">
           <div class="pl-planarea">
@@ -212,6 +218,7 @@
           <div class="pl-pop pl-pop--up" id="pl-price-pop" role="region" aria-label="Price breakdown" hidden></div>
         </div>
         <div class="pl-foot__review" id="pl-foot-review" hidden></div>
+        <button type="button" class="pl-btn pl-btn--ghost" id="pl-skip" hidden>Skip</button>
         <button type="button" class="pl-btn pl-btn--primary" id="pl-next"><span id="pl-next-label">Next: furniture</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>

@@ -1409,3 +1409,337 @@ svg[tabindex="-1"]:focus { outline: none; }
 
 /* cards and chips are controls, not text: a drag across them must not highlight their labels */
 .pl-app :is(button, [role=radio], [role=tab], .pl-style) { user-select: none; -webkit-user-select: none; }
+
+
+/* =====================================================================================================================
+   Guided questions: one question per screen. The editors of the five steps are the same ones as in the tabbed view
+   ("Edit everything"); here their tab bars are out of sight, the head asks the question and a few answers are bigger.
+   Everything is keyed on .pl-app[data-mode="guided"] and, for one question, on its data-q.
+   ===================================================================================================================== */
+
+/* the chapter bar: "Question 2 of 4" under the chapter you are in */
+.pl-step__q { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11.5px; line-height: 1.2; color: var(--ink-3); letter-spacing: 0; }
+.pl-step__q:empty { display: none; }
+.pl-step.is-current .pl-step__q { color: var(--ink-2); }
+.pl-step__btn[aria-disabled="true"] { opacity: .5; cursor: default; }
+.pl-step__btn[aria-disabled="true"]:hover { background: none; color: var(--ink-3); }
+.pl-step.is-complete .pl-step__num { display: none; }
+.pl-step.is-complete .pl-step__check { display: block; }
+.pl-step.is-skipped .pl-step__label { color: var(--ink-3); font-weight: 500; }
+
+/* the small button in the head that switches between the questions and the tabbed editors */
+.pl-modebtn {
+  flex: none; display: inline-flex; align-items: center; min-height: 32px; padding: 0 4px; border: 0; background: none; cursor: pointer; color: var(--oak-deep);
+  font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap;
+}
+.pl-modebtn:hover { color: var(--ink); }
+.pl-modebtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-s); }
+
+/* head: the question and its one line of help */
+.pl-app[data-mode="guided"] .pl-head { padding: 12px 20px 2px; }
+.pl-app[data-mode="guided"] .pl-title { font-size: clamp(1.25rem, 1.6vw + .6rem, 1.6rem); line-height: 1.12; }
+.pl-app[data-mode="guided"] .pl-lede { display: block; margin-top: 4px; font-size: 13.5px; color: var(--ink-2); }
+.pl-app[data-mode="guided"] .pl-secnav { display: none; }
+.pl-app[data-mode="guided"][data-q="arrange"][data-arrange="1"] .pl-secnav:not([hidden]) { display: flex; }
+.pl-app[data-mode="guided"] .pl-sec { padding-top: 8px; overflow-y: auto; overscroll-behavior: contain; }
+.pl-app[data-mode="guided"] .pl-menu, .pl-app[data-mode="guided"] #pl-p-out, .pl-app[data-mode="guided"] #pl-p-wait-sec { display: none; }
+.pl-app[data-mode="guided"] #pl-foot-review #pl-r-send { display: none; }
+@media (max-width: 899px) { .pl-app[data-mode="guided"] .pl-icon--tip { display: none; } }
+
+/* the part of the side panel that belongs to the question */
+.pl-gpanel { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 8px 20px 0; overflow-y: auto; overscroll-behavior: contain; }
+.pl-gpanel[hidden] { display: none; }
+.pl-gq { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+.pl-gq[hidden] { display: none; }
+.pl-app[data-mode="guided"][data-q="type"] .pl-gpanel, .pl-app[data-mode="guided"][data-q="inside"] .pl-gpanel,
+.pl-app[data-mode="guided"][data-q="more"] .pl-gpanel, .pl-app[data-mode="guided"][data-q="send"] .pl-gpanel,
+.pl-app[data-mode="guided"][data-q="arrange"]:not([data-arrange="1"]) .pl-gpanel, .pl-app[data-mode="guided"][data-q="look"] .pl-gpanel { flex: 1 1 auto; }
+.pl-app[data-mode="guided"][data-q="openings"] .pl-gpanel, .pl-app[data-mode="guided"][data-q="arrange"][data-arrange="1"] .pl-gpanel { flex: 0 0 auto; overflow: visible; }
+.pl-app[data-mode="guided"][data-q="look"][data-more="1"] .pl-gpanel { flex: 0 0 auto; padding-bottom: 0; }
+.pl-app[data-mode="guided"][data-q="look"][data-more="1"] .pl-gq { padding-bottom: 0; }
+.pl-app[data-mode="guided"][data-q="look"]:not([data-more="1"]) .pl-panel { display: none; }
+
+/* big answers */
+.pl-yn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pl-yn--stack { grid-template-columns: minmax(0, 1fr); }
+.pl-ynbtn {
+  display: grid; align-content: center; gap: 3px; min-height: 92px; padding: 14px 16px; text-align: left; cursor: pointer; color: var(--ink);
+  border: 1.5px solid var(--line); border-radius: var(--radius-m); background: var(--bone);
+  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.pl-ynbtn b { font-size: var(--step-0); line-height: 1.2; }
+.pl-ynbtn span { font-size: 13px; color: var(--ink-3); line-height: 1.35; }
+.pl-ynbtn:hover { border-color: var(--oak); box-shadow: var(--shadow-1); }
+.pl-ynbtn[aria-pressed="true"] { border-color: var(--oak); background: var(--paper); box-shadow: inset 0 0 0 1px var(--oak); }
+.pl-ynbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.pl-ynbtn--go { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.pl-ynbtn--go span { color: color-mix(in srgb, var(--paper) 72%, transparent); }
+.pl-ynbtn--go:hover { background: var(--oak-deep); border-color: var(--oak-deep); }
+.pl-yn--stack .pl-ynbtn { min-height: 64px; }
+.pl-yn.is-answered .pl-ynbtn { min-height: 46px; padding: 6px 16px; }
+.pl-yn.is-answered .pl-ynbtn span { display: none; }
+
+/* Room: shape cards a bit bigger */
+.pl-app[data-mode="guided"][data-q="shape"] .pl-cards { gap: 10px; }
+.pl-app[data-mode="guided"][data-q="shape"] .pl-card__body { min-height: 92px; gap: 6px; padding: 10px 6px 8px; }
+.pl-app[data-mode="guided"][data-q="shape"] .pl-thumb { width: 72px; height: 52px; }
+.pl-app[data-mode="guided"][data-q="shape"] .pl-card__name { font-size: 13px; }
+
+/* Room: doors, windows, radiators, sockets */
+.pl-g-open { display: grid; gap: 8px; }
+.pl-g-open[hidden] { display: none; }
+.pl-addrow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pl-addbtn {
+  display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 52px; padding: 5px 2px; cursor: pointer; color: var(--ink);
+  border: 1.5px solid var(--oak-deep); border-radius: var(--radius-s); background: var(--paper); font-size: 12.5px; font-weight: 700; line-height: 1.2;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.pl-addbtn svg { width: 22px; height: 22px; color: var(--oak-deep); }
+.pl-addbtn:hover { background: var(--oak-deep); color: var(--paper); }
+.pl-addbtn:hover svg { color: var(--paper); }
+.pl-addbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pl-g-oplist { margin-bottom: 0; }
+.pl-g-oplist[hidden] { display: none; }
+.pl-g-oplist .pl-chip { height: 34px; flex: 0 0 auto; }
+.pl-g-oplist .pl-chip i { background: var(--sand); color: var(--ink); }
+.pl-g-oplist .pl-chip[aria-checked="true"] i { background: var(--paper); color: var(--ink); }
+.pl-app[data-mode="guided"] .pl-wallbar { margin: 0; }
+.pl-app[data-mode="guided"] .pl-wallbar .pl-wallnav { flex: 1 1 auto; }
+.pl-app[data-mode="guided"] .pl-inspector { margin-top: 8px; }
+.pl-app[data-mode="guided"] .pl-inspector__card { padding: 12px 14px 14px; }
+.pl-app[data-mode="guided"] .pl-inspector__head { margin-bottom: 10px; }
+.pl-app[data-mode="guided"] .pl-inspector .pl-form--grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; align-items: end; }
+.pl-app[data-mode="guided"] .pl-inspector .pl-row { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.pl-app[data-mode="guided"] .pl-inspector .pl-field { width: 100%; }
+.pl-app[data-mode="guided"] .pl-inspector .pl-field__input { flex: 1 1 auto; width: 100%; }
+.pl-app[data-mode="guided"] .pl-inspector .pl-row--select { grid-column: 1 / -1; }
+.pl-app[data-mode="guided"][data-q="openings"][data-answered="no"] .pl-panel { display: none; }
+.pl-app[data-mode="guided"][data-q="openings"]:not([data-answered="yes"]) .pl-panel { display: none; }
+
+/* Furniture: what to build */
+.pl-types--big { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pl-types--big .pl-type { padding: 10px 12px; }
+.pl-gq[data-gq="type"] { padding-bottom: 12px; }
+
+/* Furniture: colour and handles */
+.pl-gblock { display: grid; gap: 6px; }
+.pl-gblock[hidden] { display: none; }
+.pl-gblock__h { margin: 0; font-family: var(--font-body); font-size: 13px; font-weight: 700; letter-spacing: 0; }
+.pl-gsws { display: flex; flex-wrap: wrap; gap: 6px 4px; }
+.pl-gsw {
+  position: relative; display: grid; justify-items: center; align-content: start; gap: 3px; width: 64px; padding: 4px 2px 5px; cursor: pointer;
+  border: 1.5px solid transparent; border-radius: var(--radius-s); background: none; color: var(--ink-2); font-size: 11.5px; line-height: 1.2; text-align: center;
+}
+.pl-gsw .pl-sw { width: 34px; height: 34px; }
+.pl-gsw__name { font-size: 11.5px; }
+.pl-gsw .pl-opt__price { font-size: 11px; min-height: 13px; }
+.pl-gsw:hover { background: var(--bone); }
+.pl-gsw[aria-checked="true"] { border-color: var(--oak); background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--oak); }
+.pl-gsw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pl-g-handles { flex-wrap: wrap; gap: 6px; margin: 0; }
+.pl-g-handles .pl-chip { height: 36px; padding: 0 12px; }
+.pl-g-handles .pl-opt__price { background: none; padding: 0; font-size: 11px; }
+.pl-gblock__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pl-gmore { flex: none; font-size: 13px; }
+.pl-gless { align-self: flex-start; min-height: 32px; }
+.pl-gless[hidden] { display: none; }
+
+/* Interior: ways to start the inside */
+.pl-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.pl-preset {
+  display: grid; justify-items: center; gap: 4px; padding: 8px 4px 8px; cursor: pointer; color: var(--ink); text-align: center;
+  border: 1.5px solid var(--line); border-radius: var(--radius-s); background: var(--bone);
+  transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
+}
+.pl-preset:hover { border-color: var(--sand); }
+.pl-preset[aria-pressed="true"] { border-color: var(--oak); background: var(--paper); box-shadow: inset 0 0 0 1px var(--oak); }
+.pl-preset:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pl-preset__pic { display: grid; place-items: center; width: 100%; height: 74px; }
+.pl-preset__pic svg { height: 100%; width: auto; max-width: 100%; }
+.pl-preset__name { font-size: 12.5px; font-weight: 700; line-height: 1.2; }
+.pl-pre__bay { fill: var(--paper); stroke: var(--wood-deep); stroke-width: 1.3; }
+.pl-g-scope { margin: 0; }
+.pl-g-scope[hidden] { display: none; }
+.pl-g-scope .pl-chip { height: 34px; flex: 0 0 auto; }
+
+/* Place: the position and the clashes together */
+.pl-app[data-mode="guided"][data-q="place"] [data-sec="position"] { flex: 0 0 auto; overflow: visible; padding-bottom: 4px; }
+.pl-app[data-mode="guided"][data-q="place"] [data-sec="clashes"] { flex: 1 1 0; min-height: 56px; padding-top: 0; }
+.pl-app[data-mode="guided"][data-q="place"] .pl-chips--modes { margin-bottom: 8px; }
+.pl-app[data-mode="guided"][data-q="place"] .pl-where { margin-bottom: 6px; }
+
+/* the pieces so far */
+.pl-gpieces { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; align-content: start; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.pl-gpiece { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 8px 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bone); }
+.pl-gpiece.is-unplaced { box-shadow: inset 3px 0 0 var(--amber); }
+.pl-gpiece__t { flex: 1 1 140px; min-width: 0; display: grid; gap: 1px; font-size: var(--step--1); }
+.pl-gpiece__t b { line-height: 1.2; }
+.pl-gpiece__t span { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
+.pl-gpiece__a { display: flex; gap: 6px; margin-left: auto; }
+.pl-gpiece__a .pl-btn { margin: 0; }
+.pl-btn--del:hover:not(:disabled) { background: color-mix(in srgb, var(--err) 12%, var(--paper)); color: var(--err); border-color: var(--err); }
+
+/* Review: the quote and the link buttons share the panel */
+.pl-app[data-mode="guided"][data-q="review"] [data-sec="quote"] { flex: 1 1 0; min-height: 0; }
+.pl-app[data-mode="guided"][data-q="review"] [data-sec="share"] { flex: 0 0 auto; overflow: visible; padding-top: 0; padding-bottom: 8px; }
+.pl-app[data-mode="guided"][data-q="review"] [data-sec="share"] .pl-hint { display: none; }
+.pl-app[data-mode="guided"][data-q="send"] .pl-rbar { display: none !important; }
+
+/* Review: the contact details */
+.pl-gform__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.pl-gfield { display: grid; gap: 3px; align-content: start; min-width: 0; }
+.pl-gfield--wide { grid-column: 1 / -1; }
+.pl-gfield label { font-weight: 600; font-size: 13px; }
+.pl-gfield label span { font-weight: 400; color: var(--ink-3); }
+.pl-gfield input, .pl-gfield textarea {
+  width: 100%; min-width: 0; height: 40px; padding: 0 12px; border-radius: var(--radius-s); border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+  background: var(--paper); color: var(--ink); font: inherit; font-size: 15px;
+}
+.pl-gfield textarea { height: 64px; padding: 8px 12px; resize: none; line-height: 1.4; }
+.pl-gfield input:hover, .pl-gfield textarea:hover { border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.pl-gfield input:focus-visible, .pl-gfield textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--oak); }
+.pl-gfield [aria-invalid="true"] { border-color: var(--err); background: color-mix(in srgb, var(--err) 6%, var(--paper)); }
+.pl-gerr { margin: 0; font-size: 12.5px; color: var(--err); font-weight: 600; max-width: none; }
+.pl-gerr[hidden] { display: none; }
+.pl-gconsent { align-items: flex-start; min-height: 0; margin-top: 8px; font-weight: 500; font-size: 13px; line-height: 1.4; }
+.pl-gconsent input { flex: none; margin-top: 1px; }
+.pl-gdone { display: grid; gap: 8px; justify-items: start; padding: 4px 0; outline: none; }
+.pl-gdone[hidden] { display: none; }
+.pl-gdone__tick { margin: 0; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--oak-deep); color: var(--paper); }
+.pl-gdone__tick svg { width: 24px; height: 24px; }
+.pl-gdone__h { margin: 0; font-size: var(--step-1); }
+.pl-gdone__ref { margin: 0; font-size: var(--step--1); }
+.pl-gdone__ref strong { font-family: var(--font-mono); }
+.pl-gdone .pl-actions .pl-btn { text-decoration: none; }
+.pl-gform[hidden] { display: none; }
+
+/* a short fade and slide when a new question appears (not at all with reduced motion: the script skips it too) */
+@media (prefers-reduced-motion: reduce) {
+  .pl-ynbtn, .pl-preset, .pl-addbtn { transition: none; }
+}
+
+/* ---------- Guided on narrower screens ---------- */
+@media (max-width: 899px) {
+  .pl-app[data-mode="guided"] .pl-head { padding: 4px var(--gutter) 0; }
+  .pl-app[data-mode="guided"] .pl-head__row { min-height: 34px; gap: 6px; }
+  .pl-app[data-mode="guided"] .pl-title { font-size: 1.12rem; line-height: 1.15; }
+  .pl-app[data-mode="guided"] .pl-lede { font-size: 12.5px; line-height: 1.35; margin-top: 2px; margin-bottom: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pl-app[data-mode="guided"] .pl-head .pl-example { display: none; }
+  .pl-modebtn { font-size: 12.5px; min-height: 32px; padding: 0 2px; }
+  .pl-gpanel { padding: 6px var(--gutter) 0; }
+  .pl-app[data-mode="guided"] .pl-sec { padding: 6px var(--gutter) 6px; }
+  .pl-ynbtn { min-height: 76px; padding: 10px 12px; }
+  .pl-ynbtn b { font-size: 15px; }
+  .pl-yn--stack .pl-ynbtn { min-height: 54px; }
+  .pl-yn.is-answered .pl-ynbtn { min-height: 44px; padding: 4px 12px; }
+  .pl-app[data-mode="guided"][data-q="shape"] .pl-card__body { min-height: 76px; gap: 4px; padding: 6px 4px; }
+  .pl-app[data-mode="guided"][data-q="shape"] .pl-thumb { width: 60px; height: 42px; }
+  .pl-types--big { gap: 6px; }
+  .pl-types--big .pl-type { padding: 6px 10px; grid-template-columns: 30px minmax(0, 1fr); column-gap: 8px; min-height: 44px; }
+  .pl-types--big .pl-type__icon { grid-row: 1; width: 30px; height: 30px; }
+  .pl-types--big .pl-type__icon svg { width: 28px; height: 28px; }
+  .pl-types--big .pl-type__size { display: none; }
+  .pl-types--big .pl-type__name { font-size: 13px; }
+  .pl-gsw { width: 56px; }
+  .pl-gsw .pl-sw { width: 30px; height: 30px; }
+  .pl-gblock { gap: 3px; }
+  .pl-gq { gap: 8px; }
+  .pl-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .pl-preset__pic { height: 58px; }
+  .pl-app[data-mode="guided"][data-q="openings"] .pl-gpanel, .pl-app[data-mode="guided"][data-q="arrange"][data-arrange="1"] .pl-gpanel { padding-bottom: 0; }
+  .pl-addbtn { min-height: 46px; }
+  .pl-addbtn svg { width: 18px; height: 18px; }
+  .pl-gform__grid { gap: 6px 10px; }
+  .pl-gfield label { font-size: 12.5px; }
+  .pl-gfield input { height: 40px; }
+  .pl-gfield textarea { height: 48px; }
+  .pl-gpiece { padding: 6px 6px 6px 12px; }
+  .pl-gpiece__a .pl-btn__t { display: none; }
+  .pl-gpiece__a .pl-btn--del { width: 44px; padding: 0; }
+  .pl-app[data-mode="guided"][data-q="send"] .pl-main { padding-top: 4px; padding-bottom: 4px; }
+  .pl-app[data-mode="guided"][data-q="send"] .pl-tabs { display: none; }
+}
+
+.pl-stepper__inner { display: flex; align-items: center; gap: 12px; }
+.pl-stepper__list { flex: 1 1 auto; min-width: 0; }
+.pl-stepper__tools { flex: none; }
+.pl-stepper__tools:empty { display: none; }
+.pl-app[data-mode="guided"] [data-sec="style"] > .pl-hint { display: none; }
+.pl-app[data-mode="guided"] #pl-i-keep { display: none; }
+
+/* the bar above the preview: the Plan | Wall | 3D switch and, on a phone, undo, redo and Edit everything */
+.pl-main__bar { display: contents; }
+.pl-main__tools { display: none; }
+@media (max-width: 899px) {
+  .pl-main__bar { display: flex; align-items: center; gap: 6px; flex: none; }
+  .pl-main__bar .pl-tabs { flex: 1 1 auto; width: auto; min-width: 0; }
+  .pl-main__bar .pl-tabs button { padding: .45em .5em; }
+  .pl-main__tools { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+  .pl-main__tools .pl-foot__hist { margin: 0; gap: 0; }
+  .pl-main__tools .pl-histbtn { border-color: transparent; }
+  /* how much of the screen the preview gets: the more a question has to show, the less */
+  .pl-app[data-mode="guided"] { --pv: 36%; }
+  .pl-app[data-mode="guided"][data-q="shape"], .pl-app[data-mode="guided"][data-q="finish"], .pl-app[data-mode="guided"][data-q="type"], .pl-app[data-mode="guided"][data-q="inside"],
+  .pl-app[data-mode="guided"][data-q="more"], .pl-app[data-mode="guided"][data-q="openings"]:not([data-answered="yes"]), .pl-app[data-mode="guided"][data-q="arrange"]:not([data-arrange="1"]) { --pv: 42%; }
+  .pl-app[data-mode="guided"][data-q="look"], .pl-app[data-mode="guided"][data-q="piece-size"], .pl-app[data-mode="guided"][data-q="place"] { --pv: 27%; }
+  .pl-app[data-mode="guided"][data-q="openings"][data-answered="yes"], .pl-app[data-mode="guided"][data-q="arrange"][data-arrange="1"] { --pv: 24%; }
+  .pl-app[data-mode="guided"][data-q="send"] { --pv: 16%; }
+  .pl-app[data-mode="guided"] { grid-template-rows: var(--pv) minmax(0, 1fr) auto; }
+}
+@media (max-width: 899px) and (max-height: 760px) {
+  /* a short phone: the drawings need about 120 px, the 3D views can be small */
+  .pl-app[data-mode="guided"] { --pv: 30%; }
+  .pl-app[data-mode="guided"][data-q="shape"], .pl-app[data-mode="guided"][data-q="type"], .pl-app[data-mode="guided"][data-q="inside"], .pl-app[data-mode="guided"][data-q="more"],
+  .pl-app[data-mode="guided"][data-q="openings"]:not([data-answered="yes"]), .pl-app[data-mode="guided"][data-q="arrange"]:not([data-arrange="1"]) { --pv: 36%; }
+  .pl-app[data-mode="guided"][data-q="look"] { --pv: 20%; }
+  .pl-app[data-mode="guided"][data-q="piece-size"] { --pv: 21%; }
+  .pl-app[data-mode="guided"][data-q="send"] { --pv: 12%; }
+}
+}
+
+@media (max-width: 899px) {
+  .pl-app[data-mode="guided"] .pl-inspector .pl-field { height: 42px; }
+  .pl-app[data-mode="guided"] .pl-inspector__card { padding: 10px 12px 12px; }
+  .pl-app[data-mode="guided"] .pl-inspector__head { margin-bottom: 6px; }
+  .pl-app[data-mode="guided"] .pl-inspector .pl-form--grid { gap: 4px 10px; }
+  .pl-gsw .pl-sw { width: 28px; height: 28px; }
+  .pl-gsw { gap: 2px; padding: 3px 2px 3px; }
+  .pl-g-handles .pl-chip { height: 34px; }
+  .pl-g-handles { gap: 4px; }
+  .pl-gsws { gap: 2px 2px; }
+}
+
+.pl-stepper__tools { display: flex; align-items: center; gap: 4px; }
+.pl-stepper__tools .pl-icon--tip { width: 36px; height: 36px; }
+@media (min-width: 900px) and (max-height: 800px) {
+  .pl-app[data-mode="guided"] .pl-title { font-size: 1.3rem; }
+  .pl-app[data-mode="guided"] .pl-head { padding-top: 8px; }
+}
+
+.pl-g-scope { align-items: center; flex-wrap: wrap; }
+.pl-g-scope__l { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-right: 2px; }
+.pl-g-scope .pl-chip { min-width: 44px; justify-content: center; }
+@media (max-width: 899px) and (max-height: 760px) {
+  .pl-app[data-mode="guided"]:is([data-q="look"], [data-q="piece-size"], [data-q="finish"], [data-q="openings"][data-answered="yes"], [data-q="arrange"][data-arrange="1"]) .pl-lede { display: none; }
+}
+
+/* the question is about the floor and walls: the skirting is in the tabbed view */
+.pl-app[data-mode="guided"] #pl-skirt { display: none; }
+.pl-app[data-mode="guided"] .pl-sizebox > .pl-hint:last-child { display: none; }
+@media (max-width: 899px) {
+  .pl-main { position: relative; }
+  /* a 3D preview has no tabs: undo, redo and Edit everything float over its corner instead of taking a row */
+  .pl-app[data-kind="other"] .pl-main__bar { position: absolute; z-index: 6; right: calc(var(--gutter) + 6px); bottom: 12px; padding: 0 4px; border-radius: 999px; background: color-mix(in srgb, var(--paper) 88%, transparent); border: 1px solid var(--line); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .pl-app[data-kind="other"] .pl-main__tools .pl-histbtn { min-height: 40px; height: 40px; }
+  .pl-app[data-kind="other"] .pl-main__tools .pl-histbtn { width: 40px; min-width: 40px; }
+  .pl-app[data-kind="other"] .pl-viewer__hint { display: none; }
+}
+@media (max-width: 899px) and (max-height: 760px) {
+  .pl-app[data-mode="guided"][data-q="look"] { --pv: 16%; }
+  .pl-app[data-mode="guided"][data-q="piece-size"] { --pv: 18%; }
+  .pl-app[data-mode="guided"][data-q="arrange"][data-arrange="1"] { --pv: 25%; }
+}
+.pl-gmore { min-height: 28px; }
+@media (max-width: 899px) {
+  .pl-app[data-mode="guided"]:is([data-q="openings"][data-answered="yes"], [data-q="arrange"][data-arrange="1"]) .pl-lede { display: none; }
+}

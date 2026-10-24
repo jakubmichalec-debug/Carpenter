@@ -288,3 +288,30 @@ measurements. Builders (Sonnet) do one phase each. Each phase ends usable and de
 * **Interior as free items vs. presets:** items give full control. Presets keep it quick for most people, so both are offered.
 * **Share links in the URL:** no backend, but very large projects could pass about 8 KB, which some chat apps cut off.
   Revisit with a small storage service if that happens.
+
+## 11. The guided question flow
+
+The planner shows its five steps as **14 questions**, one per screen, by default. The tabbed view of section 4 stays as
+**Edit everything** (a small link at the end of the chapter bar, remembered in `localStorage` under `gj.planner.view`).
+Both views use the same store and the same step editors, so switching loses nothing.
+
+| Chapter | Questions |
+|---|---|
+| Room | 1 What shape is your room? · 2 How big is it? · 3 Are there doors, windows or radiators? (Yes/No, then the list editor) · 4 What are the floor and walls like? (optional) |
+| Furniture | 5 What would you like us to build? (one tap creates the piece) · 6 Which look? · 7 Change the colour or handles? (optional, "More options" opens the full look panel) · 8 How big? |
+| Interior | 9 What should go inside? (a picture per preset, "Use your suggestion") · 10 Arrange it yourself? (optional, opens the interior editor). Skipped for a piece with no inside, such as a table. |
+| Place | 11 Where should it go? (placed automatically first; position and clashes together) · 12 Anything else built? (list of pieces with Edit and Remove, "add another" goes back to 5) |
+| Review | 13 Here's your room (3D, quote, share link) · 14 Where should we send your design? (contact details; the site still sends nothing) |
+
+* **Where the logic lives.** `flow.js` is pure and tested (`tests/planner-flow.test.mjs`): the question table, the order
+  with the Interior skip, "Question 3 of 14" and "Question 2 of 4", where a saved project lands, the contact checks.
+  `steps/guided.js` is the DOM part: it shows the sections of the existing editors that answer a question
+  (`createTabs().showMany`), hides their tab bars and adds Yes/No answers, the type and preset cards, the short colour list,
+  the pieces list and the contact form.
+* **Landing.** A saved project or a share link opens on question 13 with every chapter marked done (a chapter whose
+  pieces still need a look keeps its warning mark). The chapter bar is clickable for every chapter already reached.
+* **One screen.** No question scrolls the page. Only a long list (the twelve looks, the full look panel, the quote) scrolls
+  inside its own box. A phone gives the preview 27 to 42 percent of the height, depending on how much the question shows.
+* **Accessibility.** The question is the `h2` and takes focus; it starts with a visually hidden "Question 3 of 14: " and the
+  live region says the same. Enter moves on when focus is on the question or on a radio card, never on a button.
+* **Nothing about the project changes**: no new action, no new field. The contact details are kept in memory only.
