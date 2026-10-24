@@ -375,11 +375,18 @@ export function createStore(initialProject, opts = {}) {
   return store;
 }
 
-// URL hash first, then local storage, then a fresh project.
-export async function loadInitialProject({ hash = typeof location !== 'undefined' ? location.hash : '', load = loadLocal } = {}) {
+// Where the planner starts: a design in the URL hash first, then the one saved in this browser. With neither it is a
+// first visit (kind 'new') and the project is the example one, which the start screen only uses if it is picked.
+export async function loadStart({ hash = typeof location !== 'undefined' ? location.hash : '', load = loadLocal } = {}) {
   if (hash && /^#?p=/.test(hash)) {
     const fromUrl = await decodeProject(hash);
-    if (fromUrl) return fromUrl;
+    if (fromUrl) return { project: fromUrl, kind: 'link' };
   }
-  return load() || createProject();
+  const saved = load();
+  return saved ? { project: saved, kind: 'saved' } : { project: createProject(), kind: 'new' };
+}
+
+// Same order as loadStart, for callers that only want the project.
+export async function loadInitialProject(opts) {
+  return (await loadStart(opts)).project;
 }

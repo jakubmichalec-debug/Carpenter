@@ -67,7 +67,7 @@ export function adviceList(errors = []) {
 // ---------- the quote, shaped for the panel ----------
 const PART_TITLES = {
   carcass: 'Carcass boards', frame: 'Frame', worktop: 'Top', plinth: 'Plinth', sliding: 'Sliding doors', base: 'Workshop time',
-  bays: 'Extra bays', fitting: 'Fitting', doors: 'Doors, hinges and handles', trim: 'Top and trim', back: 'Back panel and colour', look: 'Front design and finish'
+  bays: 'Extra sections', fitting: 'Fitting', doors: 'Doors, hinges and handles', trim: 'Top and trim', back: 'Back panel and colour', look: 'Front design and finish'
 };
 const sumCents = (a) => a.reduce((s, x) => s + x.cents, 0);
 
@@ -98,7 +98,7 @@ export function quoteView(quote, project) {
     const sections = [...bySection.entries()].map(([key, rows]) => {
       rows.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
       const bay = key === 'piece' ? -1 : Number(key.slice(4));
-      return { key, bay, title: key === 'piece' ? 'The piece' : `Bay ${bay + 1}`, cents: sumCents(rows), rows: rows.map(({ label, cents }) => ({ label, cents })) };
+      return { key, bay, title: key === 'piece' ? 'The piece' : `Section ${bay + 1}`, cents: sumCents(rows), rows: rows.map(({ label, cents }) => ({ label, cents })) };
     }).sort((a, b) => a.bay - b.bay);
     const groupMap = new Map();
     for (const l of pq.lines) groupMap.set(l.group, (groupMap.get(l.group) || 0) + l.cents);

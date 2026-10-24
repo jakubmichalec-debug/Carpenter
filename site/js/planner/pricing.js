@@ -251,7 +251,7 @@ function quotePiece(project, piece, label, placement) {
   let hours = 0;
   const pathOf = (ref, text) => {
     const parts = [label];
-    if (ref.bay !== undefined) parts.push(`Bay ${ref.bay + 1}`);
+    if (ref.bay !== undefined) parts.push(`Section ${ref.bay + 1}`);
     if (text) parts.push(text);
     return parts.join(' > ');
   };
@@ -336,7 +336,7 @@ function quotePiece(project, piece, label, placement) {
     line('Workshop labour', ref, text, r1(h * 100) / 100, 'h', cents(h * rate));
   };
   labour({ part: 'base' }, `${T.label} workshop time`, L.baseHours[piece.type] ?? 6);
-  labour({ part: 'bays' }, 'Extra bays', (piece.bays.length - 1) * L.extraBayHours);
+  labour({ part: 'bays' }, 'Extra sections', (piece.bays.length - 1) * L.extraBayHours);
   if (piece.fronts.kind === 'sliding') labour({ part: 'sliding' }, 'Sliding doors', slidingPanels(piece) * L.slidingPanelHours);
   if (g.plinth > 0) labour({ part: 'plinth' }, look.base === 'legs' ? 'Legs' : 'Plinth', look.base === 'legs' ? PRICES_V2.look.legHours : L.plinthHours);
   // look: front design, edges, routed pulls, top, scribe, two-tone, separate inside, end panels
@@ -366,7 +366,7 @@ function quotePiece(project, piece, label, placement) {
   if (piece.worktop) labour({ part: 'worktop' }, 'Worktop', isStone(piece.worktop) ? L.stoneWorktopHours : L.worktopHours);
   piece.bays.forEach((bay, bi) => {
     if (bay.back === 'mirror') labour({ bay: bi, part: 'back' }, 'Fitting the mirror back panel', 0.6);
-    if (bay.colour) labour({ bay: bi, part: 'back' }, 'Bay colour', 0.3);
+    if (bay.colour) labour({ bay: bi, part: 'back' }, 'Section colour', 0.3);
     const d = bayDoor(piece, bay, g);
     if (d.count) labour({ bay: bi, part: 'doors' }, 'Doors', d.count * doorParts(piece, bay, d, g).length * (L.doorHours + (piece.fronts.kind === 'glass' ? L.glassDoorHours : 0)));
     bay.items.forEach((it, ii) => {

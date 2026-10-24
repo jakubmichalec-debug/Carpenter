@@ -243,7 +243,7 @@ test('every new item and option has a price that points at its bay and item', ()
   assert.ok(tl([{ kind: 'carousel', y: 0, shape: 'kidney' }]) > 0);
   // paths
   const q = quoteProject(solo(put([{ ...d, face: 'glass', insert: 'socks' }, { kind: 'rail', y: 192, finish: 'black' }])));
-  for (const l of q.pieces[0].lines.filter((x) => x.ref.item !== undefined && x.ref.bay === 0)) assert.match(l.path, /^Wardrobe 1 > Bay 1 > /);
+  for (const l of q.pieces[0].lines.filter((x) => x.ref.item !== undefined && x.ref.bay === 0)) assert.match(l.path, /^Wardrobe 1 > Section 1 > /);
   assert.ok(q.pieces[0].items.some((i) => /glass fronts/.test(i.label) && /sock dividers/.test(i.label)));
   assert.equal(q.pieces[0].lines.reduce((s, l) => s + l.cents, 0), q.pieces[0].cents);
   assert.ok(t0 > 0);
@@ -258,7 +258,7 @@ test('bay colour and back panel are priced, and lines keep the piece > bay path'
   assert.ok(total(withBay({ colour: 'oak' })) > t0, 'an oak inside costs more than the standard one');
   const mirror = lines(withBay({ back: 'mirror' })).filter((l) => l.ref.bay === 0 && l.ref.part === 'back');
   assert.ok(mirror.some((l) => /Mirror back panel/.test(l.label)) && mirror.some((l) => l.group === 'Workshop labour'));
-  for (const l of mirror) assert.match(l.path, /^Wardrobe 1 > Bay 1 > /);
+  for (const l of mirror) assert.match(l.path, /^Wardrobe 1 > Section 1 > /);
   const open = cutListFor(withBay({ back: 'open' }));
   assert.ok(!open.some((b) => b.part === 'back' && b.ref.bay === 0), 'an open bay has no back board');
   assert.ok(open.some((b) => b.part === 'back' && b.ref.bay === 1), 'the other bay keeps its own');

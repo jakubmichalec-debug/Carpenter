@@ -62,7 +62,7 @@ test('quoteView: the wardrobe has a section per bay with item rows, labelled lik
   const p = sample();
   const v = R.quoteView(quoteProject(p), p);
   const w = v.pieces.find((x) => x.id === 'w');
-  assert.deepEqual(w.sections.map((s) => s.title), ['The piece', 'Bay 1', 'Bay 2', 'Bay 3']);
+  assert.deepEqual(w.sections.map((s) => s.title), ['The piece', 'Section 1', 'Section 2', 'Section 3']);
   assert.equal(w.label, 'Wardrobe 1');
   assert.equal(w.size, '240 × 240 × 60 cm');
   assert.ok(w.sections[2].rows.some((r) => /drawers/.test(r.label)));

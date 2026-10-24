@@ -120,7 +120,7 @@ test('a 3 m kitchen run (five base and five wall cabinets) is priced sensibly', 
   assert.ok(q.boardM2ByMaterial['sage'] > 0);
 });
 
-test('every line points at a piece, bay or item: "Wardrobe 1 > Bay 2 > 3 drawers"', () => {
+test('every line points at a piece, bay or item: "Wardrobe 1 > Section 2 > 3 drawers"', () => {
   const w = wardrobe240();
   w.pieces[0].bays[1].items = [{ kind: 'drawers', y: 0, count: 3, size: 'low', face: 'same', insert: 'none', lining: 'grey', front: 19.2 }];
   const q = quoteProject(w);
@@ -128,7 +128,7 @@ test('every line points at a piece, bay or item: "Wardrobe 1 > Bay 2 > 3 drawers
   assert.equal(piece.label, 'Wardrobe 1');
   const drawers = piece.items.find((i) => i.label === '3 drawers');
   assert.ok(drawers);
-  assert.equal(drawers.path, 'Wardrobe 1 > Bay 2 > 3 drawers');
+  assert.equal(drawers.path, 'Wardrobe 1 > Section 2 > 3 drawers');
   assert.deepEqual(drawers.ref, { pieceId: 'w', bay: 1, item: 0 });
   assert.equal(drawers.cents, piece.lines.filter((l) => l.ref.bay === 1 && l.ref.item === 0).reduce((s, l) => s + l.cents, 0));
   // 3 drawers: three runners (EUR 46 each), three handles, boards and labour

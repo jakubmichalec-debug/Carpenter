@@ -26,7 +26,8 @@
   --led: #ffd9a0;           /* warm LED glow */
   --clay: #c0765a;
   --focus: #4f6f85;
-  --ok: #4f7a4a;
+  --ok: #4f7a4a;           /* fills and icons */
+  --ok-deep: #386334;      /* green for small text: 6.5:1 on paper, 5.7:1 on paper-2, 5.0:1 on paper-3 */
   --err: #b2452f;
 
   --font-display: 'Young Serif', Georgia, serif;

@@ -172,17 +172,17 @@ export function validateProject(project) {
     }
     const bays = Array.isArray(piece.bays) ? piece.bays : [];
     if (bays.length < T.limits.bays[0] || bays.length > T.limits.bays[1]) {
-      add('bays-count', `${name}: ${T.label.toLowerCase()} takes ${T.limits.bays[0]} to ${T.limits.bays[1]} bays.`, pref);
+      add('bays-count', `${name}: ${T.label.toLowerCase()} takes ${T.limits.bays[0]} to ${T.limits.bays[1]} sections.`, pref);
     }
     if (!bays.length || !isNum(piece.width) || !isNum(piece.height)) return;
     const g = pieceGeometry(piece, bays.length);
     const sum = bays.reduce((s, b) => s + (isNum(b.width) ? b.width : 0), 0);
     if (Math.abs(sum - g.innerW) > TOL) {
-      add('bays-width', `${name}: bay widths add up to ${sum} cm but the inside is ${g.innerW} cm wide.`, pref);
+      add('bays-width', `${name}: section widths add up to ${sum} cm but the inside is ${g.innerW} cm wide.`, pref);
     }
     bays.forEach((bay, bi) => {
       const bref = { type: 'bay', pieceId: piece.id, bay: bi };
-      if (!isNum(bay.width) || bay.width < MIN_BAY) add('bays-width', `${name}, bay ${bi + 1}: narrower than ${MIN_BAY} cm.`, bref);
+      if (!isNum(bay.width) || bay.width < MIN_BAY) add('bays-width', `${name}, section ${bi + 1}: narrower than ${MIN_BAY} cm.`, bref);
       checkItems(piece, name, bay, bi, g);
     });
   }
@@ -190,7 +190,7 @@ export function validateProject(project) {
   function checkItems(piece, name, bay, bi, g) {
     const T = TYPES[piece.type];
     const items = Array.isArray(bay.items) ? bay.items : [];
-    const where = `${name}, bay ${bi + 1}`;
+    const where = `${name}, section ${bi + 1}`;
     const zones = [];
     items.forEach((it, ii) => {
       const ref = { type: 'item', pieceId: piece.id, bay: bi, index: ii };
@@ -201,7 +201,7 @@ export function validateProject(project) {
       if (!isNum(it.y)) { add('item-outside-bay', `${where}: ${label.toLowerCase()} has no height.`, ref); return; }
       const [blo, bhi] = def.body(it);
       if (it.y + blo < -0.05 || it.y + bhi > g.innerH + 0.05) {
-        add('item-outside-bay', `${where}: ${label.toLowerCase()} sticks out of the bay (inside height ${g.innerH} cm).`, ref);
+        add('item-outside-bay', `${where}: ${label.toLowerCase()} sticks out of the section (inside height ${g.innerH} cm).`, ref);
       }
       const zone = def.zone(it);
       if (zone) {
@@ -211,10 +211,10 @@ export function validateProject(project) {
         zones.push({ ii, label, lo: it.y + zone[0], hi: it.y + zone[1], ref });
       }
       if (def.minBay.width && bay.width < def.minBay.width) {
-        add('item-clearance', `${where}: ${label.toLowerCase()} needs a bay at least ${def.minBay.width} cm wide.`, ref);
+        add('item-clearance', `${where}: ${label.toLowerCase()} needs a section at least ${def.minBay.width} cm wide.`, ref);
       }
       if (def.minBay.height && g.innerH < def.minBay.height) {
-        add('item-clearance', `${where}: ${label.toLowerCase()} needs a bay at least ${def.minBay.height} cm high.`, ref);
+        add('item-clearance', `${where}: ${label.toLowerCase()} needs a section at least ${def.minBay.height} cm high.`, ref);
       }
       if (def.minDepth && piece.depth < def.minDepth) {
         add('item-clearance', `${where}: ${label.toLowerCase()} needs runners, so the piece must be ${def.minDepth} cm deep.`, ref);
@@ -223,12 +223,12 @@ export function validateProject(project) {
         add('item-needs-door', `${where}: ${label.toLowerCase()} needs a door in front of it.`, ref);
       }
       if (it.kind === 'divider' && isNum(it.position) && (it.position < 0 || it.position > bay.width)) {
-        add('item-outside-bay', `${where}: the divider is outside the bay.`, ref);
+        add('item-outside-bay', `${where}: the divider is outside the section.`, ref);
       }
       if (def.warn) { // sizes the makers' fittings are made for: advice, never a block
         const w = def.warn, lc = label.toLowerCase();
-        if (w.minWidth && bay.width < w.minWidth) add('item-size', `${where}: ${lc} is made for bays at least ${w.minWidth} cm wide.`, ref, false);
-        if (w.maxWidth && bay.width > w.maxWidth) add('item-size', `${where}: ${lc} is made for bays up to ${w.maxWidth} cm wide.`, ref, false);
+        if (w.minWidth && bay.width < w.minWidth) add('item-size', `${where}: ${lc} is made for sections at least ${w.minWidth} cm wide.`, ref, false);
+        if (w.maxWidth && bay.width > w.maxWidth) add('item-size', `${where}: ${lc} is made for sections up to ${w.maxWidth} cm wide.`, ref, false);
         if (w.minDepth && piece.depth < w.minDepth) add('item-size', `${where}: ${lc} works best in a piece at least ${w.minDepth} cm deep.`, ref, false);
       }
       if (def.zone(it) && Math.abs(it.y / GRID - Math.round(it.y / GRID)) > 0.02) {

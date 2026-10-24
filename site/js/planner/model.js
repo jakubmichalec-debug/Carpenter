@@ -1308,6 +1308,12 @@ export function createProject() {
   });
 }
 
+// A plain 4 x 3.5 m rectangle with nothing in it: where the planner starts when someone picks "an empty room".
+export const BLANK_ROOM = { width: 400, depth: 350 };
+export function createBlankProject() {
+  return clampProject({ v: 2, room: roomFromTemplate('rect', { ...BLANK_ROOM }), pieces: [], placements: [] });
+}
+
 export function updateRoom(project, patch) {
   const next = cloneProject(project);
   const p = isObj(patch) ? patch : {};
