@@ -73,7 +73,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
       <ul class="pl-notes" id="pl-p-notes" aria-label="Placement checks"></ul>
     </section>`;
   planBox.innerHTML = `<svg id="pl-place-svg" tabindex="-1" role="group" aria-label="Plan of the room with your pieces, drawn to scale" xmlns="http://www.w3.org/2000/svg"></svg>
-    <p class="pl-canvas-hint" id="pl-place-hint">Drag a piece to move it, or click a wall to put it there. Arrow keys move 1 cm (Shift 10 cm), R turns a free piece, Delete takes it out.</p>`;
+    <p class="pl-canvas-hint" id="pl-place-hint">Drag a piece to move it, or click a wall to put it there.</p>`;
 
   const $ = (sel) => root.querySelector(sel);
   const svg = planBox.querySelector('#pl-place-svg');

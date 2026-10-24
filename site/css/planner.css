@@ -1350,7 +1350,7 @@ svg[tabindex="-1"]:focus { outline: none; }
 @media (pointer: coarse), (max-width: 899px) {
   .pl-chip, .pl-chips--modes .pl-chip { height: 44px; }
   .pl-chip--tight { height: 44px; }
-  .pl-sectab { min-height: 40px; }
+  .pl-sectab { min-height: 44px; }
   .pl-ltab { min-height: 44px; }
   .pl-btn, .pl-actions .pl-btn, .pl-wallbar .pl-btn, .pl-fit .pl-btn, .pl-row--buttons .pl-btn, .pl-btn--small, .pl-btn--quiet { height: 44px; min-height: 44px; }
   .pl-field { height: 46px; }
@@ -1376,4 +1376,7 @@ svg[tabindex="-1"]:focus { outline: none; }
   .pl-tabs button { min-height: 44px; }
   .pl-pricebtn, .pl-histbtn { height: 44px; }
 }
-
+@media (pointer: coarse), (max-width: 899px) {
+  .pl-rbar__views .pl-chip, .pl-chips--modes .pl-chip, .pl-wallbar .pl-chip, .pl-chip--piece, .pl-chip--bay { height: 44px; }
+  .pl-pricebtn__amt { font-size: 13px; }
+}

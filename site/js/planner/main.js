@@ -354,7 +354,7 @@ function renderPane() {
     const on = String(b.dataset.paneBtn === pane);
     if (b.getAttribute('aria-checked') !== on) b.setAttribute('aria-checked', on);
     if (b.dataset.paneBtn === 'wall') b.hidden = !elev;
-    if (b.dataset.paneBtn === 'plan') { const t = kind === 'interior' ? 'Inside' : 'Plan'; if (b.textContent !== t) b.textContent = t; }
+    if (b.dataset.paneBtn === 'plan') { const t = kind === 'interior' ? 'Drawing' : 'Plan'; if (b.textContent !== t) b.textContent = t; }
   });
 }
 document.addEventListener('pl-section', (e) => {

@@ -293,7 +293,7 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
       if (r.placed) store.dispatch({ type: 'place/move', id: piece.id, patch: { wallId: r.wallId, offset: r.offset, snap: false } });
       store.dispatch({ type: 'history/seal' });
       say(r.placed ? `Width set to ${r.width} cm to fill the free length of the wall.${r.exact ? '' : ' That is the most this piece can be.'}`
-        : `Width set to ${r.width} cm, the free length of the longest wall. Place it in step 4.`);
+        : `Width set to ${r.width} cm, the free length of the longest wall. Place it in the Place step.`);
     } else {
       const r = fitToCeiling(project, piece.id);
       if (!r) return;

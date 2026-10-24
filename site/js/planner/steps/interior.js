@@ -95,7 +95,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
       <div class="pl-inspector" id="pl-i-insp"></div>
     </section>`;
   insideBox.innerHTML = `<svg id="pl-in-svg" tabindex="-1" role="group" aria-label="Front view of the piece with the doors hidden" xmlns="http://www.w3.org/2000/svg"></svg>
-    <p class="pl-canvas-hint" id="pl-in-hint">Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize sections.</p>`;
+    <p class="pl-canvas-hint" id="pl-in-hint">Drag items up and down. Drag the dividers to resize sections.</p>`;
 
   const $ = (sel) => root.querySelector(sel);
   const svg = insideBox.querySelector('#pl-in-svg');
@@ -392,7 +392,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
         const selected = state.ui.bay === b.index && state.ui.item === ii;
         const ip = prob.items[`${b.index}:${ii}`];
         const [lo, hi] = rangeOf(p, b.index, it);
-        const hitH = Math.max(bodyH, coarse() ? 40 : 24);
+        const hitH = Math.max(bodyH, coarse() ? 44 : 24);
         const hitY = bodyY - (hitH - bodyH) / 2;
         const label = `${describeItem(it)}, section ${b.index + 1}`;
         let g2 = '';
@@ -854,8 +854,8 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
       if (html !== notesKey) { notesKey = html; notesEl.innerHTML = html; }
       const sel = selectedItem(p);
       insideBox.querySelector('#pl-in-hint').textContent = sel
-        ? `${itemName(sel)}, ${cm(sel.y)} cm up. Arrow up and down move it one step (Shift: ten steps), left and right change section. Delete removes it.`
-        : 'Drag items up and down, or select one and use the arrow keys. Drag the dividers to resize sections.';
+        ? `${itemName(sel)}, ${cm(sel.y)} cm up.`
+        : 'Drag items up and down. Drag the dividers to resize sections.';
       // picking an item (in the drawing or the list) opens its section; one just added from the palette does not
       const key = sel ? `${state.ui.pieceId}:${state.ui.bay}:${state.ui.item}` : null;
       if (key !== autoItem) {
