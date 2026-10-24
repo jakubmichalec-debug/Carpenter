@@ -12,6 +12,7 @@ import { MATERIALS, materialsFor } from '../materials.js';
 import { BACKS } from '../model.js';
 
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
+const coarse = () => typeof matchMedia === 'function' && matchMedia('(max-width: 899px), (pointer: coarse)').matches; // touch layouts get bigger hit areas
 const cm = (n) => `${Math.round(n * 10) / 10}`;
 
 const PARAM_LABEL = {
@@ -391,7 +392,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
         const selected = state.ui.bay === b.index && state.ui.item === ii;
         const ip = prob.items[`${b.index}:${ii}`];
         const [lo, hi] = rangeOf(p, b.index, it);
-        const hitH = Math.max(bodyH, 16);
+        const hitH = Math.max(bodyH, coarse() ? 40 : 24);
         const hitY = bodyY - (hitH - bodyH) / 2;
         const label = `${describeItem(it)}, section ${b.index + 1}`;
         let g2 = '';
@@ -440,7 +441,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
         + `<g class="pl-div" data-div="${b.index}" data-focus="div:${b.index}" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Divider between section ${b.index + 1} and section ${b.index + 2}"`
         + ` aria-valuemin="20" aria-valuemax="${b.width + next.width - 20}" aria-valuenow="${b.width}" aria-valuetext="Section ${b.index + 1} is ${b.width} cm wide, section ${b.index + 2} is ${next.width} cm">`
         + `<title>Drag to resize sections ${b.index + 1} and ${b.index + 2}</title>`
-        + `<rect class="pl-div__hit" x="${f1(dx + w / 2 - 12)}" y="${f1(Y(top - T))}" width="24" height="${f1(g.innerH * s)}"/>`
+        + `<rect class="pl-div__hit" x="${f1(dx + w / 2 - (coarse() ? 22 : 12))}" y="${f1(Y(top - T))}" width="${coarse() ? 44 : 24}" height="${f1(g.innerH * s)}"/>`
         + `<circle class="pl-div__dot" cx="${f1(dx + w / 2)}" cy="${f1(mid)}" r="11"/><path class="pl-div__arrows" d="M${f1(dx + w / 2 - 6)} ${f1(mid)}h12M${f1(dx + w / 2 - 6)} ${f1(mid)}l3 -3M${f1(dx + w / 2 - 6)} ${f1(mid)}l3 3M${f1(dx + w / 2 + 6)} ${f1(mid)}l-3 -3M${f1(dx + w / 2 + 6)} ${f1(mid)}l-3 3"/></g>`);
     });
 
@@ -482,11 +483,25 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
   const cmX = (px) => (px - layoutPx.ox) / layoutPx.s;
   const cmFloorY = (py) => (layoutPx.y0 - py) / layoutPx.s;
 
+  // hit areas of items close together overlap (they are at least 24 px tall, 40 on touch screens): the item whose centre
+  // is nearest the pointer wins, not the one drawn last
+  function nearestItem(e) {
+    const hit = e.target.closest('[data-item]');
+    if (!hit) return null;
+    let best = hit, bestD = Infinity;
+    for (const g of svg.querySelectorAll('[data-item]')) {
+      const r = g.querySelector('.pl-iv__hit').getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) continue;
+      const d = Math.abs(e.clientY - (r.top + r.bottom) / 2);
+      if (d < bestD) { bestD = d; best = g; }
+    }
+    return best;
+  }
   svg.addEventListener('pointerdown', (e) => {
     const p = cur();
     if (!p || !layoutPx || e.button > 0) return;
     const div = e.target.closest('[data-div]');
-    const it = e.target.closest('[data-item]');
+    const it = nearestItem(e);
     if (div) {
       e.preventDefault();
       const k = Number(div.dataset.div);

@@ -252,7 +252,7 @@ kbd { font-family: var(--font-mono); font-size: 12px; padding: 1px 5px; border: 
 .pl-wall-num { font-family: var(--font-mono); font-size: 12px; font-weight: 500; fill: var(--ink-3); pointer-events: none; }
 .pl-wall-num.is-selected { fill: var(--oak-deep); font-weight: 700; }
 .pl-dim-line { stroke: var(--ink-3); stroke-width: 1; fill: none; }
-.pl-dim-text { font-family: var(--font-mono); font-size: 12px; font-weight: 500; fill: var(--ink-2); paint-order: stroke; stroke: var(--bone); stroke-width: 4px; stroke-linejoin: round; }
+.pl-dim-text { font-family: var(--font-mono); font-size: 13px; font-weight: 500; fill: var(--ink-2); paint-order: stroke; stroke: var(--bone); stroke-width: 4px; stroke-linejoin: round; }
 .pl-dim--sel .pl-dim-line { stroke: var(--oak-deep); }
 .pl-dim--sel .pl-dim-text { fill: var(--oak-deep); }
 
@@ -768,7 +768,7 @@ body.is-tile-drag, body.is-tile-drag * { user-select: none; -webkit-user-select:
 .pl-q-rows { list-style: none; margin: 0; padding: 0; }
 .pl-q-rows li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 4px 0; border-top: 1px dotted var(--line); font-size: 13px; color: var(--ink-2); }
 .pl-q-rows li:first-child { border-top: 0; }
-.pl-q-groups { margin: 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--bone); display: grid; gap: 4px; font-size: 12.5px; }
+.pl-q-groups { margin: 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--bone); display: grid; gap: 4px; font-size: 13px; }
 .pl-q-groups div { display: flex; justify-content: space-between; gap: 12px; }
 .pl-q-groups dt { color: var(--ink-3); }
 .pl-q-groups dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -1276,35 +1276,6 @@ svg [tabindex]:focus { outline: none; }
   .pl-sectab { padding: 0 9px; }
 }
 
-/* ---------- Touch: 44 px targets ---------- */
-@media (pointer: coarse), (max-width: 899px) {
-  .pl-chip, .pl-chips--modes .pl-chip { height: 44px; }
-  .pl-chip--tight { height: 44px; }
-  .pl-sectab { min-height: 40px; }
-  .pl-ltab { min-height: 44px; }
-  .pl-btn, .pl-actions .pl-btn, .pl-wallbar .pl-btn, .pl-fit .pl-btn, .pl-row--buttons .pl-btn, .pl-btn--small, .pl-btn--quiet { height: 44px; min-height: 44px; }
-  .pl-field, .pl-select { height: 44px; }
-  .pl-icon, .pl-icon--tip, .pl-stepper2 .pl-icon { width: 44px; height: 44px; }
-  .pl-link { min-height: 44px; }
-  .pl-note__actions .pl-link { min-height: 44px; }
-  .pl-check { min-height: 44px; }
-  .pl-check input { width: 28px; height: 28px; }
-  .pl-li { min-height: 44px; }
-  .pl-opt__body { min-height: 44px; }
-  .pl-mat, .pl-swatch { min-height: 44px; }
-  .pl-sw, .pl-swatch__chip { width: 44px; height: 44px; }
-  .pl-switch { min-height: 44px; }
-  .pl-q-piece summary { min-height: 48px; }
-  .pl-wait__name { min-height: 44px; }
-  .pl-menu__list button { min-height: 48px; }
-  .pl-pill, .pl-icon--glass { min-height: 44px; }
-  .pl-pill { height: 44px; }
-  .pl-range { height: 44px; }
-  .pl-status.is-warn { min-height: 44px; }
-  .pl-tabs button { min-height: 44px; }
-  .pl-pricebtn, .pl-histbtn { height: 44px; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .pl-startcard, .pl-pricebtn svg, .pl-histbtn, .pl-sectab { transition: none; }
   .pl-startcard:hover { transform: none; }
@@ -1364,3 +1335,45 @@ svg[tabindex="-1"]:focus { outline: none; }
   .pl-group--mats, .pl-group--mats .pl-scrollwrap { flex: none; }
   .pl-ltabpanel .pl-scroll { overflow: visible; }
 }
+
+/* input boxes: the whole box is the target */
+.pl-field { align-items: stretch; }
+.pl-field__input { align-self: stretch; height: auto; }
+.pl-field__unit { align-self: center; }
+@media (max-width: 899px), (pointer: coarse) {
+  .pl-handle__hit, .pl-div__hit { r: 22px; }
+  .pl-step__btn { min-width: 44px; justify-content: center; }
+  .pl-sectab { min-height: 44px; }
+}
+
+/* ---------- Touch: 44 px targets ---------- */
+@media (pointer: coarse), (max-width: 899px) {
+  .pl-chip, .pl-chips--modes .pl-chip { height: 44px; }
+  .pl-chip--tight { height: 44px; }
+  .pl-sectab { min-height: 40px; }
+  .pl-ltab { min-height: 44px; }
+  .pl-btn, .pl-actions .pl-btn, .pl-wallbar .pl-btn, .pl-fit .pl-btn, .pl-row--buttons .pl-btn, .pl-btn--small, .pl-btn--quiet { height: 44px; min-height: 44px; }
+  .pl-field { height: 46px; }
+  .pl-select { height: 44px; }
+  .pl-ltab { min-width: 44px; }
+  .pl-icon, .pl-icon--tip, .pl-stepper2 .pl-icon { width: 44px; height: 44px; }
+  .pl-link { min-height: 44px; }
+  .pl-note__actions .pl-link { min-height: 44px; }
+  .pl-check { min-height: 44px; }
+  .pl-check input { width: 28px; height: 28px; }
+  .pl-li { min-height: 44px; }
+  .pl-opt__body { min-height: 44px; }
+  .pl-mat, .pl-swatch { min-height: 44px; }
+  .pl-sw, .pl-swatch__chip { width: 44px; height: 44px; }
+  .pl-switch { min-height: 44px; }
+  .pl-q-piece summary { min-height: 48px; }
+  .pl-wait__name { min-height: 44px; }
+  .pl-menu__list button { min-height: 48px; }
+  .pl-pill, .pl-icon--glass { min-height: 44px; }
+  .pl-pill { height: 44px; }
+  .pl-range { height: 44px; }
+  .pl-status.is-warn { min-height: 44px; }
+  .pl-tabs button { min-height: 44px; }
+  .pl-pricebtn, .pl-histbtn { height: 44px; }
+}
+
