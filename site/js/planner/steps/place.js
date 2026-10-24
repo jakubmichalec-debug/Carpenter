@@ -373,6 +373,7 @@ export function createPlaceStep(root, { plan: planBox, store, announce = () => {
     const cls = `pl-pc${flags.sel ? ' is-selected' : ''}${c && c.blocking.length ? ' is-clash' : c && c.warn.length ? ' is-warn' : ''}${(pl.elevation || 0) > 0 ? ' is-raised' : ''}`;
     const aria = `${name}, ${whereText(pl).toLowerCase()}${problems ? `. ${problems}` : ''}. Arrow keys move it${pl.mode === 'free' ? ', R turns it' : ''}, Delete takes it out of the room.`;
     return `<g class="${cls}" data-piece="${esc(piece.id)}" tabindex="0" role="button" aria-pressed="${flags.sel}" aria-label="${esc(aria)}">`
+      + `<polygon class="pl-pc__hit" points="${fp.corners.map(pt).join(' ')}" aria-hidden="true"/>`
       + `<polygon class="pl-pc__body" points="${fp.corners.map(pt).join(' ')}"><title>${esc(name)}</title></polygon>`
       + `<path class="pl-pc__front" d="M${pt(c3)}L${pt(c2)}"/>${text}</g>`;
   }

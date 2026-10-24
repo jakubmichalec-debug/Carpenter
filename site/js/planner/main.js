@@ -491,7 +491,7 @@ store.subscribe((s, before, action) => {
 
 // a pasted link with a different #p= in the same tab loads that project
 window.addEventListener('hashchange', async () => {
-  if (location.hash === store.lastHash || !/^#p=/.test(location.hash)) return;
+  if (location.hash === store.lastHash || !/^#(p|design)=/.test(location.hash)) return;
   const { decodeProject } = await import('./share.js');
   const p = await decodeProject(location.hash);
   if (p) { exampleBase = null; store.dispatch({ type: 'project/load', project: p }); }

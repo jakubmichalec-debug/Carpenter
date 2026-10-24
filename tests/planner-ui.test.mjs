@@ -5,6 +5,8 @@ import { quoteProject } from '../site/js/planner/pricing.js';
 import { validateProject } from '../site/js/planner/validate.js';
 import { loadStart, loadInitialProject } from '../site/js/planner/store.js';
 import { encodeProject } from '../site/js/planner/share.js';
+import { createDesign, updateRoom as v1UpdateRoom } from '../site/js/configurator/model.js';
+import { encodeDesign } from '../site/js/configurator/share.js';
 import {
   STEP_NAMES, NEXT_LABELS, stepAnnouncement, nextIndex, priceSummary, elevationVisible, hasPullouts
 } from '../site/js/planner/ui-logic.js';
@@ -43,6 +45,14 @@ test('loadStart: a link and a saved design skip the start screen; nothing at all
   assert.equal(first.kind, 'new');
   assert.ok(first.project.pieces.length > 0, 'a first visit carries the example, which the start screen only uses if it is picked');
   assert.equal((await loadInitialProject({ hash: '', load: () => saved })), saved);
+});
+
+test('loadStart: an old configurator link (#design=) opens the planner with that design, not the start screen', async () => {
+  const enc = encodeDesign(v1UpdateRoom(createDesign(), { width: 500 }));
+  const old = await loadStart({ hash: `#design=${enc}`, load: () => null });
+  assert.equal(old.kind, 'link');
+  assert.equal(old.project.v, 2);
+  assert.ok(old.project.pieces.length >= 1);
 });
 
 test('one name per step, in the stepper, the title, the Next button and the announcement', () => {

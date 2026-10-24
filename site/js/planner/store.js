@@ -378,7 +378,7 @@ export function createStore(initialProject, opts = {}) {
 // Where the planner starts: a design in the URL hash first, then the one saved in this browser. With neither it is a
 // first visit (kind 'new') and the project is the example one, which the start screen only uses if it is picked.
 export async function loadStart({ hash = typeof location !== 'undefined' ? location.hash : '', load = loadLocal } = {}) {
-  if (hash && /^#?p=/.test(hash)) {
+  if (hash && /^#?(p|design)=/.test(hash)) { // #p= is this planner's link, #design= an old configurator link
     const fromUrl = await decodeProject(hash);
     if (fromUrl) return { project: fromUrl, kind: 'link' };
   }
