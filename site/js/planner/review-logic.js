@@ -1,11 +1,9 @@
 // Planner v2 Review step: pure logic (no DOM, no Three.js), so Node can test it. Quote grouping and formatting, the
-// blockers that stop "Send to the quote form", render settings per device class, camera presets, and the summary the
-// contact page shows. Money is integer cents wherever it is added up.
+// blockers that stop "Send to the workshop", render settings per device class and camera presets. Money is integer cents wherever it is added up.
 import {
-  TYPES, MATERIALS, wallsOf, footprintOf, ceilingHeightAt, pieceLabel
+  MATERIALS, wallsOf, footprintOf, ceilingHeightAt, pieceLabel
 } from './model.js';
 
-export const THUMB_KEY = 'gj.review.thumb';
 export const THUMB_MAX = 300 * 1024;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -41,7 +39,7 @@ export function issueStep(ref, code) {
 }
 export const STEP_NAMES = ['Room', 'Furniture', 'Interior', 'Place'];
 
-// Everything that stops "Send to the quote form": blocking errors, and nothing in the room at all.
+// Everything that stops "Send to the workshop": blocking errors, and nothing in the room at all.
 export function sendBlockers(project, errors = []) {
   const out = [];
   if (!project.pieces || !project.pieces.length) {
@@ -268,71 +266,4 @@ export function frontPose(project, pieceId, { aspect = 1.5, fov = 36 } = {}) {
   const target = [fp.cx * M, ty, fp.cz * M];
   const position = [target[0] + f.x * dist, cy, target[2] + f.z * dist];
   return { position, target, inRoom: insideRoom(project.room, position[0] / M, position[2] / M) };
-}
-
-// ---------- the contact page ----------
-const FORM_TYPE = [
-  [['island', 'kitchen-base', 'kitchen-wall'], 'kitchen', 'Kitchen'],
-  [['wardrobe'], 'wardrobe', 'Bedroom'],
-  [['window-seat'], 'window-seat', 'Living room'],
-  [['desk'], 'desk', 'Study or home office'],
-  [['table'], 'table', 'Dining room'],
-  [['wall-unit', 'tall-cabinet'], 'wall-unit', 'Living room'],
-  [['under-stairs'], 'under-stairs', 'Hallway']
-];
-
-export function summaryFor(project, quote) {
-  const pieces = (project.pieces || []).map((p) => ({
-    id: p.id, type: p.type, label: pieceLabel(project, p.id), size: `${p.width} × ${p.height} × ${p.depth} cm`,
-    color: (MATERIALS[p.fronts.material] || MATERIALS.oak || { color: '#b9844a' }).color
-  }));
-  const types = new Set(pieces.map((p) => p.type));
-  let formType = 'other', roomGuess = '';
-  for (const [list, id, room] of FORM_TYPE) {
-    if (list.some((t) => types.has(t))) { formType = id; roomGuess = room; break; }
-  }
-  const walls = wallsOf(project.room);
-  const used = new Set((project.placements || []).filter((pl) => pl.mode === 'wall').map((pl) => pl.wallId));
-  const pool = walls.filter((w) => used.has(w.id));
-  const best = (pool.length ? pool : walls).reduce((m, w) => (w.length > m ? w.length : m), 0);
-  const kinds = [];
-  for (const t of types) kinds.push(TYPES[t] ? TYPES[t].label.toLowerCase() : t);
-  return {
-    pieces, pieceCount: pieces.length, kinds, total: quote.total, leadTimeWeeks: quote.leadTimeWeeks,
-    wallWidth: clamp(Math.round(best), 60, 900), wallHeight: project.room.height, formType, roomGuess
-  };
-}
-
-export function contactMessage(summary, link) {
-  const n = summary.pieceCount;
-  const what = summary.pieces.map((p) => p.label).join(', ');
-  return `I would like a quote for the design I made in the planner: ${n} piece${n === 1 ? '' : 's'} (${what}), estimated at ${formatEuro(summary.total)} including VAT, about ${summary.leadTimeWeeks} weeks to make.\n\nMy design: ${link}`;
-}
-
-// A small plan of the room and its pieces, as an SVG string for the contact page (classes are styled there).
-export function planSvg(project) {
-  const walls = project.room.walls;
-  const xs = walls.map((c) => c.x), zs = walls.map((c) => c.z);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
-  const pad = 14, vw = 400;
-  const sc = (vw - pad * 2) / Math.max(1, maxX - minX);
-  const vh = Math.round((maxZ - minZ) * sc + pad * 2);
-  const pt = (x, z) => `${(pad + (x - minX) * sc).toFixed(1)},${(pad + (z - minZ) * sc).toFixed(1)}`;
-  let s = `<svg viewBox="0 0 ${vw} ${vh}" role="img" aria-label="Plan of your room with the pieces in it"><polygon class="d-wall" points="${walls.map((c) => pt(c.x, c.z)).join(' ')}"/>`;
-  (project.placements || []).forEach((pl, i) => {
-    const fp = footprintOf(project, pl);
-    const piece = (project.pieces || []).find((p) => p.id === pl.pieceId);
-    if (!fp || !piece) return;
-    const fill = (MATERIALS[piece.fronts.material] || MATERIALS.oak || { color: '#b9844a' }).color;
-    s += `<polygon class="d-mod" style="--i:${i}" fill="${fill}" points="${fp.corners.map((c) => pt(c.x, c.z)).join(' ')}"/>`;
-  });
-  return `${s}</svg>`;
-}
-
-// Link helpers shared by the step and the contact page.
-export const contactLink = (encoded) => `contact.html#p=${encoded}`;
-export const plannerLink = (encoded) => `planner.html#p=${encoded}`;
-export function validThumb(entry, encoded) {
-  return !!entry && typeof entry === 'object' && entry.p === encoded && typeof entry.thumb === 'string'
-    && entry.thumb.startsWith('data:image/jpeg;base64,') && entry.thumb.length <= THUMB_MAX;
 }

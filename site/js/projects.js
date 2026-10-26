@@ -253,7 +253,6 @@ function fillInfo(i, swap) {
     presetHash(p.preset).then((h) => {
       if (!h || data[lbList[lbPos]] !== p) return;
       lbOpen.href = `planner.html#design=${h}`;
-      lbQuote.href = `contact.html#design=${h}`;
     });
   }
   if (swap && !reduced) {

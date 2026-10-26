@@ -26,7 +26,7 @@ A five-step flow. The user can go back to any earlier step at any time without l
    which goes back to step 2, or **edit** any placed piece, which goes back to step 2 or 3 for that piece.
 5. **Review.** Walk around the finished room in 3D, then press **Render** for a realistic, path-traced image
    with an itemised quote: per piece, per material, hardware, labour, fitting, VAT and lead time.
-   From here the user can download the render, share a link, print the quote or send the design to the quote form.
+   From here the user can download the render, share a link, print the quote or send the design to the workshop (the contact question).
 
 ### How it has to behave (non-functional)
 | Need | Target |
@@ -40,7 +40,7 @@ A five-step flow. The user can go back to any earlier step at any time without l
 | Correctness | Pure, unit-tested model, pricing and validation, as today (`node --test`). |
 
 ### Constraints
-Plain ES modules and no build step. Three.js 0.169 stays pinned. Same design tokens. The quote form still sends nothing.
+Plain ES modules and no build step. Three.js 0.169 stays pinned. Same design tokens. The contact step still sends nothing.
 
 ## 2. High-level design
 
@@ -166,7 +166,7 @@ Presets per bay: *Hanging*, *Double hanging*, *Shelves*, *Drawers*, *Shoes*, *Tr
   * placement: a piece doesn't overlap another piece, doesn't cover a door or window (a radiator only if the
     style allows a cut-out), fits under the ceiling slope, and a free-standing piece leaves 60 cm to walk past.
   * Problems never block editing. They show as warnings on the step and in the quote. Only **Send to
-    quote form** asks the user to fix blocking ones first.
+    the workshop** asks the user to fix blocking ones first.
 
 Every project also stores `room.template = { id, params }` so the room step can reopen the same template form.
 
@@ -194,7 +194,7 @@ the walls. Openings are kept by wall index and offset where the wall still exist
 | 2 Furniture | Cards, then a style panel | Type → style (preset look) → size, using sliders and number inputs limited per type | Always. The piece is created, unplaced |
 | 3 Interior | Front elevation of the piece, doors hidden | Set the bay count, drag bay dividers; drag items from a palette into a bay; drag items up and down (snapping to 32 mm system holes); delete; apply a preset per bay | Always. "Next: place it" |
 | 4 Place | Plan of the room with the piece under the pointer | Click a wall to snap it, slide it along, rotate a free piece; red where it clashes. Buttons: **Add another piece** (step 2), **Edit this piece** (step 2 or 3), **Review** | At least one piece is placed |
-| 5 Review | 3D walk-around plus a quote panel | Orbit and use preset views; open doors; **Render** (progressive) then **Download PNG**; share link; print the quote; send to the quote form | (end) |
+| 5 Review | 3D walk-around plus a quote panel | Orbit and use preset views; open doors; **Render** (progressive) then **Download PNG**; share link; print the quote; send to the workshop | (end) |
 
 The stepper allows jumps backwards and forwards. If an earlier edit makes a later state invalid (a wall gets
 shorter than a piece standing on it), the piece stays in place and gets a warning to fix in step 4. Nothing
@@ -243,7 +243,7 @@ Every line points back to a piece and item, so the quote can show "Wardrobe 1 �
 * Autosave to `localStorage` (`gj.project.v2`), debounced to 400 ms.
 * Share link `#p=` is JSON, deflated with the built-in `CompressionStream` and base64url-encoded. That keeps a
   room with four detailed pieces at roughly 1 to 2 KB. Older browsers get plain base64.
-* **Send to quote form** passes the same link to `contact.html`, which shows the render thumbnail and the quote.
+* **Send to the workshop** opens the guided flow's contact question (switching to the guided view when the tabbed view is on). Nothing is sent; `contact.html` has no form and forwards old `#p=` links to the planner.
 
 ## 8. Files
 

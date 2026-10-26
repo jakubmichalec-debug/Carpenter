@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Process · Grain &amp; Joint</title>
-  <meta name="description" content="From a free call and a laser-scanned measure to 3D design, workshop build and fitting: how Grain & Joint builds furniture in six steps, from first call to aftercare, with an interactive look at the joinery.">
+  <meta name="description" content="From a free call and a laser-scanned measure to 3D design, workshop build and fitting: how Grain & Joint builds furniture in six steps, from first call to aftercare.">
   <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/process.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Grain &amp; Joint">
   <meta property="og:title" content="Process · Grain &amp; Joint">
-  <meta property="og:description" content="From a free call and a laser-scanned measure to 3D design, workshop build and fitting: how Grain &amp; Joint builds furniture in six steps, from first call to aftercare, with an interactive look at the joinery.">
+  <meta property="og:description" content="From a free call and a laser-scanned measure to 3D design, workshop build and fitting: how Grain &amp; Joint builds furniture in six steps, from first call to aftercare.">
   <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/process.html">
   <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -28,8 +28,6 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
       "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
     }
   }
@@ -192,34 +190,6 @@
           <div class="pr-step__vis"><div class="pr-vis__photo" data-reveal="mask"><img src="https://images.unsplash.com/photo-1758977403865-f79e156415b3?auto=format&fit=crop&w=1200&h=900&q=80" width="1200" height="900" loading="lazy" alt="Close-up of a timber dining table corner and chair"><span class="timber">Solid oak, hand-softened edge</span></div></div>
         </li>
           </ol>
-        </div>
-      </div>
-    </section>
-
-    <section class="pr-joint" data-joint aria-labelledby="joint-h">
-      <div class="pr-joint__sticky">
-        <div class="container pr-joint__inner">
-          <div class="pr-joint__text">
-            <p class="eyebrow">Joinery explained</p>
-            <h2 id="joint-h" class="pr-joint__title" data-split>How the joints <em>go together</em>.</h2>
-            <div class="pr-joint__tabs" role="tablist" aria-label="Joint type">
-              <button type="button" role="tab" id="tab-dovetail" aria-selected="true" aria-controls="joint-canvas" data-joint-btn="dovetail">Dovetail</button>
-              <button type="button" role="tab" id="tab-tenon" aria-selected="false" aria-controls="joint-canvas" data-joint-btn="tenon" tabindex="-1">Mortise &amp; tenon</button>
-            </div>
-            <div class="pr-joint__copy" data-joint-copy>
-              <p data-copy="dovetail">Tails on one board, sockets on the other. The wedge shape locks the corner so the joint can only come apart the way it went together. We use it for drawers and carcass corners.</p>
-              <p data-copy="tenon" hidden>A tongue on the rail fits a slot in the post and is glued in. It’s the strongest way to join a frame, so we use it for table legs and frames.</p>
-            </div>
-            <ol class="pr-joint__phases" data-phases>
-              <li>Cut the pieces</li><li>Line up the joint</li><li>Slide it home</li><li>Glue and clamp</li>
-            </ol>
-            <label class="pr-joint__range"><span>Assemble</span><input type="range" min="0" max="100" value="0" step="1" data-joint-range aria-describedby="joint-help"><output data-joint-out>0%</output></label>
-            <p class="pr-joint__help" id="joint-help">Scroll to slide the joint together, or drag the slider. Drag the model to turn it.</p>
-          </div>
-          <div class="pr-joint__stage" data-cursor="Drag">
-            <canvas id="joint-canvas" data-joint-canvas aria-label="Interactive 3D model of the selected wood joint" role="img"></canvas>
-            <p class="pr-joint__fallback" data-joint-fallback hidden>The 3D view needs WebGL, which this browser doesn’t support. A dovetail locks two boards at a corner with interlocking wedges; a mortise and tenon fits a tongue into a slot.</p>
-          </div>
         </div>
       </div>
     </section>

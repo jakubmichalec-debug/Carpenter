@@ -98,44 +98,6 @@ html:not(.js) .pr-draw { stroke-dashoffset: 0; }
 .pr-model__tag { font-family: var(--font-display); font-style: normal; font-size: 36px; fill: var(--oak-deep); }
 html:not(.js) .pr-model__face, html:not(.js) .pr-scan__dim, html:not(.js) .pr-model__dim { opacity: 1; }
 
-/* ---------- 3D joinery explainer ---------- */
-.pr-joint { position: relative; height: 380vh; background: var(--paper-3); color: var(--ink); }
-.pr-joint__sticky { position: sticky; top: 0; height: 100vh; min-height: 560px; display: flex; align-items: center; overflow: hidden; }
-.pr-joint__inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: center; width: 100%; padding-top: var(--header-h); }
-.pr-joint .eyebrow { color: var(--oak-deep); margin: 0 0 var(--space-2); }
-.pr-joint__title { margin: 0 0 var(--space-4); font-weight: 400; letter-spacing: -.02em; line-height: .98; font-size: clamp(2.16rem, 1.4rem + 3.02vw, 4.3rem); }
-.pr-joint__title em { font-style: normal; color: var(--oak); }
-.pr-joint__tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 9%, transparent); margin-bottom: var(--space-3); }
-.pr-joint__tabs button { border: 0; background: transparent; color: var(--ink-2); padding: .6em 1.2em; border-radius: 999px; font-weight: 600; font-size: .92rem; cursor: pointer; transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
-.pr-joint__tabs button:hover { color: var(--ink); }
-.pr-joint__tabs button[aria-selected="true"] { background: var(--oak); color: var(--paper); }
-.pr-joint__copy p { margin: 0 0 var(--space-3); color: var(--ink-2); max-width: 44ch; min-height: 6.4em; }
-.pr-joint__phases { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; counter-reset: ph; }
-.pr-joint__phases li { counter-increment: ph; padding-top: .6rem; border-top: 3px solid color-mix(in srgb, var(--ink) 16%, transparent); font-size: .78rem; line-height: 1.25; color: var(--ink-3); transition: color .4s, border-color .4s; }
-.pr-joint__phases li::before { content: "0" counter(ph); display: block; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; margin-bottom: .2rem; }
-.pr-joint__phases li.is-on { color: var(--ink); border-top-color: var(--oak); }
-.pr-joint__range { display: flex; align-items: center; gap: var(--space-3); font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .1em; text-transform: uppercase; color: var(--oak-deep); }
-.pr-joint__range input { flex: 1; accent-color: var(--oak); height: 28px; cursor: pointer; }
-.pr-joint__range output { min-width: 3.2ch; text-align: right; color: var(--ink); }
-.pr-joint__help { margin: var(--space-2) 0 0; font-size: var(--step--1); color: var(--ink-3); }
-.pr-joint__stage { position: relative; aspect-ratio: 1 / 1; max-height: calc(100vh - var(--header-h) - 3rem); width: 100%; margin-inline: auto; }
-.pr-joint__stage canvas { width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
-.pr-joint__stage canvas:active { cursor: grabbing; }
-.pr-joint__fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-4); text-align: center; border: 1px dashed var(--line); border-radius: var(--radius-l); }
-.pr-joint__fallback[hidden] { display: none; }
-@media (max-width: 860px) {
-  .pr-joint { height: 340vh; }
-  .pr-joint__sticky { align-items: flex-start; }
-  .pr-joint__inner { grid-template-columns: 1fr; gap: .4rem; padding-top: calc(var(--header-h) + .2rem); }
-  .pr-joint__stage { order: -1; aspect-ratio: auto; height: 38vh; max-height: none; }
-  .pr-joint__title { font-size: 2rem; margin-bottom: var(--space-2); }
-  .pr-joint .eyebrow { display: none; }
-  .pr-joint__copy p { min-height: 0; font-size: .92rem; margin-bottom: .6rem; }
-  .pr-joint__help { display: none; }
-  .pr-joint__phases { margin-bottom: .6rem; }
-}
-@media (max-height: 700px) and (min-width: 861px) { .pr-joint__copy p { min-height: 0; } .pr-joint__title { font-size: 2.6rem; } }
-
 /* ---------- FAQ ---------- */
 .pr-faq__grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(2rem, 6vw, 6rem); align-items: start; }
 .pr-faq .eyebrow { margin: 0 0 var(--space-3); }
