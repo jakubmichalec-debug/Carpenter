@@ -238,6 +238,19 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   }
   const elevation = () => q === 'openings' && openingsYes();
 
+  // the questions of the current chapter as dots under the title; any question up to the furthest one reached can be
+  // jumped to (later ones stay shut so nobody lands on a question whose earlier answers are missing)
+  let furthest = 0;
+  function dots() {
+    const c = ctx();
+    furthest = Math.max(furthest, F.IDS.indexOf(q));
+    const ch = F.chapterOf(q);
+    const items = F.activeIds(c).filter((id) => F.chapterOf(id) === ch).map((id, k) => ({
+      id, k: k + 1, title: F.byId(id).title, current: id === q, enabled: F.IDS.indexOf(id) <= furthest
+    }));
+    return { items, key: items.map((x) => `${x.id}${x.current ? '*' : ''}${x.enabled ? '' : '-'}`).join() };
+  }
+
   function renderStepper(buttons, issues) {
     const c = ctx();
     const cur = F.chapterOf(q);
@@ -769,7 +782,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     get active() { return active; },
     get q() { return q; },
     get mode() { return active ? 'guided' : 'expert'; },
-    setMode, init, update, go, next, back, skip, goChapter, footer, head, elevation, renderStepper,
+    setMode, init, update, go, next, back, skip, goChapter, footer, head, dots, elevation, renderStepper,
     moved() { userNav = true; },
     isCompact
   };

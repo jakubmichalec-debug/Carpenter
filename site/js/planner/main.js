@@ -198,9 +198,24 @@ function renderGuidedHead() {
   titleEl.innerHTML = `${h.prefix ? `<span class="visually-hidden">${esc(h.prefix)}</span>` : ''}${esc(h.title)}`;
   ledeEl.textContent = h.help;
 }
+// dots for the questions of this chapter: the current one is filled, earlier ones can be jumped to
+const qdotsEl = $('#pl-qdots');
+let qdotsKey = '';
+function renderQDots() {
+  const d = guided.active ? guided.dots() : { items: [], key: '' };
+  if (d.key === qdotsKey) return;
+  qdotsKey = d.key;
+  qdotsEl.hidden = d.items.length < 2;
+  qdotsEl.innerHTML = d.items.map((x) => `<button type="button" class="pl-qdot" data-q="${x.id}"${x.current ? ' aria-current="step"' : ''}${x.enabled ? '' : ' disabled'} aria-label="Question ${x.k}: ${esc(x.title)}" title="${esc(x.title)}"></button>`).join('');
+}
+qdotsEl.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-q]');
+  if (b && !b.disabled && b.getAttribute('aria-current') !== 'step') guided.go(b.dataset.q);
+});
 function renderHead() {
   const s = state.ui.step;
   if (guided.active) renderGuidedHead(); else headKey = '';
+  renderQDots();
   if (s !== headStep) {
     headStep = s;
     if (!guided.active) { titleEl.textContent = LABELS[s]; ledeEl.textContent = META[s].lede; }
@@ -209,7 +224,7 @@ function renderHead() {
     issueLists.forEach((ul, i) => { ul.hidden = i !== s; });
   }
   const st = views[s].status ? views[s].status() : { count: 0, ok: false };
-  const key = `${s}|${st.count}|${st.ok}|${st.jump || ''}`;
+  const key = `${s}|${st.count}|${st.ok}|${st.jump || ''}|${guided.active}`;
   if (statusBtn.dataset.key === key) return;
   statusBtn.dataset.key = key;
   if (st.count > 0) {
@@ -219,7 +234,7 @@ function renderHead() {
     statusBtn.disabled = false;
     if (st.jump) { statusBtn.removeAttribute('aria-controls'); statusBtn.removeAttribute('aria-expanded'); }
     else { statusBtn.setAttribute('aria-controls', 'pl-issues'); statusBtn.setAttribute('aria-expanded', String(issuesDisc.isOpen())); }
-  } else if (st.ok) {
+  } else if (st.ok && !guided.active) { // in the guided flow a tick beside a question reads as 'already answered'
     statusBtn.hidden = false;
     statusBtn.className = 'pl-status';
     statusBtn.innerHTML = `${ICON_TICK}<span class="visually-hidden">All good</span>`;
