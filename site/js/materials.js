@@ -1,301 +1,227 @@
-// Materials page: tilting sample boards with canvas-generated textures, a detail dialog, and a two-material compare tool.
-// Textures are painted procedurally on <canvas>, so no image downloads and no WebGL contexts are needed.
-import { MATERIALS } from './configurator/model.js';
+// Materials page: "What we offer". The catalogue is built from the planner's one material table, so the page can
+// never show a finish the studio does not stock. Photos live in assets/materials/ (credits in credits.html).
+import { LIBRARY, materialsFor } from './planner/materials.js';
 
-const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const lenis = () => (window.site && window.site.lenis) || null;
-const live = $('[data-live]');
-const say = (msg) => { if (live) { live.textContent = ''; setTimeout(() => { live.textContent = msg; }, 30); } };
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const eur = (n) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
-/* ------------------------------------------------------------------ material facts (the model holds colour and price; the rest is editorial) */
-const META = {
-  oak: { used: ['Wardrobe and kitchen fronts', 'Tables, desks and benches', 'Window-seat tops'], dur: 4, moist: 3, repair: 5, make: 'Solid European oak, 19 mm, Janka hardness about 1,360 lbf', tone: 'Warm, honey-coloured, with an open grain.', finish: 'Hard-wax oil or matt water-based lacquer', care: 'Wipe with a damp cloth; re-oil every few years', kind: 'Solid wood' },
-  walnut: { used: ['Desk tops and fronts', 'Dining tables', 'Statement doors'], dur: 3, moist: 3, repair: 5, make: 'Solid walnut, 19 mm, Janka hardness about 1,010 lbf', tone: 'Dark brown with a fairly even grain.', finish: 'Hard-wax oil, which deepens the colour', care: 'Keep out of strong sun to avoid fading; re-oil yearly at first', kind: 'Solid wood' },
-  ash: { used: ['Shelving and wall units', 'Window seats', 'Light, modern fronts'], dur: 4, moist: 2, repair: 5, make: 'Solid European ash, 19 mm, Janka hardness about 1,320 lbf', tone: 'Pale, with a strong straight grain.', finish: 'Clear matt lacquer or white-pigmented oil', care: 'Wipe clean; avoid standing water', kind: 'Solid wood' },
-  'birch-ply': { used: ['Carcasses and shelves', 'Drawer boxes', 'Exposed-edge desks'], dur: 4, moist: 3, repair: 3, make: 'Cross-laminated birch plywood, 18 mm, void-free core', tone: 'Pale, with a layered edge that we leave visible.', finish: 'Clear matt lacquer or natural oil', care: 'Wipe clean; seal cut edges near water', kind: 'Plywood' },
-  'lacquer-white': { used: ['Kitchen and hall fronts', 'Tall cabinets', 'Painted shelving'], dur: 3, moist: 4, repair: 2, make: 'Birch plywood or MDF sprayed in three coats of water-based lacquer', tone: 'A warm white.', finish: 'Satin, sprayed and cured in the workshop', care: 'Mild soap and a soft cloth; touch-up kit supplied', kind: 'Lacquer' },
-  'lacquer-sage': { used: ['Kitchen bases and islands', 'Wall units', 'Window seats'], dur: 3, moist: 4, repair: 2, make: 'Birch plywood or MDF sprayed in three coats of water-based lacquer', tone: 'A muted grey-green that goes well with oak.', finish: 'Satin, sprayed and cured in the workshop', care: 'Mild soap and a soft cloth; touch-up kit supplied', kind: 'Lacquer' },
-  'lacquer-charcoal': { used: ['Kitchen islands', 'Feature walls', 'Studies'], dur: 3, moist: 4, repair: 2, make: 'Birch plywood or MDF sprayed in three coats of water-based lacquer', tone: 'A soft blue-black.', finish: 'Satin, sprayed and cured in the workshop', care: 'Dark finishes show dust and marks; wipe often with a soft cloth', kind: 'Lacquer' },
-  'lacquer-clay': { used: ['Wardrobes and dressing rooms', 'Alcoves', 'Accent doors'], dur: 3, moist: 4, repair: 2, make: 'Birch plywood or MDF sprayed in three coats of water-based lacquer', tone: 'A warm terracotta.', finish: 'Satin, sprayed and cured in the workshop', care: 'Mild soap and a soft cloth; touch-up kit supplied', kind: 'Lacquer' },
-  terrazzo: { used: ['Kitchen worktops and islands', 'Desk tops', 'Bench tops'], dur: 5, moist: 5, repair: 1, make: 'Cement matrix with marble chips, 30 mm, sealed', tone: 'Speckled grey with coloured chips.', finish: 'Honed and sealed', care: 'Reseal once a year; wipe up acids and oils quickly', kind: 'Stone' }
+// Sections, in page order. `ids` come from the table; nothing is listed that the table does not offer.
+const SECTIONS = [
+  { key: 'paint', title: 'Paint colours', lead: 'Matt lacquer on the fronts, mixed to the colour on the card.', ids: () => materialsFor().filter((id) => LIBRARY[id].family === 'painted'), unit: 'front' },
+  { key: 'veneer', title: 'Wood veneers', lead: 'Real wood veneer, hard-wax oiled.', ids: () => materialsFor().filter((id) => LIBRARY[id].family === 'wood'), unit: 'front' },
+  { key: 'ply', title: 'Plywood', lead: 'Birch plywood with the layers left showing on the edges.', ids: () => materialsFor().filter((id) => LIBRARY[id].family === 'ply'), unit: 'front' },
+  { key: 'laminate', title: 'Laminate', lead: 'Supermatte and fingerprint-resistant, for fronts.', ids: () => materialsFor().filter((id) => LIBRARY[id].family === 'laminate'), unit: 'front' },
+  { key: 'glass', title: 'Glass', lead: 'For door inserts.', ids: () => materialsFor('glass'), unit: 'glass' },
+  { key: 'worktops', title: 'Worktops', lead: 'For desks, kitchen runs and window seats. Solid oak is the oak above.', ids: () => materialsFor('top'), unit: 'top' },
+  { key: 'handles', title: 'Handle finishes', lead: 'Priced as a step on the handle itself.', ids: () => materialsFor('handle'), unit: 'handle' }
+];
+
+// What each photo shows, for the alt text.
+const ALT = {
+  'chalk-white': 'Chalk white matt paint, shown as a tinted plaster texture',
+  'pebble-grey': 'Pebble grey matt paint, shown as a tinted plaster texture',
+  sand: 'Sand matt paint, shown as a tinted plaster texture',
+  sage: 'Sage green-grey matt paint, shown as a tinted plaster texture',
+  'dark-green': 'Dark green matt paint, shown as a tinted plaster texture',
+  'ink-blue': 'Ink blue matt paint, shown as a tinted plaster texture',
+  clay: 'Clay terracotta matt paint, shown as a tinted plaster texture',
+  black: 'Soft black matt paint, shown as a tinted plaster texture',
+  oak: 'Close-up of natural oak planks with an open grain',
+  'oak-smoked': 'Smoked oak, dark brown with the grain still visible',
+  walnut: 'Close-up of dark walnut grain',
+  ash: 'Close-up of pale, straight-grained ash',
+  'birch-ply': 'Pale birch plywood sheets with layered edges',
+  'laminate-black': 'Black supermatte laminate surface',
+  'laminate-grey': 'Light grey supermatte laminate surface',
+  'quartz-white': 'White quartz with soft grey veining',
+  'stone-black': 'Honed black stone with a fine light vein',
+  'laminate-worktop': 'Matt grey laminate worktop surface',
+  'glass-clear': 'Clear glass cabinet door with a black frame and oak shelves behind',
+  'glass-smoked': 'Grey-tinted glass cabinet door, vases visible behind',
+  brass: 'Brushed brass cabinet pulls',
+  'handle-black': 'Matte black round bar handle on a white wall',
+  brushed: 'Brushed steel surface catching the light',
+  wood: 'Oak grain, the wood used for turned oak handles'
 };
-const KIND_LABEL = { wood: 'Solid wood', ply: 'Plywood', lacquer: 'Lacquer', stone: 'Stone' };
-const IDS = Object.keys(MATERIALS).filter((id) => MATERIALS[id].pickable !== false);
-const tier = (m) => (m.pricePerM2 < 100 ? 1 : m.pricePerM2 < 200 ? 2 : m.pricePerM2 < 400 ? 3 : 4);
-const euro = (n) => '€' + Math.round(n).toLocaleString('en-US');
-const frontCost = (id) => Math.round((4.8 * MATERIALS[id].pricePerM2 * 1.12) / 10) * 10; // 200 x 240 cm of fronts plus waste
 
-/* ------------------------------------------------------------------ canvas texture painters */
-const rng = (seed) => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-const hash = (s) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 2147483647, 7) || 7;
-function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-function shade(hex, amt) {
-  const [r, g, b] = rgb(hex); const t = amt < 0 ? 0 : 255; const p = Math.abs(amt);
-  return `rgb(${Math.round((t - r) * p + r)},${Math.round((t - g) * p + g)},${Math.round((t - b) * p + b)})`;
-}
+// Where a photo is not a literal sample, say so.
+const NOTE = {
+  paint: 'One plaster photo tinted to each paint colour, so the texture is shown, not the exact shade. Ask for a painted sample board.',
+  'oak-smoked': 'The oak photo graded to a smoked brown. A real smoked-oak sample comes with the sample box.',
+  laminate: 'A matt stand-in surface. The real laminate sample comes with the sample box.',
+  'laminate-worktop': 'A matt stand-in surface. The real laminate sample comes with the sample box.',
+  wood: 'An oak grain scan standing in for the turned handle.',
+  'handle-black': 'A plain matt black bar, the closest photo to the handle.',
+  'birch-ply': 'Shows the layered edge of birch plies. Surfaces are oiled.'
+};
 
-function paintWood(g, W, H, color, seed, plyEdge) {
-  const r = rng(seed); const dark = shade(color, -0.5); const light = shade(color, 0.2);
-  g.fillStyle = color; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 10; i++) { g.globalAlpha = 0.05 + r() * 0.07; g.fillStyle = r() > 0.5 ? light : dark; g.fillRect(0, r() * H, W, 20 + r() * H * 0.2); }
-  const warp = (x, y) => Math.sin(x * 0.006 + y * 0.012 + seed) * (H * 0.02) + Math.sin(x * 0.017 + y * 0.03 + seed * 2) * (H * 0.008);
-  const lines = Math.round(H / 2.6);
-  for (let i = 0; i < lines; i++) {
-    const y0 = (i / lines) * H + r() * 3; g.beginPath();
-    for (let x = 0; x <= W; x += 6) { const y = y0 + warp(x, y0); x ? g.lineTo(x, y) : g.moveTo(x, y); }
-    g.strokeStyle = dark; g.globalAlpha = 0.05 + r() * 0.2; g.lineWidth = 0.5 + r() * 1.9; g.stroke();
+const CREDITS = {
+  "chalk-white": { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  "pebble-grey": { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  sand: { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  sage: { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  "dark-green": { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  "ink-blue": { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  clay: { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  black: { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  "paint-base": { title: "White plaster wall texture", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/white-plaster-wall-texture-kTg4NXEmfs8", source: "unsplash" },
+  oak: { title: "Light oak wood plank texture background", author: "simon", authorUrl: "https://unsplash.com/@simon_berger", url: "https://unsplash.com/photos/light-oak-wood-plank-texture-background-JH_R66BihvA", source: "unsplash" },
+  "oak-smoked": { title: "Light oak wood plank texture background", author: "simon", authorUrl: "https://unsplash.com/@simon_berger", url: "https://unsplash.com/photos/light-oak-wood-plank-texture-background-JH_R66BihvA", source: "unsplash" },
+  walnut: { title: "Close-up of dark wood grain", author: "The Cleveland Museum of Art", authorUrl: "https://unsplash.com/@clevelandart", url: "https://unsplash.com/photos/KKKHaEA4coc", source: "unsplash" },
+  ash: { title: "Light brown wood grain texture background", author: "Compagnons", authorUrl: "https://unsplash.com/@sigmund", url: "https://unsplash.com/photos/light-brown-wood-grain-texture-background-2ZX2HqdxcC8", source: "unsplash" },
+  "birch-ply": { title: "A stack of wooden boards stacked on top of each other", author: "Tim Meyer", authorUrl: "https://unsplash.com/@tim_meijer", url: "https://unsplash.com/photos/a-stack-of-wooden-boards-stacked-on-top-of-each-other-NDQIHPA9Iv0", source: "unsplash" },
+  "laminate-black": { title: "Dark textured plaster wall", author: "Annie Spratt", authorUrl: "https://unsplash.com/@anniespratt", url: "https://unsplash.com/photos/dark-textured-plaster-wall-6a3nqQ1YwBw", source: "unsplash" },
+  "laminate-grey": { title: "Monochrome concrete wall", author: "Yan Ots", authorUrl: "https://unsplash.com/@yanots", url: "https://unsplash.com/photos/UuBR5kbvt4Y", source: "unsplash" },
+  "quartz-white": { title: "A close up of a white marble surface", author: "Augustine Wong", authorUrl: "https://unsplash.com/@augustinewong", url: "https://unsplash.com/photos/a-close-up-of-a-white-marble-surface-li0iC0rjvvg", source: "unsplash" },
+  "stone-black": { title: "A close up of a black marble surface", author: "Kanishk Jain", authorUrl: "https://unsplash.com/@kanishkjain_123", url: "https://unsplash.com/photos/OQDOskPJEMY", source: "unsplash" },
+  "laminate-worktop": { title: "Close-up of gray concrete", author: "Annie Spratt", authorUrl: "https://unsplash.com/@anniespratt", url: "https://unsplash.com/photos/ctXf1GVyf9A", source: "unsplash" },
+  "glass-clear": { title: "Arched black cabinet with glass doors", author: "Franco Debartolo", authorUrl: "https://unsplash.com/@francotheshooter", url: "https://unsplash.com/photos/POcDzpLZnB8", source: "unsplash" },
+  "glass-smoked": { title: "Black glass cabinet displaying decorative vases and artwork", author: "Franco Debartolo", authorUrl: "https://unsplash.com/@francotheshooter", url: "https://unsplash.com/photos/ZdPylmn6gBc", source: "unsplash" },
+  brass: { title: "A close up of a metal object on a table", author: "Zain Khan", authorUrl: "https://unsplash.com/@aabedeen51", url: "https://unsplash.com/photos/a-close-up-of-a-metal-object-on-a-table-OO_2w0sJD3A", source: "unsplash" },
+  "handle-black": { title: "Black handrail casting a shadow on a white wall", author: "Alexander Van Steenberge", authorUrl: "https://unsplash.com/@lexerium", url: "https://unsplash.com/photos/9vKF96cs7KU", source: "unsplash" },
+  brushed: { title: "Brushed metal surface with light reflection", author: "apryan widodo", authorUrl: "https://unsplash.com/@apryan_cahyo", url: "https://unsplash.com/photos/brushed-metal-surface-with-light-reflection-tRrIXmtOmL4", source: "unsplash" },
+  wood: { title: "Oak Wood Planks", author: "Poly Haven", authorUrl: "https://polyhaven.com", url: "https://polyhaven.com/a/oak_wood_planks", source: "polyhaven" },
+};
+const creditFor = (id) => CREDITS[id];
+const noteFor = (id, def) => NOTE[id] || (def.family === 'painted' ? NOTE.paint : def.family === 'laminate' ? NOTE.laminate : '');
+
+// Plain-words price. Same numbers as the planner's table.
+function priceOf(id, unit) {
+  const m = LIBRARY[id];
+  if (unit === 'handle') {
+    const pct = Math.round((m.factor - 1) * 100);
+    return { main: pct === 0 ? 'Standard handle price' : `+${pct}% on the handle price`, tier: pct === 0 ? '€' : pct < 50 ? '€' : '€€' };
   }
-  // a pair of cathedral arches
-  for (let a = 0; a < 2; a++) {
-    const cx = W * (0.25 + r() * 0.5); const cy = H * (0.25 + r() * 0.5);
-    for (let k = 1; k < 16; k++) {
-      g.beginPath();
-      for (let x = 0; x <= W; x += 8) { const y = cy + k * (H * 0.014) - ((x - cx) ** 2) * (0.00002 * k + 0.00001) * (H / 360); x ? g.lineTo(x, y) : g.moveTo(x, y); }
-      g.strokeStyle = dark; g.globalAlpha = 0.04 + r() * 0.09; g.lineWidth = 0.6 + r() * 1.2; g.stroke();
+  const p = m.pricePerM2;
+  const tier = p < 100 ? '€' : p < 160 ? '€€' : p < 300 ? '€€€' : '€€€€';
+  const what = unit === 'glass' ? 'of glass' : unit === 'top' ? 'of worktop' : 'of front';
+  return { main: `${eur(p)} per m² ${what}`, tier };
+}
+const boardPrice = (id) => {
+  const m = LIBRARY[id];
+  return m.uses.includes('carcass') ? m.boardPricePerM2 ?? m.pricePerM2 : null;
+};
+
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+const root = $('[data-catalogue]');
+const jump = $('[data-jump]');
+const dlg = $('[data-dialog]');
+const live = $('[data-live]');
+const cards = new Map();
+
+function build() {
+  let n = 0;
+  for (const s of SECTIONS) {
+    const ids = s.ids().filter((id) => LIBRARY[id] && creditFor(id));
+    if (!ids.length) continue;
+    const sec = el('section', 'mt-sec');
+    sec.id = s.key;
+    sec.setAttribute('aria-labelledby', `h-${s.key}`);
+    const head = el('div', 'mt-sec__head');
+    const h = el('h2', 'mt-sec__title', s.title);
+    h.id = `h-${s.key}`;
+    head.append(h, el('p', 'mt-sec__lead', s.lead));
+    const ul = el('ul', 'mt-grid');
+    ul.setAttribute('role', 'list');
+    for (const id of ids) {
+      const m = LIBRARY[id];
+      const pr = priceOf(id, s.unit);
+      const li = el('li', 'mt-card');
+      li.style.setProperty('--i', n++);
+      const b = el('button', 'mt-card__btn');
+      b.type = 'button';
+      b.dataset.id = id;
+      b.dataset.unit = s.unit;
+      b.dataset.section = s.title;
+      const fig = el('span', 'mt-card__ph');
+      const img = new Image();
+      img.src = `assets/materials/${id}.webp`;
+      img.width = 600; img.height = 600;
+      img.loading = 'lazy'; img.decoding = 'async';
+      img.alt = ALT[id] || m.label;
+      fig.append(img);
+      const meta = el('span', 'mt-card__meta');
+      meta.append(el('strong', '', m.label), el('span', 'mt-card__note', m.note || ''));
+      const price = el('span', 'mt-card__price');
+      price.append(el('i', 'mt-tier', pr.tier), document.createTextNode(` ${pr.main}`));
+      b.append(fig, meta, price);
+      b.setAttribute('aria-haspopup', 'dialog');
+      li.append(b);
+      ul.append(li);
+      cards.set(id, li);
+    }
+    sec.append(head, ul);
+    root.append(sec);
+    if (jump) {
+      const a = el('a', 'mt-chip', s.title);
+      a.href = `#${s.key}`;
+      jump.append(a);
     }
   }
-  for (let i = 0; i < W * 1.4; i++) { g.globalAlpha = 0.28 * r(); g.fillStyle = dark; g.fillRect(r() * W, r() * H, 3 + r() * 11, 1); }
-  g.globalAlpha = 1;
-  if (plyEdge) {
-    const eh = Math.round(H * 0.13); g.fillStyle = shade(color, 0.35); g.fillRect(0, H - eh, W, eh);
-    const n = 9; const lh = eh / n;
-    for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? shade(color, -0.12) : shade(color, 0.28); g.globalAlpha = 0.95; g.fillRect(0, H - eh + i * lh, W, lh - 0.6 - r() * 0.8); }
-    g.globalAlpha = 0.12; g.fillStyle = '#000'; g.fillRect(0, H - eh - 1, W, 1.5); g.globalAlpha = 1;
-  }
-}
-function paintLacquer(g, W, H, color, seed) {
-  const r = rng(seed);
-  g.fillStyle = color; g.fillRect(0, 0, W, H);
-  const gr = g.createLinearGradient(0, 0, W, H);
-  gr.addColorStop(0, 'rgba(255,255,255,.10)'); gr.addColorStop(.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(0,0,0,.14)');
-  g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < W * 5; i++) { g.globalAlpha = 0.035 * r(); g.fillStyle = r() > 0.5 ? '#fff' : '#000'; g.fillRect(r() * W, r() * H, 1.4, 1.4); }
-  g.globalAlpha = 1;
-}
-function paintTerrazzo(g, W, H, color, seed) {
-  const r = rng(seed); const pal = ['#f4efe6', '#8d8579', '#c9a47e', '#3b3a38', '#b9715a', '#dcd6ca', '#a7a89a'];
-  g.fillStyle = color; g.fillRect(0, 0, W, H);
-  const n = Math.round((W * H) / 900);
-  for (let i = 0; i < n; i++) {
-    const cx = r() * W; const cy = r() * H; const rad = (r() ** 2.2) * (W * 0.05) + 2.5; const sides = 5 + Math.floor(r() * 3); const rot = r() * 6.28;
-    g.beginPath();
-    for (let k = 0; k < sides; k++) { const a = rot + (k / sides) * 6.283; const rr = rad * (0.6 + r() * 0.55); k ? g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : g.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
-    g.closePath(); g.globalAlpha = 0.92; g.fillStyle = pal[Math.floor(r() * pal.length)]; g.fill();
-    g.globalAlpha = 0.18; g.strokeStyle = '#000'; g.lineWidth = 0.6; g.stroke();
-  }
-  for (let i = 0; i < W * 3; i++) { g.globalAlpha = 0.3 * r(); g.fillStyle = r() > 0.5 ? '#fff' : '#555'; g.fillRect(r() * W, r() * H, 1.3, 1.3); }
-  g.globalAlpha = 1;
-}
-function paint(canvas, id, opts = {}) {
-  const m = MATERIALS[id]; const g = canvas.getContext('2d'); const W = canvas.width; const H = canvas.height; const seed = hash(id);
-  if (m.kind === 'wood' || m.kind === 'ply') paintWood(g, W, H, m.color, seed, m.kind === 'ply' && opts.edge !== false);
-  else if (m.kind === 'stone') paintTerrazzo(g, W, H, m.color, seed);
-  else paintLacquer(g, W, H, m.color, seed);
-}
-const tileCache = {};
-function tile(id) { // small repeating tile used as a canvas pattern
-  if (!tileCache[id]) { const c = document.createElement('canvas'); c.width = c.height = 360; paint(c, id, { edge: false }); tileCache[id] = c; }
-  return tileCache[id];
 }
 
-/* ------------------------------------------------------------------ sample library */
-const grid = $('[data-grid]');
-const kindsEl = $('[data-kinds]');
-let kindFilter = 'all';
-const cmp = ['oak', 'walnut'];
-let nextSlot = 0;
-
-function buildKinds() {
-  const kinds = ['all', ...new Set(IDS.map((id) => MATERIALS[id].kind))];
-  kindsEl.innerHTML = kinds.map((k) => `<button type="button" class="mt-kind" data-kind="${k}" aria-pressed="${k === 'all'}">${k === 'all' ? 'All' : KIND_LABEL[k]}</button>`).join('');
-  kindsEl.addEventListener('click', (e) => {
-    const b = e.target.closest('.mt-kind'); if (!b) return;
-    kindFilter = b.dataset.kind;
-    $$('.mt-kind', kindsEl).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    let n = 0;
-    $$('.mt-card', grid).forEach((li) => {
-      const show = kindFilter === 'all' || MATERIALS[li.dataset.id].kind === kindFilter;
-      li.hidden = !show;
-      if (show && !reduced) li.animate([{ opacity: 0, transform: 'translateY(26px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 700, delay: n++ * 55, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' });
-    });
-    say(`Showing ${n} materials`);
-  });
+/* ---------- reveal ---------- */
+function reveal() {
+  const all = [...cards.values()];
+  if (reduced || !('IntersectionObserver' in window)) { all.forEach((c) => c.classList.add('is-in')); return; }
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -8% 0px' });
+  all.forEach((c) => io.observe(c));
+  setTimeout(() => all.forEach((c) => c.classList.add('is-in')), 4000);
 }
 
-function buildGrid() {
-  grid.innerHTML = IDS.map((id, i) => {
-    const m = MATERIALS[id]; const t = tier(m);
-    return `<li class="mt-card" data-id="${id}" style="--edge:${shade(m.color, -0.4)};--i:${i}">
-      <button type="button" class="mt-card__btn" aria-haspopup="dialog" aria-label="${m.label}: open details" data-cursor="Open">
-        <span class="mt-board"><span class="mt-board__spin" style="--delay:${(i * -1.3).toFixed(1)}s"><canvas width="480" height="360" aria-hidden="true"></canvas><span class="mt-board__sheen"></span></span></span>
-        <span class="mt-card__meta"><strong>${m.label}</strong><span>${KIND_LABEL[m.kind]} <i aria-hidden="true">·</i> <b class="mt-tier" aria-label="Price tier ${t} of 4">${'€'.repeat(t)}</b></span></span>
-      </button>
-      <button type="button" class="mt-card__cmp" aria-pressed="false" aria-label="Add ${m.label} to compare"><span aria-hidden="true">+</span></button>
-    </li>`;
-  }).join('');
-  $$('.mt-card', grid).forEach((li) => { paint($('canvas', li), li.dataset.id); });
-  syncCompareButtons();
-}
-
-function bindGrid() {
-  // tilt + sheen follow the pointer; keyboard focus gets a gentle fixed tilt
-  grid.addEventListener('pointermove', (e) => {
-    if (reduced || e.pointerType === 'touch') return;
-    const btn = e.target.closest('.mt-card__btn'); if (!btn) return;
-    const board = $('.mt-board', btn); const r = btn.getBoundingClientRect();
-    const px = clamp((e.clientX - r.left) / r.width, 0, 1); const py = clamp((e.clientY - r.top) / r.height, 0, 0.8) / 0.8;
-    board.style.setProperty('--ry', `${((px - 0.5) * 24).toFixed(1)}deg`);
-    board.style.setProperty('--rx', `${(-(py - 0.5) * 18).toFixed(1)}deg`);
-    board.style.setProperty('--mx', `${(px * 100).toFixed(0)}%`);
-    board.style.setProperty('--my', `${(py * 100).toFixed(0)}%`);
-    board.classList.add('is-hot');
-  });
-  grid.addEventListener('pointerout', (e) => {
-    const btn = e.target.closest('.mt-card__btn'); if (!btn || btn.contains(e.relatedTarget)) return;
-    const board = $('.mt-board', btn); board.classList.remove('is-hot');
-    board.style.setProperty('--rx', '0deg'); board.style.setProperty('--ry', '0deg');
-  });
-  grid.addEventListener('click', (e) => {
-    const c = e.target.closest('.mt-card__cmp');
-    if (c) { addToCompare(c.closest('.mt-card').dataset.id); return; }
-    const b = e.target.closest('.mt-card__btn');
-    if (b) openDialog(b.closest('.mt-card').dataset.id, b);
-  });
-  if ('IntersectionObserver' in window && !reduced) {
-    const io = new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); } }), { rootMargin: '0px 0px -8% 0px' });
-    $$('.mt-card', grid).forEach((li) => io.observe(li));
-  } else $$('.mt-card', grid).forEach((li) => li.classList.add('is-in'));
-}
-
-function syncCompareButtons() {
-  $$('.mt-card', grid).forEach((li) => {
-    const on = cmp.includes(li.dataset.id); const b = $('.mt-card__cmp', li);
-    li.classList.toggle('is-compared', on);
-    b.setAttribute('aria-pressed', String(on));
-    const label = MATERIALS[li.dataset.id].label;
-    b.setAttribute('aria-label', on ? `${label} is in the compare tool (slot ${cmp.indexOf(li.dataset.id) ? 'B' : 'A'})` : `Add ${label} to compare`);
-    $('span', b).textContent = on ? (cmp.indexOf(li.dataset.id) ? 'B' : 'A') : '+';
-  });
-}
-
-function addToCompare(id) {
-  if (cmp.includes(id)) { say(`${MATERIALS[id].label} is already being compared.`); return; }
-  cmp[nextSlot] = id; const slot = nextSlot ? 'B' : 'A'; nextSlot = 1 - nextSlot;
-  renderCompare(); syncCompareButtons();
-  say(`${MATERIALS[id].label} added as material ${slot}. Jump to the compare tool to see it.`);
-  toast(`${MATERIALS[id].label} added as ${slot}`);
-}
-
-let toastEl = null; let toastT = 0;
-function toast(msg) {
-  if (!toastEl) {
-    toastEl = document.createElement('div'); toastEl.className = 'mt-toast';
-    toastEl.innerHTML = '<span></span><a href="#compare">Compare now</a>'; document.body.appendChild(toastEl);
-  }
-  $('span', toastEl).textContent = msg; toastEl.classList.add('is-on'); clearTimeout(toastT);
-  toastT = setTimeout(() => toastEl.classList.remove('is-on'), 3600);
-}
-
-/* ------------------------------------------------------------------ details dialog */
-const dlg = $('[data-dialog]');
-let dlgId = null; let dlgOrigin = null;
-const bar = (label, v) => `<div class="mt-bar"><span>${label}</span><i style="--v:${v / 5}"><b></b></i><em>${v}/5</em></div>`;
-
-function openDialog(id, origin) {
-  const m = MATERIALS[id]; const x = META[id]; dlgId = id; dlgOrigin = origin;
-  paint($('[data-dlg-canvas]', dlg), id);
-  $('[data-dlg-kind]', dlg).textContent = KIND_LABEL[m.kind];
+/* ---------- lightbox ---------- */
+let opener = null;
+function open(btn) {
+  const id = btn.dataset.id;
+  const m = LIBRARY[id];
+  const unit = btn.dataset.unit;
+  const pr = priceOf(id, unit);
+  const c = creditFor(id);
+  const img = $('[data-dlg-img]', dlg);
+  img.src = `assets/materials/${id}.webp`;
+  img.alt = ALT[id] || m.label;
+  $('[data-dlg-kind]', dlg).textContent = btn.dataset.section;
   $('[data-dlg-title]', dlg).textContent = m.label;
-  $('[data-dlg-tone]', dlg).textContent = x.tone;
-  const t = tier(m);
-  $('[data-dlg-tier]', dlg).textContent = '€'.repeat(t);
-  $('[data-dlg-price]', dlg).textContent = `${euro(m.pricePerM2)} per m² of board, price tier ${t} of 4`;
-  $('[data-dlg-bars]', dlg).innerHTML = bar('Durability', x.dur) + bar('Moisture resistance', x.moist) + bar('Easy to repair', x.repair);
-  $('[data-dlg-used]', dlg).innerHTML = x.used.map((u) => `<span class="mt-pill">${u}</span>`).join('');
-  $('[data-dlg-make]', dlg).textContent = x.make;
-  $('[data-dlg-finish]', dlg).textContent = x.finish;
-  $('[data-dlg-care]', dlg).textContent = x.care;
-  const cb = $('[data-dlg-compare]', dlg);
-  cb.textContent = cmp.includes(id) ? 'In the compare tool' : 'Add to compare'; cb.disabled = cmp.includes(id);
-  const use = $('[data-dlg-use]', dlg); use.href = 'planner.html';
-  configuratorLink(id).then((h) => { if (h && dlgId === id) use.href = h; });
-  const l = lenis(); if (l) l.stop();
-  dlg.showModal();
+  $('[data-dlg-note]', dlg).textContent = m.note || '';
+  $('[data-dlg-tier]', dlg).textContent = pr.tier;
+  const bp = boardPrice(id);
+  $('[data-dlg-price]', dlg).textContent = pr.main + (bp != null && unit === 'front' ? `. As the box itself (sides, shelves): ${eur(bp)} per m².` : '.');
+  const pn = $('[data-dlg-photo]', dlg);
+  pn.textContent = noteFor(id, m);
+  pn.hidden = !pn.textContent;
+  const cr = $('[data-dlg-credit]', dlg);
+  cr.textContent = '';
+  const a = el('a', '', c.author); a.href = c.authorUrl; a.rel = 'noopener';
+  const w = el('a', '', c.source === 'polyhaven' ? 'Poly Haven' : 'Unsplash'); w.href = c.source === 'polyhaven' ? 'https://polyhaven.com' : 'https://unsplash.com'; w.rel = 'noopener';
+  const lic = el('a', '', c.source === 'polyhaven' ? 'CC0' : 'Unsplash License');
+  lic.href = c.source === 'polyhaven' ? 'https://creativecommons.org/publicdomain/zero/1.0/' : 'https://unsplash.com/license'; lic.rel = 'noopener';
+  const t = el('a', '', c.title); t.href = c.url; t.rel = 'noopener';
+  cr.append('Photo ', t, ' by ', a, ' on ', w, ', ', lic, '. ');
+  const more = el('a', '', 'All credits'); more.href = 'credits.html';
+  cr.append(more);
+  opener = btn;
+  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   requestAnimationFrame(() => dlg.classList.add('is-open'));
+  if (live) live.textContent = `${m.label} opened`;
 }
-function closeDialog() {
-  if (!dlg.open) return;
+function close() {
   dlg.classList.remove('is-open');
-  const done = () => { dlg.close(); };
-  if (reduced) done(); else setTimeout(done, 380);
-}
-dlg.addEventListener('close', () => { const l = lenis(); if (l) l.start(); if (dlgOrigin && dlgOrigin.isConnected) dlgOrigin.focus({ preventScroll: true }); });
-dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeDialog(); });
-dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close]')) closeDialog(); });
-$('[data-dlg-compare]', dlg).addEventListener('click', () => { addToCompare(dlgId); closeDialog(); });
-
-let sharePromise = null;
-function configuratorLink(id) {
-  sharePromise = sharePromise || Promise.all([import('./configurator/model.js'), import('./configurator/share.js')]).catch(() => null);
-  return sharePromise.then((libs) => {
-    if (!libs) return null;
-    try {
-      const [M, S] = libs; let d = M.createDesign(); const m = MATERIALS[id];
-      if (m.kind === 'stone') d = M.updateModule(d, 'm2', { worktop: id });
-      else d = M.updateModule(d, 'm1', { front: id });
-      return `planner.html#design=${S.encodeDesign(d)}`;
-    } catch (err) { return null; }
-  });
+  const done = () => { if (dlg.open) dlg.close(); if (opener) opener.focus(); };
+  if (reduced) done(); else setTimeout(done, 280);
 }
 
-/* ------------------------------------------------------------------ compare tool */
-const cmpRoot = $('[data-compare]');
-function buildCompare() {
-  const opts = IDS.map((id) => `<option value="${id}">${MATERIALS[id].label}</option>`).join('');
-  $$('[data-pick]', cmpRoot).forEach((sel) => {
-    sel.innerHTML = opts;
-    sel.addEventListener('change', () => { cmp[Number(sel.dataset.pick)] = sel.value; if (cmp[0] === cmp[1]) { const other = 1 - Number(sel.dataset.pick); cmp[other] = IDS.find((i) => i !== sel.value); } renderCompare(); syncCompareButtons(); });
-  });
-  renderCompare(true);
+function init() {
+  if (!root) return;
+  build();
+  reveal();
+  root.addEventListener('click', (e) => { const b = e.target.closest('.mt-card__btn'); if (b) open(b); });
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close]')) close(); });
+  const lone = $('[data-nojs]');
+  if (lone) lone.hidden = true;
 }
-
-function renderCompare(first) {
-  const [a, b] = cmp; const A = MATERIALS[a]; const B = MATERIALS[b]; const xa = META[a]; const xb = META[b];
-  $$('[data-pick]', cmpRoot).forEach((sel, i) => { sel.value = cmp[i]; });
-  [0, 1].forEach((i) => {
-    const c = $(`[data-cmp-canvas="${i}"]`, cmpRoot); paint(c, cmp[i]);
-    $(`[data-cmp-name="${i}"]`, cmpRoot).textContent = `${i ? 'B' : 'A'} · ${MATERIALS[cmp[i]].label}`;
-    c.setAttribute('aria-label', `Sample of ${MATERIALS[cmp[i]].label}`);
-    if (!first && !reduced) c.animate([{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.16,1,.3,1)' });
-  });
-  const rowBar = (va, vb) => {
-    const bw = (v, o) => `<div class="mt-cbar${v > o ? ' is-best' : ''}"><i style="--v:${v / 5}"><b></b></i><span>${v}/5${v > o ? ' <em>better</em>' : ''}</span></div>`;
-    return [bw(va, vb), bw(vb, va)];
-  };
-  const cell = (v, better) => `<div class="mt-cell${better ? ' is-best' : ''}">${v}</div>`;
-  const rows = [
-    ['Kind', cell(KIND_LABEL[A.kind]), cell(KIND_LABEL[B.kind])],
-    ['Board price', cell(`${euro(A.pricePerM2)} / m²${A.pricePerM2 < B.pricePerM2 ? ' <em>lower</em>' : ''}`, A.pricePerM2 < B.pricePerM2), cell(`${euro(B.pricePerM2)} / m²${B.pricePerM2 < A.pricePerM2 ? ' <em>lower</em>' : ''}`, B.pricePerM2 < A.pricePerM2)],
-    ['Fronts for a 200 × 240 cm wardrobe', cell(`about ${euro(frontCost(a))}`), cell(`about ${euro(frontCost(b))}`)],
-    ['Durability', ...rowBar(xa.dur, xb.dur)],
-    ['Moisture resistance', ...rowBar(xa.moist, xb.moist)],
-    ['Easy to repair', ...rowBar(xa.repair, xb.repair)],
-    ['Made from', cell(xa.make), cell(xb.make)],
-    ['Best for', cell(xa.used.join(', ')), cell(xb.used.join(', '))]
-  ];
-  const table = $('[data-table]', cmpRoot);
-  table.innerHTML = `<div class="mt-row mt-row--head"><span></span><strong>A · ${A.label}</strong><strong>B · ${B.label}</strong></div>` + rows.map((r) => `<div class="mt-row"><span class="mt-row__l">${r[0]}</span>${r[1]}${r[2]}</div>`).join('');
-  requestAnimationFrame(() => requestAnimationFrame(() => table.classList.add('is-on')));
-  table.classList.remove('is-on'); void table.offsetWidth; requestAnimationFrame(() => table.classList.add('is-on'));
-}
-
-/* ------------------------------------------------------------------ boot */
-buildKinds();
-buildGrid();
-bindGrid();
-buildCompare();
-if (window.site && window.site.refresh) { window.site.refresh(); window.addEventListener('load', () => window.site.refresh()); }
+init();

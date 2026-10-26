@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Materials · Grain &amp; Joint</title>
-  <meta name="description" content="Oak, walnut, ash, birch plywood, lacquers and terrazzo: tilt each sample board, read the detail and compare any two materials side by side.">
+  <meta name="description" content="Everything we offer, with photos: eight paint colours, four wood veneers, birch plywood, laminate, glass, worktops and handle finishes, with plain-words prices from the same table as the planner.">
   <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/materials.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Grain &amp; Joint">
   <meta property="og:title" content="Materials · Grain &amp; Joint">
-  <meta property="og:description" content="Oak, walnut, ash, birch plywood, lacquers and terrazzo: tilt each sample board, read the detail and compare any two materials side by side.">
+  <meta property="og:description" content="Everything we offer, with photos: eight paint colours, four wood veneers, birch plywood, laminate, glass, worktops and handle finishes, with plain-words prices from the same table as the planner.">
   <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/materials.html">
   <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -77,48 +77,20 @@
     <header class="mt-hero">
       <div class="container">
         <p class="eyebrow" data-reveal="fade">Materials</p>
-        <h1 class="mt-hero__title" data-split><em>Materials</em></h1>
+        <h1 class="mt-hero__title" data-split>What we <em>offer</em></h1>
         <div class="mt-hero__row">
-          <p class="mt-hero__lead" data-reveal data-reveal-delay="0.2">These are the nine boards and finishes we use. Tilt a sample to see the grain, open it for details, or compare two side by side.</p>
-          <a class="link-arrow" href="#compare" data-reveal data-reveal-delay="0.3">Jump to the compare tool</a>
+          <p class="mt-hero__lead" data-reveal data-reveal-delay="0.2">A small, curated range: every paint, veneer, board, glass, worktop and handle finish we stock, and nothing else. Open any one for a bigger photo and its price. The planner uses this same list.</p>
         </div>
-      </div>
-      <div class="container mt-hero__band">
-        <div class="mt-hero__img" data-reveal="mask"><img src="https://images.unsplash.com/photo-1644931551533-02906718127f?auto=format&fit=crop&w=1800&h=700&q=80" width="1800" height="700" alt="Close-up of weathered timber boards with deep grain" fetchpriority="low"><span class="timber">Weathered oak boards, raw grain</span></div>
+        <nav class="mt-jump" aria-label="Jump to a group" data-jump data-reveal data-reveal-delay="0.3"></nav>
       </div>
     </header>
 
-    <section class="section mt-library" id="library" aria-labelledby="lib-h">
-      <div class="container">
-        <div class="mt-lib__head">
-          <h2 id="lib-h" class="mt-h2" data-split>The sample library</h2>
-          <div class="mt-kinds" role="group" aria-label="Filter by kind" data-kinds></div>
-        </div>
-        <ul class="mt-grid" role="list" data-grid></ul>
-        <p class="mt-note">Black steel is only used for handles and runners, so it isn’t shown as a board.</p>
-        <noscript><p>The material library needs JavaScript. We build with oak, walnut, ash, birch plywood, four lacquers and terrazzo.</p></noscript>
+    <section class="section mt-library" id="library" aria-label="The range">
+      <div class="container" data-catalogue>
+        <p class="mt-nojs" data-nojs>The catalogue needs JavaScript. We offer eight paint colours, four wood veneers, birch plywood, two laminates, two glasses, four worktops and four handle finishes. <a href="planner.html">See them in the planner</a>.</p>
       </div>
-    </section>
-
-    <section class="section section--paper-2 mt-compare" id="compare" aria-labelledby="cmp-h">
       <div class="container">
-        <div class="section-head">
-          <p class="eyebrow">Compare</p>
-          <h2 id="cmp-h" class="section-head__title" data-split>Two materials, <em>side by side</em></h2>
-          <p class="section-head__aside">Pick two from the menus, or press the plus on any sample above. Prices come from the same table as the planner.</p>
-        </div>
-        <div class="mt-cmp" data-compare>
-          <div class="mt-cmp__pickers">
-            <label class="mt-pick"><span>Material A</span><select data-pick="0"></select></label>
-            <span class="mt-cmp__vs" aria-hidden="true">vs</span>
-            <label class="mt-pick"><span>Material B</span><select data-pick="1"></select></label>
-          </div>
-          <div class="mt-cmp__boards">
-            <figure class="mt-cmp__board"><canvas data-cmp-canvas="0" width="720" height="540" role="img" aria-label="Sample of material A"></canvas><figcaption data-cmp-name="0"></figcaption></figure>
-            <figure class="mt-cmp__board"><canvas data-cmp-canvas="1" width="720" height="540" role="img" aria-label="Sample of material B"></canvas><figcaption data-cmp-name="1"></figcaption></figure>
-          </div>
-          <div class="mt-cmp__table" data-table></div>
-        </div>
+        <p class="mt-note">Photos show the look of each finish, not an exact colour match. Paints are one plaster photo tinted per colour, and the laminates are matte stand-in surfaces. Prices are material prices per m² from the planner's table; your quote adds the build and fitting. A sample box is the only true colour check.</p>
       </div>
     </section>
 
@@ -137,22 +109,17 @@
     <dialog class="mt-dialog" data-dialog aria-labelledby="dlg-title">
       <div class="mt-dialog__inner">
         <button class="mt-dialog__close" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
-        <div class="mt-dialog__media"><canvas data-dlg-canvas width="900" height="900" role="img" aria-label="Large sample of the material"></canvas></div>
+        <div class="mt-dialog__media"><img data-dlg-img width="600" height="600" alt=""></div>
         <div class="mt-dialog__body">
           <p class="eyebrow" data-dlg-kind></p>
           <h2 id="dlg-title" class="mt-dialog__title" data-dlg-title></h2>
-          <p class="mt-dialog__tone" data-dlg-tone></p>
+          <p class="mt-dialog__tone" data-dlg-note></p>
           <div class="mt-dialog__price"><span class="mt-tier" data-dlg-tier></span><span data-dlg-price></span></div>
-          <div class="mt-bars" data-dlg-bars></div>
-          <dl class="mt-dialog__dl">
-            <div><dt>Used for</dt><dd data-dlg-used></dd></div>
-            <div><dt>Make-up</dt><dd data-dlg-make></dd></div>
-            <div><dt>Finish</dt><dd data-dlg-finish></dd></div>
-            <div><dt>Care</dt><dd data-dlg-care></dd></div>
-          </dl>
+          <p class="mt-dialog__photo" data-dlg-photo></p>
+          <p class="mt-dialog__credit" data-dlg-credit></p>
           <div class="mt-dialog__actions">
-            <button class="btn btn--ghost" type="button" data-dlg-compare>Add to compare</button>
-            <a class="btn" href="planner.html" data-dlg-use>Use in the planner <span aria-hidden="true">&rarr;</span></a>
+            <a class="btn" href="planner.html">Use it in the planner <span aria-hidden="true">&rarr;</span></a>
+            <button class="btn btn--ghost" type="button" data-close>Close</button>
           </div>
         </div>
       </div>
