@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Contact · Grain &amp; Joint</title>
-  <meta name="description" content="Request a quote from Grain & Joint in four short steps, see studio hours and the workshop location in Antwerp. A concept site: nothing you enter is sent anywhere.">
+  <meta name="description" content="Get a price from Grain & Joint with the room planner, or write, call or visit the workshop in Antwerp. See studio hours and the location. A concept site: nothing you enter is sent anywhere.">
   <link rel="canonical" href="https://jakubmichalec-debug.github.io/Carpenter/contact.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Grain &amp; Joint">
   <meta property="og:title" content="Contact · Grain &amp; Joint">
-  <meta property="og:description" content="Request a quote from Grain &amp; Joint in four short steps, see studio hours and the workshop location in Antwerp. A concept site: nothing you enter is sent anywhere.">
+  <meta property="og:description" content="Get a price from Grain &amp; Joint with the room planner, or write, call or visit the workshop in Antwerp. See studio hours and the location. A concept site: nothing you enter is sent anywhere.">
   <meta property="og:url" content="https://jakubmichalec-debug.github.io/Carpenter/contact.html">
   <meta property="og:image" content="https://jakubmichalec-debug.github.io/Carpenter/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -25,11 +25,10 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/contact.css">
+  <script>if (/^#(p|design)=/.test(location.hash)) location.replace('planner.html' + location.hash);</script>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
       "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.mjs"
     }
   }
@@ -77,128 +76,35 @@
     <header class="ct-hero">
       <div class="container">
         <p class="eyebrow" data-reveal="fade">Contact</p>
-        <h1 class="ct-hero__title" data-split>Tell us about <em>the room</em>.</h1>
-        <p class="ct-hero__lead" data-reveal data-reveal-delay="0.2">Answer four short questions and we’ll send a rough price range within two working days.</p>
+        <h1 class="ct-hero__title" data-split>Let’s talk about <em>the room</em>.</h1>
+        <p class="ct-hero__lead" data-reveal data-reveal-delay="0.2">The quickest way to a price is the planner. Draw your room, choose the materials and send us the design. Prefer to talk first? Write, call or drop by the workshop.</p>
       </div>
     </header>
 
     <section class="ct-main">
       <div class="container ct-grid">
-        <div class="ct-formcol">
-          <div class="ct-notice" data-notice hidden role="status"></div>
-          <div class="ct-card" id="samples" data-card>
-            <div class="ct-progress" data-progress aria-label="Progress">
-              <ol class="ct-progress__steps">
-                <li class="is-current" data-pstep="0"><span>1</span>Project</li>
-                <li data-pstep="1"><span>2</span>Room</li>
-                <li data-pstep="2"><span>3</span>Budget</li>
-                <li data-pstep="3"><span>4</span>You</li>
-              </ol>
-              <div class="ct-progress__bar" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-label="Step 1 of 4"><i data-bar></i></div>
-            </div>
+        <div class="ct-ways">
+          <section class="ct-way ct-way--lead" aria-labelledby="way-plan-h">
+            <p class="eyebrow">The quickest way</p>
+            <h2 id="way-plan-h" class="ct-way__h">Get a price in about ten minutes.</h2>
+            <p>Plan your room in 3D, pick the materials and watch an itemised estimate build as you go. When it looks right, send us the design from the last step and we’ll reply within two working days with a fixed quote.</p>
+            <a class="btn" href="planner.html" data-magnetic>Plan your room <span aria-hidden="true">&rarr;</span></a>
+          </section>
 
-            <form class="ct-form" data-form novalidate autocomplete="on">
-              <div class="ct-viewport" data-viewport>
-              <fieldset class="ct-step is-active" data-step="0">
-                <legend class="ct-q">What are we making?</legend>
-                <p class="ct-hint">Choose the closest fit. You can add detail later.</p>
-                <div class="ct-types" role="radiogroup">
-              <label class="ct-type"><input type="radio" name="type" value="wardrobe" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="2"/><path d="M24 4v40M19 22v6M29 22v6"/></svg><strong>Wardrobe</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="kitchen" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="40" height="10" rx="1"/><rect x="4" y="28" width="40" height="14" rx="1"/><path d="M4 22h40M16 28v14M32 28v14"/></svg><strong>Kitchen</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="wall-unit" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="1"/><path d="M6 16h36M6 28h36M20 16v12"/></svg><strong>Wall unit</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="desk" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h40M8 18v24M40 18v24"/><rect x="26" y="18" width="14" height="14"/><path d="M30 25h6"/></svg><strong>Desk or study</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="table" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16h40M10 16l-3 26M38 16l3 26M14 16v6M34 16v6"/></svg><strong>Table or bench</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="window-seat" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="32" height="20" rx="1"/><path d="M24 6v20M4 34h40v8H4zM4 38h40"/></svg><strong>Window seat</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="under-stairs" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 42h10v-8h10v-8h10v-8h10M4 42V10l40 0"/><path d="M12 42v-6h8M12 38h8"/></svg><strong>Under-stairs</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="sample-box" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16l18-8 18 8v18l-18 8-18-8z"/><path d="M6 16l18 8 18-8M24 24v18"/></svg><strong>Sample box</strong></span></label>
-              <label class="ct-type"><input type="radio" name="type" value="other" required><span class="ct-type__in"><svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="18"/><path d="M24 15v18M15 24h18"/></svg><strong>Something else</strong></span></label>
-                </div>
-                <p class="ct-err" data-err="type" hidden>Please choose a project type.</p>
-              </fieldset>
+          <section class="ct-way" aria-labelledby="way-talk-h">
+            <h2 id="way-talk-h" class="ct-way__h">Write or call</h2>
+            <p>Tell us what you’d like to build and roughly where. We answer within two working days.</p>
+            <p class="ct-way__big"><a href="mailto:hello@grainandjoint.example">hello@grainandjoint.example</a><br><a href="tel:+3230000000">+32 3 000 00 00</a></p>
+          </section>
 
-              <fieldset class="ct-step" data-step="1" hidden>
-                <legend class="ct-q">Room and size</legend>
-                <p class="ct-hint">Rough measurements are fine. We’ll laser-scan the room later.</p>
-                <div class="ct-fields">
-                  <div class="ct-field"><label for="f-room">Which room?</label>
-                    <select id="f-room" name="room"><option value="">Choose a room</option><option>Bedroom</option><option>Living room</option><option>Kitchen</option><option>Dining room</option><option>Study or home office</option><option>Hallway</option><option>Other</option></select>
-                    <p class="ct-err" data-err="room" hidden>Please choose a room.</p></div>
-                  <div class="ct-field"><label for="f-state">The space is</label>
-                    <select id="f-state" name="state"><option>An existing room</option><option>Being renovated</option><option>A new build</option></select></div>
-                  <div class="ct-field"><label for="f-width">Wall length, cm</label>
-                    <input id="f-width" name="width" type="number" inputmode="numeric" min="60" max="900" step="1" placeholder="e.g. 320" aria-describedby="f-width-e">
-                    <p class="ct-err" id="f-width-e" data-err="width" hidden>Enter a length between 60 and 900 cm.</p></div>
-                  <div class="ct-field"><label for="f-height">Ceiling height, cm</label>
-                    <input id="f-height" name="height" type="number" inputmode="numeric" min="200" max="400" step="1" placeholder="e.g. 260" aria-describedby="f-height-e">
-                    <p class="ct-err" id="f-height-e" data-err="height" hidden>Enter a height between 200 and 400 cm.</p></div>
-                  <div class="ct-field"><label for="f-depth">Depth available, cm <span>(optional)</span></label>
-                    <input id="f-depth" name="depth" type="number" inputmode="numeric" min="20" max="900" step="1" placeholder="e.g. 60"></div>
-                  <div class="ct-field"><label for="f-when">When would you like it fitted?</label>
-                    <select id="f-when" name="when"><option>As soon as possible</option><option selected>Within 3 months</option><option>In 3 to 6 months</option><option>Just exploring</option></select></div>
-                </div>
-              </fieldset>
-
-              <fieldset class="ct-step" data-step="2" hidden>
-                <legend class="ct-q">What budget do you have in mind?</legend>
-                <p class="ct-hint">A guide only. It helps us suggest the right materials, and nothing is binding.</p>
-                <div class="ct-budget">
-                  <output class="ct-budget__val" for="f-budget" data-budget-out aria-live="polite">&euro;8,000</output>
-                  <input id="f-budget" name="budget" type="range" min="1500" max="30000" step="500" value="8000" aria-describedby="f-budget-hint">
-                  <div class="ct-budget__ticks" aria-hidden="true"><span>&euro;1.5k</span><span>&euro;10k</span><span>&euro;20k</span><span>&euro;30k+</span></div>
-                  <p class="ct-budget__hint" id="f-budget-hint" data-budget-hint></p>
-                  <label class="ct-check"><input type="checkbox" name="flexible"><span>I’m flexible if the design needs it</span></label>
-                </div>
-              </fieldset>
-
-              <fieldset class="ct-step" data-step="3" hidden>
-                <legend class="ct-q">How can we reach you?</legend>
-                <p class="ct-hint">We use this only to answer your request.</p>
-                <div class="ct-fields">
-                  <div class="ct-field"><label for="f-name">Name</label><input id="f-name" name="name" type="text" autocomplete="name" aria-describedby="f-name-e"><p class="ct-err" id="f-name-e" data-err="name" hidden>Please tell us your name.</p></div>
-                  <div class="ct-field"><label for="f-email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" aria-describedby="f-email-e"><p class="ct-err" id="f-email-e" data-err="email" hidden>Please enter a valid email address.</p></div>
-                  <div class="ct-field"><label for="f-phone">Phone <span>(optional)</span></label><input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"></div>
-                  <div class="ct-field"><label for="f-post">Postcode</label><input id="f-post" name="postcode" type="text" autocomplete="postal-code" inputmode="numeric" placeholder="e.g. 2000" aria-describedby="f-post-e"><p class="ct-err" id="f-post-e" data-err="postcode" hidden>Please enter your postcode.</p></div>
-                  <div class="ct-field ct-field--wide"><label for="f-msg">Anything else we should know? <span>(optional)</span></label><textarea id="f-msg" name="message" rows="4"></textarea></div>
-                </div>
-                <label class="ct-check ct-check--consent"><input type="checkbox" name="consent" aria-describedby="f-consent-e"><span>I understand this is a concept website: nothing I enter here is sent or stored anywhere.</span></label>
-                <p class="ct-err" id="f-consent-e" data-err="consent" hidden>Please tick the box to continue.</p>
-              </fieldset>
-              </div>
-
-              <div class="ct-actions">
-                <button class="btn btn--ghost ct-back" type="button" data-back hidden>Back</button>
-                <button class="btn ct-next" type="submit" data-next data-magnetic="0.2"><span data-next-label>Next</span> <span aria-hidden="true">&rarr;</span></button>
-              </div>
-            </form>
-
-            <div class="ct-success" data-success hidden tabindex="-1" aria-live="polite">
-              <svg class="ct-success__art" viewBox="0 0 220 150" role="img" aria-label="Two pieces of wood sliding together into a joint">
-                <g class="ct-succ__a"><rect x="10" y="62" width="100" height="26" rx="2" class="ct-succ__oak"/><path d="M110 62 l16 -6 v8 l-16 4 z M110 88 l16 6 v-8 l-16 -4 z" class="ct-succ__oak"/><rect x="110" y="68" width="16" height="14" class="ct-succ__oak"/></g>
-                <g class="ct-succ__b"><rect x="126" y="20" width="26" height="110" rx="2" class="ct-succ__walnut"/></g>
-                <circle class="ct-succ__ring" cx="139" cy="75" r="0"/>
-                <path class="ct-succ__tick" pathLength="1" d="M122 76 l12 12 l24 -26"/>
-              </svg>
-              <h2 class="ct-success__title" data-success-title>Thank you.</h2>
-              <p class="ct-success__lead">Your request is in. Reference <strong data-ref></strong>.</p>
-              <p class="ct-success__note"><strong>Nothing was sent.</strong> This is a concept site, so your answers stayed in your browser. In a real build they would reach us at hello@grainandjoint.example, and we would reply within two working days.</p>
-              <dl class="ct-recap" data-recap></dl>
-              <div class="ct-success__actions"><a class="btn" href="planner.html">Design it in 3D</a><button class="btn btn--ghost" type="button" data-restart>Start again</button></div>
-            </div>
-          </div>
-          <p class="ct-privacy">Nothing you enter here is sent, saved or shared. The form only shows you what a real one would do.</p>
+          <section class="ct-way" id="samples" aria-labelledby="way-samples-h">
+            <h2 id="way-samples-h" class="ct-way__h">Order a sample box</h2>
+            <p>See and feel the oak, walnut, ash, plywood, lacquers and terrazzo before you decide. Email us your name and postal address and we’ll post a box.</p>
+            <a class="btn btn--ghost" href="mailto:hello@grainandjoint.example?subject=Sample%20box">Ask for a sample box</a>
+          </section>
         </div>
 
         <aside class="ct-aside" aria-label="Studio details">
-          <section class="ct-design" data-design hidden aria-labelledby="design-h">
-            <p class="eyebrow">From the planner</p>
-            <h2 id="design-h">Your design</h2>
-            <div class="ct-design__art" data-design-art aria-hidden="true"></div>
-            <ul class="ct-design__mods" role="list" data-design-mods></ul>
-            <p class="ct-design__mats" data-design-mats></p>
-            <dl class="ct-design__tot"><div><dt>Estimated total, incl. VAT</dt><dd data-design-total></dd></div><div><dt>Lead time</dt><dd data-design-weeks></dd></div></dl>
-            <a class="link-arrow" data-design-edit href="planner.html">Edit in the planner</a>
-          </section>
-
           <section class="ct-studio" aria-labelledby="studio-h">
             <h2 id="studio-h" class="ct-studio__h">Visit the studio</h2>
             <address>Workshop 4, Timber Lane<br>2000 Antwerp, Belgium</address>

@@ -138,7 +138,9 @@ const views = [
   createPlaceStep(panels[3], { plan: $('#pl-place'), store, announce, confirmAction, showPlan: showInside }),
   createReviewStep(panels[4], {
     store, announce, getViewer: () => viewer, getFronts: () => frontsMode, setFronts,
-    rbar: $('#pl-rbar'), stage: $('#pl-stage'), host: $('#pl-render'), printBox: $('#pl-print'), footSlot: $('#pl-foot-review')
+    rbar: $('#pl-rbar'), stage: $('#pl-stage'), host: $('#pl-render'), printBox: $('#pl-print'), footSlot: $('#pl-foot-review'),
+    // "Send to the workshop" in the tabbed view opens the guided flow's contact question (the mode choice is not saved)
+    onSend: () => { guided.setMode('guided', { save: false }); guided.go('send'); announce('Where should we send your design?'); }
   })
 ];
 const review = views[4];

@@ -506,7 +506,7 @@ function buildQuotePane() {
     <section class="blk"><h2 class="blk__h">Per piece</h2><div class="bd-legend" aria-hidden="true"><span class="k k--m">Materials</span><span class="k k--h">Hardware</span><span class="k k--l">Labour</span><span class="k k--i">Fitting</span></div><div class="bd" id="qt-mods"></div></section>
     <section class="blk"><details class="cut"><summary><span>Cut list</span><small id="cut-count"></small></summary><div class="cut__wrap"><table class="cut__t"><thead><tr><th scope="col">Part</th><th scope="col">Size, cm</th><th scope="col" class="r">Qty</th></tr></thead><tbody id="cut-body"></tbody></table><p class="note" id="cut-board"></p></div></details></section>
     <section class="blk qt__actions">
-      <a class="btn btn--wide" id="qt-request" href="contact.html">Request a quote <span aria-hidden="true">→</span></a>
+      <a class="btn btn--wide" id="qt-request" href="planner.html">Open in the planner <span aria-hidden="true">→</span></a>
       <div class="qt__two"><button type="button" class="btn btn--ghost" id="qt-copy">Copy share link</button><button type="button" class="btn btn--ghost" id="qt-print">Print summary</button></div>
       <p class="note">An estimate for planning, based on your design. The workshop confirms the final price after a site visit. Nothing is sent from this page.</p>
     </section>`;
@@ -559,7 +559,7 @@ function refreshQuote() {
   $('#cut-count').textContent = `${pieces} parts`;
   const m2 = Object.values(q.boardM2ByMaterial).reduce((s, v) => s + v, 0);
   $('#cut-board').textContent = m2 ? `${m2.toFixed(2)} m² of board, before the offcut allowance.` : '';
-  $('#qt-request').href = `contact.html#design=${encodeDesign(d)}`;
+  $('#qt-request').href = `planner.html#design=${encodeDesign(d)}`;
   // live region and print summary
   clearTimeout(liveTimer);
   liveTimer = setTimeout(() => { $('#cfg-live').textContent = `Estimated total ${eur0.format(q.total)} ${state.vat ? 'including' : 'excluding'} VAT. Lead time about ${q.leadTimeWeeks} weeks.`; }, 900);

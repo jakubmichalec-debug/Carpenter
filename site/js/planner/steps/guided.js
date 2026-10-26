@@ -11,7 +11,6 @@ import { MATERIALS, materialsFor, handleFinishes } from '../materials.js';
 import { quoteProject } from '../pricing.js';
 import * as G from '../place-geom.js';
 import * as R from '../review-logic.js';
-import { encodeProject } from '../share.js';
 import { esc, ICON_NOTE, ICON_TRASH } from './shared.js';
 import { TYPE_ICON } from './furniture.js';
 import { drawItem } from './interior-draw.js';
@@ -140,7 +139,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
         <p class="pl-gdone__tick">${ICON_CHECK}</p>
         <p class="pl-gdone__ref">Reference <strong id="pl-g-ref"></strong></p>
         <p class="pl-hint"><strong>Nothing was sent.</strong> Your details stayed in your browser. In a real build they would reach the workshop, and we would reply within two working days.</p>
-        <div class="pl-actions"><button type="button" class="pl-btn pl-btn--ghost" id="pl-g-backdesign">Back to my design</button><a class="pl-btn pl-btn--ghost" id="pl-g-fullform" href="contact.html">Open the full quote form</a></div>
+        <div class="pl-actions"><button type="button" class="pl-btn pl-btn--ghost" id="pl-g-backdesign">Back to my design</button></div>
       </div>
     </section>`;
 
@@ -682,7 +681,6 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     }
     sent = { ref: F.referenceNumber(), name: contact.name.trim() };
     $('#pl-g-ref').textContent = sent.ref;
-    encodeProject(state.project).then((code) => { $('#pl-g-fullform').href = R.contactLink(code); }).catch(() => {});
     keys.send = '';
     refresh();
     announce(`Thank you, ${sent.name}. Your reference is ${sent.ref}. Nothing was sent, because this is a concept site.`);

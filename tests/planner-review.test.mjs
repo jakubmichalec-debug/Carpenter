@@ -286,60 +286,11 @@ test('placedTransform puts the group at the footprint corner, turned like the fo
   assert.equal(R.placedTransform(p, { pieceId: 'gone', mode: 'free', x: 0, z: 0 }), null);
 });
 
-// ---------- contact page ----------
-test('summaryFor: pieces, total, form type and wall width', () => {
-  const p = sample();
-  const q = quoteProject(p);
-  const s = R.summaryFor(p, q);
-  assert.equal(s.pieceCount, 2);
-  assert.deepEqual(s.pieces.map((x) => x.label), ['Wardrobe 1', 'Table 1']);
-  assert.equal(s.total, q.total);
-  assert.equal(s.leadTimeWeeks, q.leadTimeWeeks);
-  assert.equal(s.formType, 'wardrobe');
-  assert.equal(s.roomGuess, 'Bedroom');
-  assert.equal(s.wallWidth, 420);
-  assert.equal(s.wallHeight, p.room.height);
-  let k = M.addPiece(room(), 'kitchen-base', 'sage-kitchen', { id: 'k' });
-  assert.equal(R.summaryFor(k, quoteProject(k)).formType, 'kitchen');
-  assert.equal(R.summaryFor(room(), quoteProject(room())).formType, 'other');
-});
-test('summaryFor keeps wall width inside what the form accepts', () => {
-  const tiny = R.summaryFor(room('rect', { width: 250, depth: 250 }), quoteProject(room()));
-  assert.ok(tiny.wallWidth >= 60 && tiny.wallWidth <= 900);
-});
-test('contactMessage names the pieces, the total and the link', () => {
-  const p = sample();
-  const s = R.summaryFor(p, quoteProject(p));
-  const msg = R.contactMessage(s, 'https://example.test/planner.html#p=abc');
-  assert.match(msg, /2 pieces \(Wardrobe 1, Table 1\)/);
-  assert.ok(msg.includes(R.formatEuro(s.total)));
-  assert.ok(msg.includes('https://example.test/planner.html#p=abc'));
-  assert.match(R.contactMessage({ ...s, pieceCount: 1, pieces: [s.pieces[0]] }, 'x'), /1 piece \(/);
-});
-test('planSvg draws the room and one polygon per placed piece', () => {
-  const p = sample();
-  const svg = R.planSvg(p);
-  assert.match(svg, /^<svg viewBox="0 0 400 \d+"/);
-  assert.equal((svg.match(/class="d-mod"/g) || []).length, 2);
-  assert.equal((svg.match(/class="d-wall"/g) || []).length, 1);
-  assert.ok(!/NaN|undefined/.test(svg));
-});
-test('thumbnails are only accepted for the project they belong to', () => {
-  const ok = { p: 'zabc', thumb: 'data:image/jpeg;base64,AAAA', at: 1 };
-  assert.equal(R.validThumb(ok, 'zabc'), true);
-  assert.equal(R.validThumb(ok, 'zxyz'), false);
-  assert.equal(R.validThumb({ ...ok, thumb: 'data:text/html;base64,AAAA' }, 'zabc'), false);
-  assert.equal(R.validThumb({ ...ok, thumb: `data:image/jpeg;base64,${'A'.repeat(R.THUMB_MAX)}` }, 'zabc'), false);
-  assert.equal(R.validThumb(null, 'zabc'), false);
-  assert.equal(R.contactLink('zabc'), 'contact.html#p=zabc');
-  assert.equal(R.plannerLink('zabc'), 'planner.html#p=zabc');
-});
-
 // ---------- the whole path: a link opens the same quote ----------
-test('a share link decodes to a project whose quote and summary equal the original', async () => {
+test('a share link decodes to a project whose quote equals the original', async () => {
   const p = sample();
   const enc = await encodeProject(p);
   const back = await decodeProject(`#p=${enc}`);
   assert.equal(quoteProject(back).total, quoteProject(p).total);
-  assert.deepEqual(R.summaryFor(back, quoteProject(back)).pieces.map((x) => x.label), ['Wardrobe 1', 'Table 1']);
+  assert.deepEqual(back.pieces.map((x) => M.pieceLabel(back, x.id)), ['Wardrobe 1', 'Table 1']);
 });

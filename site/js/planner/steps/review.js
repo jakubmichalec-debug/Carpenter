@@ -1,5 +1,5 @@
 // Step 5: Review. The live 3D view with preset views and a doors toggle, a Render button (path tracing, loaded only
-// when it is pressed), the itemised quote, and the ways out: copy a link, print the quote, send it to the quote form.
+// when it is pressed), the itemised quote, and the ways out: copy a link, print the quote, and send it to the workshop (the guided flow's last question).
 // The DOM is built once; update(state) only touches what changed. Nothing here runs a loop except the render itself.
 import { quoteProject } from '../pricing.js';
 import { encodeProject } from '../share.js';
@@ -22,7 +22,7 @@ const ICON_BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6
 
 const eur = (cents) => R.formatEuro(cents / 100);
 
-export function createReviewStep(root, { store, announce = () => {}, getViewer = () => null, getFronts = () => 'closed', setFronts = () => {}, rbar, stage, host, printBox, footSlot }) {
+export function createReviewStep(root, { store, announce = () => {}, getViewer = () => null, getFronts = () => 'closed', setFronts = () => {}, rbar, stage, host, printBox, footSlot, onSend = () => {} }) {
   let state = store.getState();
   let validation = { errors: [] };
   let lastBlockers = [];
@@ -66,7 +66,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
         <input type="text" id="pl-r-link" readonly>
       </div>
       <p class="pl-hint">An estimate from your design, not a contract: the workshop confirms it after measuring your room.</p>
-      <p class="pl-hint">Send to the workshop takes you to the quote form with your design filled in. Nothing is sent until you press send there, and on this concept site not even then.</p>
+      <p class="pl-hint">Send to the workshop takes you to one last question for your contact details. On this concept site nothing is sent, so your details stay in your browser.</p>
     </section>`;
 
   rbar.innerHTML = `
@@ -475,7 +475,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   $('#pl-r-copy').addEventListener('click', copyLink);
   $('#pl-r-linkbox').addEventListener('focusin', (e) => { if (e.target.select) e.target.select(); });
 
-  async function send() {
+  function send() {
     const blockers = R.sendBlockers(project(), validation.errors || []);
     if (blockers.length) {
       sections.show('quote');
@@ -484,14 +484,8 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
       if (first) first.focus();
       return;
     }
-    const enc = await encoded();
-    try {
-      const thumb = jpegOf(pictureCanvas(1200), 560, 0.82);
-      if (thumb) sessionStorage.setItem(R.THUMB_KEY, JSON.stringify({ p: enc, thumb, at: Date.now() }));
-      else sessionStorage.removeItem(R.THUMB_KEY);
-    } catch { /* storage can be off; the form works without a thumbnail */ }
-    say('Opening the quote form with your design.');
-    location.href = R.contactLink(enc);
+    say('Opening the last question, where we ask how to reach you.');
+    onSend();
   }
   $f('#pl-r-send').addEventListener('click', send);
 
