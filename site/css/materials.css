@@ -117,60 +117,11 @@
 .mt-cmp__table .mt-row { opacity: 0; transform: translateY(12px); }
 .mt-cmp__table.is-on .mt-row { opacity: 1; transform: none; transition: opacity .6s var(--ease-out), transform .8s var(--ease-out); }
 .mt-cmp__table.is-on .mt-row:nth-child(2) { transition-delay: .05s; } .mt-cmp__table.is-on .mt-row:nth-child(3) { transition-delay: .1s; } .mt-cmp__table.is-on .mt-row:nth-child(4) { transition-delay: .15s; } .mt-cmp__table.is-on .mt-row:nth-child(5) { transition-delay: .2s; } .mt-cmp__table.is-on .mt-row:nth-child(6) { transition-delay: .25s; } .mt-cmp__table.is-on .mt-row:nth-child(7) { transition-delay: .3s; } .mt-cmp__table.is-on .mt-row:nth-child(8) { transition-delay: .35s; }
-.mt-cmp__combo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: center; margin-top: var(--space-4); }
-.mt-cmp__combo canvas { width: 100%; max-width: 560px; aspect-ratio: 4 / 3; border-radius: var(--radius-m); background: var(--paper-3); }
-.mt-cmp__combo h3 { margin: 0 0 var(--space-2); font-size: var(--step-2); }
-.mt-swap { margin-top: var(--space-3); }
 @media (max-width: 760px) {
-  .mt-cmp__combo { grid-template-columns: 1fr; }
   .mt-row { grid-template-columns: 1fr 1fr; }
   .mt-row__l, .mt-row--head span { grid-column: 1 / -1; padding-bottom: 0; }
   .mt-cbar { grid-template-columns: 1fr; gap: .3rem; }
 }
-
-/* ---------- Hardware ---------- */
-.mt-hw__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 2.4vw, 2rem); }
-@media (max-width: 900px) { .mt-hw__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .mt-hw__grid { grid-template-columns: 1fr; } }
-.mt-hwcard { display: flex; flex-direction: column; padding: clamp(1.1rem, 2vw, 1.6rem); border-radius: var(--radius-m); background: var(--paper-2); border: 1px solid var(--line); transition: transform .6s var(--ease-out), box-shadow .6s var(--ease-out); }
-.mt-hwcard:hover { transform: translateY(-6px); box-shadow: var(--shadow-2); }
-.js .mt-hwcard:not(.is-in) { opacity: 0; transform: translateY(40px); }
-.js .mt-hwcard.is-in { transition: opacity 1s var(--ease-out), transform 1.2s var(--ease-out), box-shadow .6s var(--ease-out); transition-delay: calc(var(--i, 0) % 3 * 90ms); }
-.js .mt-hwcard.is-in:hover { transition-delay: 0s; transform: translateY(-6px); }
-.mt-hwcard__art { aspect-ratio: 10 / 7; margin-bottom: var(--space-3); border-radius: 10px; background: var(--paper); color: var(--oak-deep); display: grid; place-items: center; overflow: hidden; }
-.mt-hwcard__art svg { width: 100%; height: 100%; }
-.mt-hwcard h3 { margin: 0; font-size: var(--step-2); letter-spacing: -.02em; }
-.mt-hwcard__s { margin: .2rem 0 .6rem; font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-.mt-hwcard p { max-width: none; font-size: var(--step--1); color: var(--ink-2); }
-.mt-hwcard__price { margin: auto 0 0 !important; padding-top: .6rem; font-weight: 700; color: var(--ink) !important; }
-.mt-hwcard__tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 var(--space-2); }
-.mt-hwcard__tabs button { padding: .35em .85em; border-radius: 999px; border: 1px solid var(--ink-3); background: transparent; cursor: pointer; font-size: .82rem; font-weight: 600; transition: background .3s, color .3s, border-color .3s; }
-.mt-hwcard__tabs button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-/* hardware illustrations */
-.hw-fill { fill: var(--paper-3); stroke: var(--ink-3); stroke-width: 1.5; }
-.hw-ink { fill: var(--ink); stroke: none; }
-.hw-ink2 { fill: color-mix(in srgb, var(--oak-deep) 70%, var(--paper)); stroke: none; }
-.hw-line { fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.hw-arc { fill: none; stroke: var(--oak-deep); stroke-width: 1.5; stroke-dasharray: 3 5; }
-.hw-arc2 { fill: none; stroke: var(--oak-deep); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.hw-pin { fill: var(--oak-deep); }
-.hw-panel { fill: var(--ink); opacity: .85; }
-.hw-led { fill: var(--amber); }
-.hw-cone { color: var(--amber); opacity: .8; }
-.hw-rail { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linecap: round; }
-.hw-door, .hw-drawer, .hw-p1, .hw-hang { transform-box: view-box; }
-.mt-hwcard.is-live .hw-door { animation: hw-door 5s var(--ease-in-out) infinite; }
-.mt-hwcard.is-live .hw-drawer { animation: hw-drawer 5s var(--ease-in-out) infinite; }
-.mt-hwcard.is-live .hw-p1 { animation: hw-slide 5s var(--ease-in-out) infinite; }
-.mt-hwcard.is-live .hw-cone { animation: hw-glow 4s ease-in-out infinite; }
-.mt-hwcard.is-live .hw-hang { animation: hw-swing 4.5s ease-in-out infinite; transform-origin: 50% 22%; }
-.mt-hwcard.is-live .hw-hang.h2 { animation-delay: -1.2s; } .mt-hwcard.is-live .hw-hang.h3 { animation-delay: -2.4s; }
-.hw-hang { transform-box: fill-box; transform-origin: 50% 0; }
-@keyframes hw-door { 0%, 12% { transform: rotate(0); } 45%, 62% { transform: rotate(-100deg); } 95%, 100% { transform: rotate(0); } }
-@keyframes hw-drawer { 0%, 12% { transform: translateX(0); } 45%, 62% { transform: translateX(46px); } 95%, 100% { transform: translateX(0); } }
-@keyframes hw-slide { 0%, 12% { transform: translateX(0); } 45%, 62% { transform: translateX(72px); } 95%, 100% { transform: translateX(0); } }
-@keyframes hw-glow { 0%, 100% { opacity: .25; } 50% { opacity: .9; } }
-@keyframes hw-swing { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
 
 /* ---------- Closing CTA ---------- */
 .mt-end__inner { display: grid; gap: var(--space-3); justify-items: start; }
@@ -182,8 +133,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mt-board__spin { animation: none; }
-  .js .mt-card:not(.is-in), .js .mt-hwcard:not(.is-in) { opacity: 1; transform: none; }
-  .mt-hwcard.is-live * { animation: none !important; }
+  .js .mt-card:not(.is-in) { opacity: 1; transform: none; }
   .mt-dialog, .mt-toast, .mt-bar b, .mt-cbar b, .mt-cmp__table .mt-row { transition: none; }
   .mt-cmp__table .mt-row { opacity: 1; transform: none; }
   .mt-bar b, .mt-cbar b { transform: scaleX(var(--v)); }

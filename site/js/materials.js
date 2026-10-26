@@ -1,4 +1,4 @@
-// Materials page: tilting sample boards with canvas-generated textures, a detail dialog, a two-material compare tool and a hardware section.
+// Materials page: tilting sample boards with canvas-generated textures, a detail dialog, and a two-material compare tool.
 // Textures are painted procedurally on <canvas>, so no image downloads and no WebGL contexts are needed.
 import { MATERIALS } from './configurator/model.js';
 
@@ -260,35 +260,7 @@ function buildCompare() {
     sel.innerHTML = opts;
     sel.addEventListener('change', () => { cmp[Number(sel.dataset.pick)] = sel.value; if (cmp[0] === cmp[1]) { const other = 1 - Number(sel.dataset.pick); cmp[other] = IDS.find((i) => i !== sel.value); } renderCompare(); syncCompareButtons(); });
   });
-  $('[data-swap]', cmpRoot).addEventListener('click', () => { cmp.reverse(); renderCompare(); syncCompareButtons(); });
   renderCompare(true);
-}
-
-function drawCombo(front, body) {
-  const c = $('[data-combo]', cmpRoot); const g = c.getContext('2d'); const W = c.width; const H = c.height;
-  g.clearRect(0, 0, W, H);
-  const css = getComputedStyle(document.documentElement);
-  g.fillStyle = css.getPropertyValue('--paper-3').trim() || '#dddbd4'; g.fillRect(0, 0, W, H);
-  g.fillStyle = css.getPropertyValue('--paper-2').trim() || '#e9e8e3'; g.fillRect(0, 0, W, H * 0.8);
-  g.fillStyle = 'rgba(0,0,0,.13)'; g.beginPath(); g.ellipse(W / 2, H * 0.86, 190, 14, 0, 0, 7); g.fill();
-  const x = 90; const y = 40; const w = W - 180; const h = H - 120;
-  const pat = (id) => { const p = g.createPattern(tile(id), 'repeat'); return p; };
-  // carcass (body material) with a visible side and top
-  g.fillStyle = pat(body); g.fillRect(x, y, w, h);
-  g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x, y, w, 8);
-  // plinth
-  g.fillStyle = pat(body); g.fillRect(x + 8, y + h, w - 16, 18); g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(x + 8, y + h, w - 16, 18);
-  // two doors + a drawer band (front material)
-  const gap = 5; const dh = h - 70; const dw = (w - 3 * gap - 8) / 2;
-  [[x + gap + 4, y + gap + 4], [x + 2 * gap + 4 + dw, y + gap + 4]].forEach(([dx, dy]) => {
-    g.fillStyle = pat(front); g.fillRect(dx, dy, dw, dh);
-    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1.5; g.strokeRect(dx, dy, dw, dh);
-    g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(dx, dy, dw * 0.35, dh);
-  });
-  g.fillStyle = pat(front); g.fillRect(x + gap + 4, y + dh + 2 * gap + 4, w - 2 * gap - 8, 50); g.strokeRect(x + gap + 4, y + dh + 2 * gap + 4, w - 2 * gap - 8, 50);
-  g.fillStyle = '#1c1d1f';
-  g.fillRect(x + w / 2 - 14, y + 60, 4, 70); g.fillRect(x + w / 2 + 10, y + 60, 4, 70);
-  g.fillRect(x + w / 2 - 36, y + dh + 2 * gap + 22, 72, 5);
 }
 
 function renderCompare(first) {
@@ -319,70 +291,6 @@ function renderCompare(first) {
   table.innerHTML = `<div class="mt-row mt-row--head"><span></span><strong>A · ${A.label}</strong><strong>B · ${B.label}</strong></div>` + rows.map((r) => `<div class="mt-row"><span class="mt-row__l">${r[0]}</span>${r[1]}${r[2]}</div>`).join('');
   requestAnimationFrame(() => requestAnimationFrame(() => table.classList.add('is-on')));
   table.classList.remove('is-on'); void table.offsetWidth; requestAnimationFrame(() => table.classList.add('is-on'));
-  drawCombo(a, b);
-  $('[data-combo-text]', cmpRoot).textContent = `Fronts in ${A.label.toLowerCase()}, carcass in ${B.label.toLowerCase()}. The fronts for a 200 × 240 cm wardrobe come to about ${euro(frontCost(a))}; in ${B.label.toLowerCase()} they would be about ${euro(frontCost(b))}.`;
-}
-
-/* ------------------------------------------------------------------ hardware */
-const HW = (P) => {
-  const p = P || { hingePair: 18, drawerRunner: 46, slidingTrack: 140, handle: { bar: 14, knob: 9, push: 22, groove: 0 }, ledPerMetre: 38, rail: 24 };
-  return [
-    { id: 'hinge', t: 'Concealed hinges', s: 'Soft-close, 110° opening', d: 'Hidden inside the door, with three-way adjustment so every gap can be set to an even 3 mm.', price: `${euro(p.hingePair)} per pair`,
-      svg: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="20" y="20" width="10" height="100" class="hw-fill"/><path d="M30 70 A 60 60 0 0 1 90 10" class="hw-arc"/><g class="hw-door" style="transform-origin:30px 70px"><rect x="30" y="64" width="86" height="8" rx="2" class="hw-ink"/><circle cx="30" cy="70" r="6" class="hw-pin"/></g></svg>' },
-    { id: 'runner', t: 'Soft-close runners', s: 'Full extension, 40 kg load', d: 'Steel runners that let the drawer pull out completely and close itself the last few centimetres.', price: `${euro(p.drawerRunner)} per drawer`,
-      svg: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="24" y="30" width="110" height="84" rx="3" class="hw-line"/><g class="hw-drawer"><rect x="40" y="62" width="100" height="40" rx="3" class="hw-fill"/><rect x="36" y="58" width="108" height="8" rx="2" class="hw-ink"/><path d="M44 80 H136" class="hw-line"/></g></svg>' },
-    { id: 'track', t: 'Sliding track', s: 'Floor-guided, top-hung', d: 'Doors glide on a concealed track and stop with a damped catch. Useful where a swinging door has no room.', price: `${euro(p.slidingTrack)} per metre`,
-      svg: '<svg viewBox="0 0 200 140" aria-hidden="true"><path d="M20 22 H180 M20 118 H180" class="hw-line"/><rect class="hw-p2 hw-fill" x="100" y="26" width="76" height="88"/><g class="hw-p1"><rect x="24" y="30" width="76" height="80" class="hw-ink hw-panel"/></g></svg>' },
-    { id: 'handle', t: 'Handles', s: 'Four styles', d: 'Choose how the front opens. The groove costs nothing, because it is cut into the door itself.', price: null, handles: p.handle },
-    { id: 'led', t: 'LED strips', s: 'Warm 2,700 K, dimmable', d: 'Recessed in a routed channel so you see the light but never the strip. Switches on when a door opens.', price: `${euro(p.ledPerMetre)} per metre`,
-      svg: '<svg viewBox="0 0 200 140" aria-hidden="true"><defs><linearGradient id="hwg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".55"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><rect x="24" y="24" width="152" height="92" class="hw-line"/><polygon class="hw-cone" points="40,34 160,34 188,116 12,116" fill="url(#hwg)"/><rect x="40" y="30" width="120" height="5" rx="2.5" class="hw-led"/></svg>' },
-    { id: 'rail', t: 'Hanging rails', s: 'Oval steel, 25 kg per metre', d: 'Rails sit at the height that suits your longest garment, with a pull-down option for high wardrobes.', price: `${euro(p.rail)} per rail`,
-      svg: '<svg viewBox="0 0 200 140" aria-hidden="true"><path d="M20 30 H180" class="hw-rail"/><g class="hw-hang h1"><path d="M60 30 V38 L45 56 H75 Z M45 56 V112 H75 V56" class="hw-line"/></g><g class="hw-hang h2"><path d="M100 30 V38 L85 56 H115 Z M85 56 V100 H115 V56" class="hw-fill hw-ink2"/></g><g class="hw-hang h3"><path d="M140 30 V38 L125 56 H155 Z M125 56 V116 H155 V56" class="hw-line"/></g></svg>' }
-  ];
-};
-const handleSvg = {
-  bar: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="40" y="20" width="120" height="100" rx="4" class="hw-fill"/><rect x="146" y="40" width="7" height="60" rx="3.5" class="hw-ink"/><path d="M146 48 H136 M146 92 H136" class="hw-line"/></svg>',
-  knob: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="40" y="20" width="120" height="100" rx="4" class="hw-fill"/><circle cx="140" cy="70" r="10" class="hw-ink"/><circle cx="137" cy="67" r="3" fill="var(--paper)" opacity=".5"/></svg>',
-  push: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="40" y="20" width="120" height="100" rx="4" class="hw-fill"/><path d="M40 70 H160" class="hw-line" stroke-dasharray="3 5"/><path d="M100 54 l10 16 -10 16" class="hw-arc2"/></svg>',
-  groove: '<svg viewBox="0 0 200 140" aria-hidden="true"><rect x="40" y="20" width="120" height="100" rx="4" class="hw-fill"/><rect x="150" y="38" width="5" height="64" rx="2.5" fill="var(--ink)" opacity=".75"/></svg>'
-};
-const handleName = { bar: 'Bar', knob: 'Knob', push: 'Push-to-open', groove: 'Groove' };
-
-async function buildHardware() {
-  const root = $('[data-hw]');
-  let P = null;
-  try { P = (await import('./configurator/pricing.js')).PRICES; } catch (err) { /* static fallback prices */ }
-  root.innerHTML = HW(P).map((h) => {
-    if (h.id === 'handle') {
-      const keys = Object.keys(h.handles);
-      return `<article class="mt-hwcard" data-hwcard="handle">
-        <div class="mt-hwcard__art" data-handle-art>${handleSvg.bar}</div>
-        <h3>${h.t}</h3><p class="mt-hwcard__s">${h.s}</p><p>${h.d}</p>
-        <div class="mt-hwcard__tabs" role="group" aria-label="Handle style">${keys.map((k, i) => `<button type="button" aria-pressed="${i === 0}" data-handle="${k}">${handleName[k]}</button>`).join('')}</div>
-        <p class="mt-hwcard__price" data-handle-price>${h.handles.bar ? euro(h.handles.bar) : 'Free'} each</p>
-      </article>`;
-    }
-    return `<article class="mt-hwcard" data-hwcard="${h.id}"><div class="mt-hwcard__art">${h.svg}</div><h3>${h.t}</h3><p class="mt-hwcard__s">${h.s}</p><p>${h.d}</p><p class="mt-hwcard__price">${h.price}</p></article>`;
-  }).join('');
-  root.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-handle]'); if (!b) return;
-    const card = b.closest('.mt-hwcard'); const k = b.dataset.handle;
-    $$('[data-handle]', card).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    const art = $('[data-handle-art]', card); art.innerHTML = handleSvg[k];
-    if (!reduced) art.animate([{ opacity: 0, transform: 'translateY(8px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 500, easing: 'cubic-bezier(.16,1,.3,1)' });
-    const price = P ? P.handle[k] : { bar: 14, knob: 9, push: 22, groove: 0 }[k];
-    $('[data-handle-price]', card).textContent = price ? `${euro(price)} each` : 'Free, cut into the door';
-  });
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((es) => es.forEach((en) => en.target.classList.toggle('is-live', en.isIntersecting)), { threshold: 0.3 });
-    $$('.mt-hwcard', root).forEach((c) => io.observe(c));
-  }
-  $$('.mt-hwcard', root).forEach((c, i) => { c.style.setProperty('--i', i); });
-  if (window.site && window.site.scan) window.site.scan(root);
-  if ('IntersectionObserver' in window && !reduced) {
-    const io2 = new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('is-in'); io2.unobserve(en.target); } }), { rootMargin: '0px 0px -8% 0px' });
-    $$('.mt-hwcard', root).forEach((c) => io2.observe(c));
-  } else $$('.mt-hwcard', root).forEach((c) => c.classList.add('is-in'));
 }
 
 /* ------------------------------------------------------------------ boot */
@@ -390,5 +298,4 @@ buildKinds();
 buildGrid();
 bindGrid();
 buildCompare();
-buildHardware();
 if (window.site && window.site.refresh) { window.site.refresh(); window.addEventListener('load', () => window.site.refresh()); }
