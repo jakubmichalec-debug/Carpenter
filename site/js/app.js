@@ -432,8 +432,28 @@ function initPeek() {
     if (first) { x = tx = e.clientX; y = ty = e.clientY; }
     place(e);
   });
-  document.documentElement.addEventListener('pointerleave', () => { on = false; current = null; el.classList.remove('is-on'); });
-  window.addEventListener('scroll', () => { if (on && !raf) raf = requestAnimationFrame(loop); }, { passive: true });
+  const hide = () => { on = false; current = null; el.classList.remove('is-on'); };
+  // leaving the element: hide unless the pointer went into a child of it
+  document.addEventListener('pointerout', (e) => {
+    if (!current) return;
+    const to = e.relatedTarget;
+    if (!to || !current.contains(to)) { const t = to && to.closest ? to.closest('[data-peek-src]') : null; if (t !== current) hide(); }
+  });
+  // the page can move the element out from under a still pointer (scrolling): check what is under it now
+  let px = -1; let py = -1;
+  document.addEventListener('pointermove', (e) => { px = e.clientX; py = e.clientY; }, { passive: true });
+  window.addEventListener('scroll', () => {
+    if (!on) return;
+    const under = px >= 0 ? document.elementFromPoint(px, py) : null;
+    const t = under && under.closest ? under.closest('[data-peek-src]') : null;
+    if (t !== current) { hide(); return; }
+    if (!raf) raf = requestAnimationFrame(loop);
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', hide);
+  window.addEventListener('blur', hide);
+  document.addEventListener('pointerdown', hide);
+  document.addEventListener('visibilitychange', hide);
+  window.addEventListener('pagehide', hide);
 }
 
 /* ------------------------------------------------------------------ Magnetic */

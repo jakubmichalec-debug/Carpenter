@@ -198,6 +198,9 @@
 .stats__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stats .stat { padding: var(--space-4) var(--space-4) var(--space-5); border-left: 1px solid var(--line); }
 .stats .stat:first-child { border-left: 0; padding-left: 0; }
+/* four numbers side by side: sized so '1,200+' never runs into the next column */
+.stats .stat { min-width: 0; }
+.stats .stat__num { font-size: clamp(2.6rem, .9rem + 3.9vw, 5.4rem); white-space: nowrap; }
 @media (max-width: 900px) {
   .stats__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats .stat:nth-child(odd) { border-left: 0; padding-left: 0; }
