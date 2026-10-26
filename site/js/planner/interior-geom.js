@@ -107,7 +107,7 @@ export function itemsProblems(errors, pieceId) {
   const out = { piece: [], bays: {}, items: {}, count: 0 };
   for (const e of errors || []) {
     const r = e.ref;
-    if (!r || e.code === 'piece-unplaced') continue; // placing is step 4's business
+    if (!r) continue;
     if (r.type === 'piece' && r.id === pieceId) out.piece.push(e);
     else if (r.type === 'bay' && r.pieceId === pieceId) (out.bays[r.bay] = out.bays[r.bay] || []).push(e);
     else if (r.type === 'item' && r.pieceId === pieceId) (out.items[`${r.bay}:${r.index}`] = out.items[`${r.bay}:${r.index}`] || []).push(e);

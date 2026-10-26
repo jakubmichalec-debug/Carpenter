@@ -1,29 +1,24 @@
 // The guided question flow: which questions the planner asks, in which order, under which chapter. Pure (no DOM), so Node
-// can test it. The five chapters are the planner's five steps (Room, Furniture, Interior, Place, Review); every question
-// belongs to one of them and is answered with the editors of that step. The flow never changes the project: it only
-// decides what is on screen.
+// can test it. The three chapters are the planner's three steps (Furniture, Interior, Review); every question belongs to
+// one of them and is answered with the editors of that step. The flow never changes the project: it only decides what is
+// on screen.
 import { TYPES } from './model.js';
 
-export const CHAPTERS = ['Room', 'Furniture', 'Interior', 'Place', 'Review'];
+export const CHAPTERS = ['Furniture', 'Interior', 'Review'];
 
 // id, chapter (index into CHAPTERS), the headline (a friendly question), one line of help and the label of the main button.
 // `needs` says what has to exist before the question makes sense: 'piece' (a piece being designed) or 'inside' (a piece with
 // an inside to fit out). `optional` questions may be skipped while nothing has been changed.
 export const QUESTIONS = [
-  { id: 'shape', chapter: 0, title: 'Hi! What shape is your room?', help: 'Pick the closest one. You can change it later.', next: 'Next' },
-  { id: 'size', chapter: 0, title: 'How big is it?', help: 'Type the measurements, or drag the round handles.', next: 'Next' },
-  { id: 'openings', chapter: 0, title: 'Are there doors, windows or radiators?', help: 'Say where they are, so furniture never blocks them.', next: 'Done with openings' },
-  { id: 'finish', chapter: 0, title: 'What are the floor and walls like?', help: 'This only changes how your room looks.', next: 'Next', optional: true },
-  { id: 'type', chapter: 1, title: 'What would you like us to build?', help: 'Tap one. You can add more pieces later.', next: 'Next' },
-  { id: 'style', chapter: 1, title: 'Which look do you like best?', help: 'One tap sets the whole look. Prices show the change.', next: 'Next', needs: 'piece' },
-  { id: 'look', chapter: 1, title: 'Want to change the colour or handles?', help: 'Optional. Pick a colour and handles, or keep this look.', next: 'Looks good', optional: true, needs: 'piece' },
-  { id: 'piece-size', chapter: 1, title: 'How big should it be?', help: 'Pick a standard size or set your own.', next: 'Next', needs: 'piece' },
-  { id: 'inside', chapter: 2, title: 'What should go inside?', help: 'Pick a start for each section. Fine-tune it next.', next: 'Use your suggestion', needs: 'inside' },
-  { id: 'arrange', chapter: 2, title: 'Want to arrange it yourself?', help: 'Move shelves, rails and drawers. Totally optional.', next: 'Next', optional: true, needs: 'inside' },
-  { id: 'place', chapter: 3, title: 'Where should it go?', help: 'Click a wall, then slide it along. Red means a clash.', next: 'Next', needs: 'piece' },
-  { id: 'more', chapter: 3, title: 'Would you like anything else built?', help: 'Add another piece, or go and see your room.', next: 'No, show me the result', needs: 'piece' },
-  { id: 'review', chapter: 4, title: 'Here’s your room.', help: 'Look around in 3D, check the price, then send it.', next: 'Send it to us', needs: 'piece' },
-  { id: 'send', chapter: 4, title: 'Where should we send your design?', help: 'A few details so the workshop can reply.', next: 'Send to the workshop', needs: 'piece' }
+  { id: 'type', chapter: 0, title: 'What would you like us to build?', help: 'Tap one. You can add more pieces later.', next: 'Next' },
+  { id: 'style', chapter: 0, title: 'Which look do you like best?', help: 'One tap sets the whole look. Prices show the change.', next: 'Next', needs: 'piece' },
+  { id: 'look', chapter: 0, title: 'Want to change the colour or handles?', help: 'Optional. Pick a colour and handles, or keep this look.', next: 'Looks good', optional: true, needs: 'piece' },
+  { id: 'piece-size', chapter: 0, title: 'How big should it be?', help: 'Pick a standard size, or tell us how much space you have.', next: 'Next', needs: 'piece' },
+  { id: 'inside', chapter: 1, title: 'What should go inside?', help: 'Pick a start for each section. Fine-tune it next.', next: 'Use your suggestion', needs: 'inside' },
+  { id: 'arrange', chapter: 1, title: 'Want to arrange it yourself?', help: 'Move shelves, rails and drawers. Totally optional.', next: 'Next', optional: true, needs: 'inside' },
+  { id: 'more', chapter: 2, title: 'Would you like anything else built?', help: 'Add another piece, or go and see your furniture.', next: 'No, show me the result', needs: 'piece' },
+  { id: 'review', chapter: 2, title: 'Here’s your furniture.', help: 'Look around in 3D, check the price, then send it.', next: 'Send it to us', needs: 'piece' },
+  { id: 'send', chapter: 2, title: 'Where should we send your design?', help: 'A few details so the workshop can reply.', next: 'Send to the workshop', needs: 'piece' }
 ];
 export const IDS = QUESTIONS.map((q) => q.id);
 export const byId = (id) => QUESTIONS.find((q) => q.id === id) || null;
@@ -78,66 +73,51 @@ export function firstOfChapter(chapter, ctx = {}) {
 
 // A question that cannot be asked yet becomes the one that has to come first: no piece means "What would you like us to
 // build?"; a piece without an inside skips the Interior questions.
-export function settle(id, { pieces = 0, placed = 0, hasInside: inside = true } = {}) {
+export function settle(id, { pieces = 0, hasInside: inside = true } = {}) {
   const q = byId(id);
   if (!q) return IDS[0];
   if (q.needs === 'piece' && !pieces) return 'type';
-  if (q.needs === 'inside') return pieces ? (inside ? id : 'place') : 'type';
-  if ((id === 'send') && !placed) return pieces ? 'place' : 'type';
+  if (q.needs === 'inside') return pieces ? (inside ? id : 'more') : 'type';
   return id;
 }
 
-// Where a saved project or a shared link opens: the review when something stands in the room, otherwise the question that
-// finishes the design.
+// Where a saved project or a shared link opens: the review when there is something to look at, otherwise the first question.
 export function landing(project) {
-  const pieces = (project && project.pieces ? project.pieces : []).length;
-  const placed = (project && project.placements ? project.placements : []).filter((pl) => project.pieces.some((p) => p.id === pl.pieceId)).length;
-  if (placed) return 'review';
-  return pieces ? 'place' : 'type';
+  return (project && project.pieces ? project.pieces : []).length ? 'review' : 'type';
 }
 
 // What the planner's own editors show for a question: the step (chapter) and the sections of that step on screen. `flags`
-// holds the answers that open an editor: openings (Yes), arrange (Yes) and more (the full look panel).
+// holds the answers that open an editor: arrange (Yes) and lookMore (the full look panel).
 export function view(id, flags = {}) {
   switch (id) {
-    case 'shape': return { step: 0, sections: ['shape'] };
-    case 'size': return { step: 0, sections: ['size'] };
-    case 'openings': return { step: 0, sections: flags.openings ? ['walls'] : [] };
-    case 'finish': return { step: 0, sections: ['finish'] };
-    case 'type': return { step: 1, sections: [] };
-    case 'style': return { step: 1, sections: ['style'] };
-    case 'look': return { step: 1, sections: flags.lookMore ? ['look'] : [] };
-    case 'piece-size': return { step: 1, sections: ['size'] };
-    case 'inside': return { step: 2, sections: [] };
-    case 'arrange': return { step: 2, sections: flags.arrange ? ['layout'] : [] };
-    case 'place': return { step: 3, sections: ['position', 'clashes'] };
-    case 'more': return { step: 3, sections: [] };
-    case 'review': return { step: 4, sections: ['quote', 'share'] };
-    case 'send': return { step: 4, sections: [] };
+    case 'type': return { step: 0, sections: [] };
+    case 'style': return { step: 0, sections: ['style'] };
+    case 'look': return { step: 0, sections: flags.lookMore ? ['look'] : [] };
+    case 'piece-size': return { step: 0, sections: ['size'] };
+    case 'inside': return { step: 1, sections: [] };
+    case 'arrange': return { step: 1, sections: flags.arrange ? ['layout'] : [] };
+    case 'more': return { step: 2, sections: [] };
+    case 'review': return { step: 2, sections: ['quote', 'share'] };
+    case 'send': return { step: 2, sections: [] };
     default: return { step: 0, sections: [] };
   }
 }
 
-// Something outside the flow moved the planner to another step (a "Fix in Room" link in the quote, the editor's own
-// buttons): the question that belongs to that step. `ctx`: openingId (an opening is selected), itemSelected (an interior
-// item is selected), starting (a new piece is about to be chosen), hasPiece.
+// Something outside the flow moved the planner to another step (a "Fix in Interior" link in the quote, the editor's own
+// buttons): the question that belongs to that step. `ctx`: itemSelected (an interior item is selected), starting (a new
+// piece is about to be chosen), hasPiece.
 export function questionForStep(step, ctx = {}) {
   switch (step) {
-    case 0: return ctx.openingId ? 'openings' : 'shape';
-    case 1: return ctx.starting || !ctx.hasPiece ? 'type' : 'style';
-    case 2: return ctx.itemSelected ? 'arrange' : 'inside';
-    case 3: return 'place';
+    case 0: return ctx.starting || !ctx.hasPiece ? 'type' : 'style';
+    case 1: return ctx.itemSelected ? 'arrange' : 'inside';
     default: return 'review';
   }
 }
 
 // The section of a step's own tabs that shows the same thing as a question, for the "Edit everything" view.
-const EXPERT = { shape: 'shape', size: 'size', openings: 'walls', finish: 'finish', type: 'pieces', style: 'style', look: 'look', 'piece-size': 'size', inside: 'layout', arrange: 'layout', place: 'pieces', more: 'pieces', review: 'quote', send: 'share' };
+const EXPERT = { type: 'pieces', style: 'style', look: 'look', 'piece-size': 'size', inside: 'layout', arrange: 'layout', more: 'quote', review: 'quote', send: 'share' };
 export const expertSection = (id) => EXPERT[id] || null;
-export const DEFAULT_SECTIONS = ['shape', 'pieces', 'layout', 'pieces', 'quote'];
-
-// The Yes/No question about openings starts on Yes when the room already has some.
-export const openingsAnswer = (project, stored) => (project.room.openings.length > 0 ? true : stored === undefined ? null : stored);
+export const DEFAULT_SECTIONS = ['pieces', 'layout', 'quote'];
 
 // A short list of front colours for the "colour or handles" question: the ones most people choose, in this order, when the
 // stock has them, plus the colour the piece has now.

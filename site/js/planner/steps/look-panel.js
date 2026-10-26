@@ -3,11 +3,11 @@
 // piece changes. Each option shows what it adds to (or takes off) the price of this piece, worked out with the real
 // quote. Options come from the tables in model.js and materials.js, so a change of stock needs no change here.
 import {
-  TYPES, STYLES, HANDLES, updatePiece, pieceGeometry
+  TYPES, STYLES, HANDLES, LIMITS, updatePiece
 } from '../model.js';
 import { MATERIALS, familiesFor, materialsFor, glassTypes, handleFinishes, FAMILIES } from '../materials.js';
 import { quoteProject } from '../pricing.js';
-import { fitToWall, fitToCeiling } from '../fit.js';
+import { fitToSpace, spaceCheck, spaceMessage } from '../fit.js';
 import { swatchSvg, DESIGN_ICONS } from '../style-swatch.js';
 import { styleBundle } from '../model.js';
 import { esc, fieldHtml, wireFields, syncFields } from './shared.js';
@@ -123,6 +123,7 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
   let builtFor = null;       // piece type the panels were built for
   let piece = null, state = null;
   let priceTimer = 0, baseCents = 0;
+  let spaceMsg = '';
 
   host.innerHTML = `
     <div class="pl-ltabs" role="tablist" aria-label="What to fine-tune">
@@ -213,13 +214,20 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
         fieldHtml('size:depth', 'Depth', p.depth, { min: L.depth[0], max: L.depth[1], sliderStep: 1 }),
         L.elevation[1] > 0 ? fieldHtml('size:elevation', 'Height above the floor', p.elevation, { min: L.elevation[0], max: L.elevation[1], sliderStep: 1 }) : ''
       ].join('')}</div>`,
-      `<div class="pl-fit"><button type="button" class="pl-btn pl-btn--quiet" data-fit="wall" title="Fill the free length of the wall the piece stands on, or the wall you picked in the Room step">Fit to wall</button><button type="button" class="pl-btn pl-btn--quiet" data-fit="ceiling" title="Set the height to the ceiling above the piece">Fit to ceiling</button></div>`,
-      '<p class="pl-hint" data-fitmsg role="status"></p>',
+      `<fieldset class="pl-fieldset pl-group pl-space" data-group="space">
+        <legend>How much space do you have? <span class="pl-space__opt">Optional</span></legend>
+        <div class="pl-space__row">
+          <label class="pl-space__f" for="pl-space-w"><span>Wall width</span><span class="pl-field"><input class="pl-field__input" type="number" inputmode="numeric" id="pl-space-w" data-space="width" min="${LIMITS.space.width[0]}" max="${LIMITS.space.width[1]}" step="1" aria-describedby="pl-space-msg"><span class="pl-field__unit" aria-hidden="true">cm</span></span></label>
+          <label class="pl-space__f" for="pl-space-h"><span>Ceiling height</span><span class="pl-field"><input class="pl-field__input" type="number" inputmode="numeric" id="pl-space-h" data-space="height" min="${LIMITS.space.height[0]}" max="${LIMITS.space.height[1]}" step="1" aria-describedby="pl-space-msg"><span class="pl-field__unit" aria-hidden="true">cm</span></span></label>
+        </div>
+        <div class="pl-space__out"><p class="pl-hint pl-space__msg" id="pl-space-msg" data-spacemsg role="status"></p><button type="button" class="pl-btn pl-btn--accent pl-btn--small" data-fit="space" hidden>Fit to the space</button></div>
+      </fieldset>`,
       `<p class="pl-hint">Limits: ${L.width[0]} to ${L.width[1]} cm wide, ${L.height[0]} to ${L.height[1]} high, ${L.depth[0]} to ${L.depth[1]} deep.</p>`
     ].join('');
     void hasFronts;
-    for (const g of sizeHost.querySelectorAll('.pl-opts, .pl-fit')) roving(g, { selector: 'button' });
+    for (const g of sizeHost.querySelectorAll('.pl-opts')) roving(g, { selector: 'button' });
     builtFor = p.type;
+    spaceMsg = '';
     if (!(COLOUR_TARGETS.some(([k]) => k === colourTarget && (k !== 'worktop' || T.allowWorktop)))) colourTarget = 'frontMat';
     selectTab(tab);
   }
@@ -248,7 +256,6 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
     applyTargets();
     schedulePrices();
   });
-  const placementOf = () => state.project.placements.find((pl) => pl.pieceId === piece.id) || null;
   const lookup = (bind) => {
     if (!piece) return undefined;
     if (bind.startsWith('size:')) return piece[bind.slice(5)];
@@ -268,7 +275,6 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
       else if (bind === 'plinth') patch = { plinth: n, style: 'custom' };
       if (!patch) return;
       store.dispatch({ type: 'piece/update', patch, coalesce: `f:${piece.id}:${bind}` });
-      if (bind === 'size:elevation' && placementOf()) store.dispatch({ type: 'place/move', id: piece.id, patch: { elevation: n, snap: false }, coalesce: `f:${piece.id}:elev` });
     }
   }));
   sizeHost.addEventListener('click', (e) => {
@@ -280,31 +286,41 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
       return;
     }
     const fit = e.target.closest('[data-fit]');
-    if (fit) doFit(fit.dataset.fit);
+    if (fit) doFit();
   });
-  function doFit(what) {
-    const msg = one('[data-fitmsg]');
+  // the space the person has: committed while typing once the number is a valid one, so a half-typed "2" waits for "220"
+  sizeHost.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!piece || !el.matches || !el.matches('[data-space]')) return;
+    const lim = LIMITS.space[el.dataset.space];
+    const v = Number(el.value);
+    if (el.value !== '' && (!Number.isFinite(v) || v < lim[0] || v > lim[1])) return;
+    commitSpace();
+  });
+  sizeHost.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!piece || !el.matches || !el.matches('[data-space]')) return;
+    commitSpace();
+    store.dispatch({ type: 'history/seal' });
+    syncSpace(true);
+  });
+  function commitSpace() {
+    const read = (k) => { const el = sizeHost.querySelector(`[data-space="${k}"]`); return el && el.value !== '' ? Number(el.value) : null; };
+    const space = { width: read('width'), height: read('height') };
+    store.dispatch({ type: 'piece/update', patch: { space: space.width === null && space.height === null ? null : space }, coalesce: `f:${piece.id}:space` });
+  }
+  function doFit() {
+    const msg = one('[data-spacemsg]');
     const say = (t) => { msg.textContent = t; announce(t); };
-    const project = state.project;
-    if (what === 'wall') {
-      const r = fitToWall(project, piece.id, state.ui.wallId);
-      if (!r) { say('There is no free length on that wall. Move the other pieces or pick another wall.'); return; }
-      store.dispatch({ type: 'piece/update', patch: { width: r.width } });
-      if (r.placed) store.dispatch({ type: 'place/move', id: piece.id, patch: { wallId: r.wallId, offset: r.offset, snap: false } });
-      store.dispatch({ type: 'history/seal' });
-      say(r.placed ? `Width set to ${r.width} cm to fill the free length of the wall.${r.exact ? '' : ' That is the most this piece can be.'}`
-        : `Width set to ${r.width} cm, the free length of the longest wall. Place it in the Place step.`);
-    } else {
-      const r = fitToCeiling(project, piece.id);
-      if (!r) return;
-      store.dispatch({ type: 'piece/update', patch: { height: r.height } });
-      store.dispatch({ type: 'history/seal' });
-      say(`Height set to ${r.height} cm, to the ${r.ceiling} cm ceiling${r.exact ? '' : ' (as high or low as this piece can go)'}.`);
-    }
+    const r = fitToSpace(piece);
+    if (!r) return;
+    store.dispatch({ type: 'piece/update', patch: { width: r.width, height: r.height } });
+    store.dispatch({ type: 'history/seal' });
+    say(`Size set to ${r.width} × ${r.height} cm to fit your space.${r.exact ? '' : ' That is as close as this piece can get.'}`);
   }
 
   // ---------- prices ----------
-  const solo = (p) => ({ v: 2, room: state.project.room, pieces: [p], placements: [] });
+  const solo = (p) => ({ v: 2, pieces: [p] });
   const totalOf = (p) => quoteProject(solo(p), { vat: true }).cents.total;
   function deltaOf(patch) {
     const next = updatePiece(solo(piece), piece.id, { ...patch, style: 'custom' }).pieces[0];
@@ -414,16 +430,28 @@ export function createLookPanel(host, { store, announce = () => {}, sizeHost }) 
     show('drawerHandle', p.fronts.handle !== 'push' && (hasDrawers || p.fronts.kind === 'none'));
     show('plinth', p.plinth > 0);
     show('legs', p.look.base === 'legs');
-    const f = one('[data-fit="wall"]');
-    if (f) f.disabled = false;
     // numbers
     hosts.forEach((h) => syncFields(h, lookup));
     applyTargets();
-    const hint = one('[data-fitmsg]');
-    if (hint && !hint.dataset.touched) hint.dataset.touched = '';
-    const g = pieceGeometry(p);
-    void g;
+    syncSpace(false);
     schedulePrices();
+  }
+
+  // the space inputs show what is stored (never overwriting a box being typed in); the message says whether the piece fits
+  function syncSpace(force) {
+    if (!piece) return;
+    const sp = piece.space || {};
+    for (const el of sizeHost.querySelectorAll('[data-space]')) {
+      const v = sp[el.dataset.space] == null ? '' : String(sp[el.dataset.space]);
+      if (el.value !== v && (force || el !== document.activeElement)) el.value = v;
+    }
+    const check = spaceCheck(piece);
+    const msg = one('[data-spacemsg]');
+    const text = spaceMessage(piece) || 'We will tell you if the piece does not fit.';
+    if (text !== spaceMsg) { spaceMsg = text; msg.textContent = text; }
+    msg.classList.toggle('is-warn', check.has && !check.fits);
+    const btn = one('[data-fit="space"]');
+    if (btn && btn.hidden === (check.has && !check.fits)) btn.hidden = !(check.has && !check.fits);
   }
 
   return { sync, selectTab, refreshPrices };

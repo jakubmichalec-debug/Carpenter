@@ -6,18 +6,13 @@ import { validateProject } from '../site/js/planner/validate.js';
 import { encodeProject, decodeProject } from '../site/js/planner/share.js';
 import * as R from '../site/js/planner/review-logic.js';
 
-function room(template = 'rect', params = { width: 420, depth: 380 }) {
-  const p = M.setTemplate(M.createProject(), template, params);
-  return { ...p, room: { ...p.room, openings: [] }, pieces: [], placements: [] };
-}
+const room = () => ({ v: 2, pieces: [] });
 function sample() {
   let p = room();
   p = M.addPiece(p, 'wardrobe', 'flat-oak', { id: 'w' });
   p = M.setBays(p, 'w', 3);
   p = M.addItem(p, 'w', 2, { kind: 'led', y: 230 });
-  p = M.placePiece(p, 'w', { mode: 'wall', wallId: 'w1', offset: 20 });
   p = M.addPiece(p, 'table', 'oak-table', { id: 't' });
-  p = M.placePiece(p, 't', { mode: 'free', x: 210, z: 240, rotation: 0 });
   return p;
 }
 
@@ -71,15 +66,16 @@ test('quoteView: the wardrobe has a section per bay with item rows, labelled lik
   assert.ok(w.groups.map((g) => g.label).includes('Fitting'));
   assert.ok(w.sections[1].rows.every((r) => r.cents > 0));
 });
-test('quoteView: materials sorted by area, unplaced pieces named', () => {
+test('quoteView: materials sorted by area, every piece named', () => {
   let p = sample();
   p = M.addPiece(p, 'desk', 'oak-desk', { id: 'd' });
   const v = R.quoteView(quoteProject(p), p);
-  assert.deepEqual(v.unplaced.map((u) => u.label), ['Desk 1']);
+  assert.deepEqual(v.pieces.map((x) => x.label), ['Wardrobe 1', 'Table 1', 'Desk 1']);
+  assert.equal('unplaced' in v, false);
+  assert.ok(v.pieces.every((x) => !('placed' in x)));
   const areas = v.materials.map((m) => m.m2);
   assert.deepEqual(areas, [...areas].sort((a, b) => b - a));
   assert.ok(v.materials.every((m) => m.label && m.label !== m.id.toUpperCase()));
-  assert.equal(v.pieces.find((x) => x.id === 'd').placed, false);
 });
 test('quoteView on an empty project is empty but valid', () => {
   const p = room();
@@ -89,43 +85,42 @@ test('quoteView on an empty project is empty but valid', () => {
 });
 
 // ---------- blockers ----------
-test('sendBlockers: empty project and nothing placed', () => {
+test('sendBlockers: only an empty project stops it; there is nothing to place', () => {
   const p0 = room();
-  assert.deepEqual(R.sendBlockers(p0, validateProject(p0).errors).map((b) => b.code), ['no-pieces']);
-  let p1 = M.addPiece(p0, 'wardrobe', 'flat-oak', { id: 'w' });
-  const b = R.sendBlockers(p1, validateProject(p1).errors);
-  assert.deepEqual(b.map((x) => x.code), ['none-placed']);
-  assert.equal(b[0].step, 3);
+  const b0 = R.sendBlockers(p0, validateProject(p0).errors);
+  assert.deepEqual(b0.map((b) => b.code), ['no-pieces']);
+  assert.equal(b0[0].step, 0);
+  const p1 = M.addPiece(p0, 'wardrobe', 'flat-oak', { id: 'w' });
+  assert.deepEqual(R.sendBlockers(p1, validateProject(p1).errors), []);
+  assert.deepEqual(R.sendBlockers(sample(), validateProject(sample()).errors), []);
 });
-test('sendBlockers: a finished project has none; a clash is blocking and points to Place', () => {
-  const ok = sample();
-  assert.deepEqual(R.sendBlockers(ok, validateProject(ok).errors), []);
-  let bad = M.addPiece(ok, 'wardrobe', 'flat-oak', { id: 'x' });
-  bad = M.placePiece(bad, 'x', { mode: 'wall', wallId: 'w1', offset: 100, snap: false });
+test('sendBlockers: a blocking problem points to the step that fixes it; a space that is too small only advises', () => {
+  const p = M.addPiece(room(), 'wardrobe', 'flat-oak', { id: 'w' });
+  const tight = M.updatePiece(p, 'w', { space: { width: 100, height: 200 } });
+  assert.deepEqual(R.sendBlockers(tight, validateProject(tight).errors), []);
+  assert.ok(R.adviceList(validateProject(tight).errors).some((a) => a.code === 'space-too-wide'));
+  const bad = JSON.parse(JSON.stringify(p));
+  bad.pieces[0].bays[0].items.push({ kind: 'rail', y: 3, length: 'long' }, { kind: 'rail', y: 3, length: 'long' });
   const list = R.sendBlockers(bad, validateProject(bad).errors);
   assert.ok(list.length > 0);
-  const overlap = list.find((b) => b.code === 'placement-overlap');
-  assert.ok(overlap, 'overlap reported');
-  assert.equal(overlap.step, 3);
-  assert.equal(overlap.label, 'Fix in Place');
-  assert.ok(overlap.pieceId);
-  assert.ok(!/\bw1\b/.test(overlap.message), 'wall ids are written as numbers');
+  const clash = list.find((b) => b.ref && b.ref.type === 'item');
+  assert.ok(clash, 'an item clash is reported');
+  assert.equal(clash.step, 1);
+  assert.equal(clash.label, 'Fix in Interior');
+  assert.equal(clash.pieceId, 'w');
 });
-test('issueStep maps refs to the step that fixes them', () => {
-  assert.equal(R.issueStep({ type: 'room' }), 0);
-  assert.equal(R.issueStep({ type: 'opening', id: 'o1' }), 0);
-  assert.equal(R.issueStep({ type: 'piece', id: 'p' }), 1);
-  assert.equal(R.issueStep({ type: 'bay', pieceId: 'p', bay: 0 }), 1);
-  assert.equal(R.issueStep({ type: 'item', pieceId: 'p', bay: 0, index: 0 }), 2);
-  assert.equal(R.issueStep({ type: 'placement', pieceId: 'p' }), 3);
-  assert.equal(R.issueStep({ type: 'piece', id: 'p' }, 'piece-unplaced'), 3);
+test('issueStep maps refs to the step that fixes them: 0 Furniture, 1 Interior', () => {
+  assert.equal(R.issueStep({ type: 'piece', id: 'p' }), 0);
+  assert.equal(R.issueStep({ type: 'bay', pieceId: 'p', bay: 0 }), 0);
+  assert.equal(R.issueStep({ type: 'item', pieceId: 'p', bay: 0, index: 0 }), 1);
   assert.equal(R.issueStep(null), 0);
+  assert.deepEqual(R.STEP_NAMES, ['Furniture', 'Interior']);
 });
 test('adviceList keeps only non-blocking items', () => {
-  const errors = [{ code: 'a', message: 'x', blocking: true }, { code: 'walkway', message: 'Wall w2 is tight', blocking: false, ref: { type: 'placement', pieceId: 'p' } }];
+  const errors = [{ code: 'a', message: 'x', blocking: true }, { code: 'space-too-wide', message: 'Too wide', blocking: false, ref: { type: 'piece', id: 'p' } }];
   const a = R.adviceList(errors);
   assert.equal(a.length, 1);
-  assert.equal(a[0].message, 'Wall 2 is tight');
+  assert.equal(a[0].message, 'Too wide');
 });
 
 // ---------- render settings ----------
@@ -194,96 +189,6 @@ test('progressFraction follows whichever limit is closer', () => {
   assert.equal(R.progressFraction({ samples: 50, maxSamples: 100, elapsed: 3, maxSeconds: 60 }), 0.5);
   assert.equal(R.progressFraction({ samples: 5, maxSamples: 100, elapsed: 45, maxSeconds: 60 }), 0.75);
   assert.equal(R.progressFraction({ samples: 500, maxSamples: 100, elapsed: 1, maxSeconds: 60 }), 1);
-});
-
-// ---------- camera and room geometry ----------
-test('presetList: Room, Top, then a front view per placed piece', () => {
-  let p = sample();
-  p = M.addPiece(p, 'desk', 'oak-desk', { id: 'd' }); // not placed: no preset
-  const list = R.presetList(p);
-  assert.deepEqual(list.map((x) => x.id), ['room', 'top', 'front:w', 'front:t']);
-  assert.deepEqual(list.map((x) => x.label), ['Room', 'Top', 'Front of Wardrobe 1', 'Front of Table 1']);
-});
-test('frontPose: stands in front of a wall piece, looking at it, inside the room', () => {
-  const p = sample();
-  const pose = R.frontPose(p, 'w', { aspect: 1.5 });
-  // wardrobe on wall 1 (top wall, z = 0), 240 wide from x = 20: centre x = 1.4 m, the front faces +z
-  assert.ok(Math.abs(pose.target[0] - 1.4) < 0.01);
-  assert.ok(pose.position[2] > pose.target[2] + 1.5);
-  assert.ok(Math.abs(pose.position[0] - pose.target[0]) < 0.01);
-  assert.ok(pose.position[1] >= 1.1 && pose.position[1] <= 1.55);
-  assert.equal(pose.inRoom, true);
-  assert.equal(R.frontPose(p, 'nope'), null);
-});
-test('frontPose: a free piece turned 90 degrees is seen from its own front', () => {
-  let p = room();
-  p = M.addPiece(p, 'table', 'oak-table', { id: 't' });
-  p = M.placePiece(p, 't', { mode: 'free', x: 210, z: 190, rotation: 90 });
-  const pose = R.frontPose(p, 't');
-  // rotation 90: the front faces -x
-  assert.ok(pose.position[0] < pose.target[0] - 1);
-  assert.ok(Math.abs(pose.position[2] - pose.target[2]) < 0.01);
-});
-test('frontPose: a bigger piece is seen from further away', () => {
-  let p = room('rect', { width: 900, depth: 800 });
-  p = M.addPiece(p, 'desk', 'oak-desk', { id: 'big', width: 300, height: 100 });
-  p = M.placePiece(p, 'big', { mode: 'wall', wallId: 'w1', offset: 0 });
-  p = M.addPiece(p, 'desk', 'oak-desk', { id: 'small', width: 120, height: 100 });
-  p = M.placePiece(p, 'small', { mode: 'wall', wallId: 'w3', offset: 0 });
-  const dist = (id) => { const q = R.frontPose(p, id); return Math.hypot(q.position[0] - q.target[0], q.position[2] - q.target[2]); };
-  assert.ok(dist('big') > dist('small'));
-});
-test('frontPose keeps the camera inside a small room, even for a tall piece', () => {
-  const p = sample(); // 240 x 240 wardrobe in a 420 x 380 room
-  const pose = R.frontPose(p, 'w', { aspect: 1.5 });
-  assert.equal(pose.inRoom, true);
-  assert.ok(pose.position[2] < 3.8 - 0.2);
-  assert.ok(Math.abs(R.rayToWall(p.room, 100, 100, 0, 1) - 280) < 1e-6);
-  assert.equal(R.rayToWall(p.room, 100, 100, 0, -1), 100);
-});
-test('insideRoom and hiddenWalls', () => {
-  const p = room('rect', { width: 400, depth: 300 });
-  assert.equal(R.insideRoom(p.room, 200, 150), true);
-  assert.equal(R.insideRoom(p.room, 450, 150), false);
-  assert.deepEqual(R.hiddenWalls(p.room, [2, 5, 1.5]), []);           // inside: nothing between the camera and the room
-  assert.deepEqual(R.hiddenWalls(p.room, [2, 5, 7]), ['w3']);          // beyond the bottom wall (z = 3 m)
-  assert.deepEqual(R.hiddenWalls(p.room, [-3, 5, 7]).sort(), ['w3', 'w4']);
-  const l = room('l-shape', { lengthA: 500, widthA: 200, lengthB: 400, widthB: 200 });
-  assert.ok(R.hiddenWalls(l.room, [10, 5, 10]).length > 0);
-});
-function polyArea(poly) {
-  let s = 0;
-  for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; s += a.x * b.z - b.x * a.z; }
-  return Math.abs(s / 2);
-}
-test('ceilingPolygons: flat room is one polygon at the ceiling height covering the floor', () => {
-  const p = room('rect', { width: 400, depth: 300 });
-  const polys = R.ceilingPolygons(p.room);
-  assert.equal(polys.length, 1);
-  assert.ok(Math.abs(polyArea(polys[0]) - M.area(p.room)) < 1e-6);
-  assert.ok(polys[0].every((v) => v.y === p.room.height));
-});
-test('ceilingPolygons: an attic is split where the slope ends; areas add up and heights follow the slope', () => {
-  const p = room('attic', { width: 480, depth: 360, kneeHeight: 120, slopeAngle: 40, slopeWall: 1 });
-  assert.ok(p.room.slope, 'attic has a slope');
-  const polys = R.ceilingPolygons(p.room);
-  assert.equal(polys.length, 2);
-  const total = polys.reduce((s, q) => s + polyArea(q), 0);
-  assert.ok(Math.abs(total - M.area(p.room)) < 1e-3, `${total} vs ${M.area(p.room)}`);
-  const ys = polys.flat().map((v) => v.y);
-  assert.ok(Math.abs(Math.min(...ys) - p.room.slope.lowHeight) < 1e-6);
-  assert.ok(Math.abs(Math.max(...ys) - p.room.height) < 1e-6);
-  // the far polygon is flat at the ridge
-  assert.ok(polys.some((q) => q.every((v) => Math.abs(v.y - p.room.height) < 1e-6)) || polys.length === 2);
-});
-test('placedTransform puts the group at the footprint corner, turned like the footprint', () => {
-  const p = sample();
-  const wall = R.placedTransform(p, p.placements.find((x) => x.pieceId === 'w'));
-  assert.ok(Math.abs(wall.x - 0.2) < 1e-9 && Math.abs(wall.z) < 1e-9 && wall.lift === 0);
-  const t = R.placedTransform(p, p.placements.find((x) => x.pieceId === 't'));
-  const fp = M.footprintOf(p, p.placements.find((x) => x.pieceId === 't'));
-  assert.ok(Math.abs(t.x - fp.corners[0].x / 100) < 1e-9);
-  assert.equal(R.placedTransform(p, { pieceId: 'gone', mode: 'free', x: 0, z: 0 }), null);
 });
 
 // ---------- the whole path: a link opens the same quote ----------

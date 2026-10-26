@@ -122,7 +122,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
   scrollCue($('#pl-i-presets'), 'x');
   scrollCue($('#pl-i-list'), 'y', { grow: false });
   scrollCue($('#pl-i-optbox'), 'y');
-  $('#pl-i-keep').addEventListener('click', () => { store.dispatch({ type: 'ui/step', step: 3 }); });
+  $('#pl-i-keep').addEventListener('click', () => { store.dispatch({ type: 'ui/step', step: 2 }); });
   const inspEl = $('#pl-i-insp');
   const cur = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
   const curBay = (p) => (p ? p.bays[clamp(state.ui.bay, 0, p.bays.length - 1)] : null);
@@ -816,7 +816,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
   const empty = $('#pl-i-empty');
   empty.addEventListener('click', (e) => {
     const b = e.target.closest('[data-go]');
-    if (b) store.dispatch({ type: 'ui/step', step: 1 });
+    if (b) store.dispatch({ type: 'ui/step', step: 0 });
   });
 
   function update(next, info = {}) {
@@ -829,7 +829,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
     empty.hidden = ok;
     if (!ok) {
       empty.innerHTML = p
-        ? `<p class="pl-soon__text">A ${esc(TYPES[p.type].label.toLowerCase())} has no inside to fit out. You can go on and place it in the room.</p>`
+        ? `<p class="pl-soon__text">A ${esc(TYPES[p.type].label.toLowerCase())} has no inside to fit out. You can go straight on to the review.</p>`
         : `<p class="pl-soon__text">There is no piece to fit out yet. Pick a type in the Furniture step first.</p><button type="button" class="pl-btn pl-btn--accent" data-go="1">Go to Furniture</button>`;
       issueCount = 0;
       notesEl.innerHTML = '';
@@ -837,7 +837,7 @@ export function createInteriorStep(root, { insideBox, store, announce = () => {}
     }
     if (ok) {
       const project = state.project;
-      const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId]);
+      const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), state.ui.pieceId]);
       if (ck !== chipsKey) { chipsKey = ck; $('#pl-i-chips').innerHTML = pieceChipsHtml(project, state.ui.pieceId); }
       $('#pl-i-chips').hidden = project.pieces.length < 2;
       renderBays(p);

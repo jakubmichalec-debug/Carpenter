@@ -59,14 +59,13 @@ export function syncFields(root, current) {
   });
 }
 
-// The switcher between pieces: one radio chip each (the name in the body font, the size in mono), plus the placed or
-// not state. The caller makes the row a roving group with role="radiogroup".
+// The switcher between pieces: one radio chip each (the name in the body font, the size in mono). The caller makes the
+// row a roving group with role="radiogroup".
 export function pieceChipsHtml(project, selectedId) {
   if (!project.pieces.length) return '';
   return project.pieces.map((p) => {
-    const placed = project.placements.some((pl) => pl.pieceId === p.id);
     const n = project.pieces.filter((x) => x.type === p.type).findIndex((x) => x.id === p.id) + 1;
-    return `<button type="button" role="radio" class="pl-chip pl-chip--piece" data-piece="${esc(p.id)}" aria-checked="${p.id === selectedId}" tabindex="-1"><span class="pl-chip__name">${esc(TYPES[p.type].label)} ${n}</span><i class="${placed ? 'is-placed' : ''}">${p.width}\u00d7${p.height}</i></button>`;
+    return `<button type="button" role="radio" class="pl-chip pl-chip--piece" data-piece="${esc(p.id)}" aria-checked="${p.id === selectedId}" tabindex="-1"><span class="pl-chip__name">${esc(TYPES[p.type].label)} ${n}</span><i>${p.width}\u00d7${p.height}</i></button>`;
   }).join('');
 }
 

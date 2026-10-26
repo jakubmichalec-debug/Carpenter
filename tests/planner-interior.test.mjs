@@ -19,7 +19,7 @@ test('bayLayout lines bays up with the dividers', () => {
 });
 
 test('suggestY finds free grid heights and keeps validation quiet', () => {
-  let proj = { ...M.createProject(), pieces: [wardrobe()], placements: [] };
+  let proj = { ...M.createProject(), pieces: [wardrobe()] };
   const add = (kind, params = {}) => {
     const y = suggestY(proj.pieces[0], 0, kind, params);
     assert.ok(Math.abs(y / M.GRID - Math.round(y / M.GRID)) < 0.02, `${kind} on the grid (${y})`);
@@ -40,7 +40,7 @@ test('suggestY finds free grid heights and keeps validation quiet', () => {
 });
 
 test('suggestY falls back to a valid height when the bay is full', () => {
-  let proj = { ...M.createProject(), pieces: [wardrobe()], placements: [] };
+  let proj = { ...M.createProject(), pieces: [wardrobe()] };
   for (let i = 0; i < 12; i++) proj = M.addItem(proj, 'p1', 0, { kind: 'shelf', y: suggestY(proj.pieces[0], 0, 'shelf') });
   const y = suggestY(proj.pieces[0], 0, 'shelf');
   assert.ok(y >= 0 && y <= M.pieceGeometry(proj.pieces[0]).innerH);
@@ -95,7 +95,7 @@ test('changeBayCount keeps widths: adding splits the widest, removing feeds the 
   assert.equal(two.reduce((s, b) => s + b.width, 0), inner(2));
   assert.equal(two[0].width, p.bays[0].width);
   assert.equal(two[1].width, p.bays[1].width + p.bays[2].width + M.LAYOUT_T);
-  const updated = M.updatePiece({ ...M.createProject(), pieces: [p], placements: [] }, 'p1', { bays: four }).pieces[0];
+  const updated = M.updatePiece({ ...M.createProject(), pieces: [p] }, 'p1', { bays: four }).pieces[0];
   assert.deepEqual(updated.bays.map((b) => b.width), four.map((b) => b.width));
   assert.equal(updated.bays[0].items.length, 1);
 });

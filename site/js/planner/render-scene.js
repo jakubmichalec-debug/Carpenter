@@ -1,16 +1,13 @@
-// The scene the path tracer renders. It is made from the same builders as the live viewer (buildFloor, buildWall,
-// buildPiece), so the two cannot disagree about what the room holds. On top of that it adds what a photograph needs:
-// a ceiling when the camera stands inside the room, the HDRI for daylight, a glowing ceiling panel and the LED strips
-// as emissive surfaces.
+// The scene the path tracer renders. It is made from the same builders as the live viewer (buildStudio, buildPiece) and the
+// same layout (studio.js), so the two cannot disagree about what stands where. On top of that it adds what a photograph
+// needs: a soft key light and a fill like a product shot, the HDRI for reflections and the LED strips as emissive surfaces.
 // Browser only (three is passed in). Loaded on demand by render.js.
-import { buildFloor, buildWall, buildPiece, disposeGroup } from './geometry.js';
-import { wallsOf, ceilingHeightAt } from './model.js';
-import { ceilingPolygons, placedTransform, insideRoom } from './review-logic.js';
+import { buildStudio, buildPiece, disposeGroup, STUDIO_COLOR } from './geometry.js';
+import { layoutStudio } from './studio.js';
 import { MATERIALS, canonicalId, surfaceInfo, resolveHandleFinish } from './materials.js';
 import { surfacesOf } from './model.js';
 
 const M = 0.01;
-const SUN_ELEVATION = (38 * Math.PI) / 180;
 
 // Everything is merged into one mesh per material before the path tracer sees it. Why: the tracer merges all meshes into
 // one geometry itself, in the order of their uuids, which is random on every page load, and with this scene (indexed and
@@ -66,7 +63,6 @@ function flattenByMaterial(THREE, root) {
 // Which texture set a material id uses comes from the material table (`tex`); smoked oak is the oak texture tinted darker.
 export const WOOD_TEX = new Proxy({}, { get: (_, id) => (MATERIALS[canonicalId(id)] && MATERIALS[canonicalId(id)].tex) || undefined });
 const TEX_MEAN = { oak: [0xa1, 0x7e, 0x58], walnut: [0x8a, 0x69, 0x51], ash: [0xac, 0x94, 0x7d], birch: [0xb8, 0xa0, 0x88] };
-const FLOOR_TEX = { 'oak-floor': ['floor-oak', 1.3], 'ash-floor': ['birch', 1.0], 'concrete-floor': ['concrete', 1.6], 'tile-floor': ['tile', 1.2] };
 const TEX_METRES = { oak: 0.9, walnut: 0.9, ash: 0.9, birch: 0.9 };
 const PLASTER_METRES = 1.0;
 
@@ -74,22 +70,17 @@ const PLASTER_METRES = 1.0;
 export function neededTextures(project) {
   const need = new Set(['plaster']);
   const wood = (id) => { if (WOOD_TEX[id]) need.add(WOOD_TEX[id]); };
-  for (const pl of project.placements || []) {
-    const p = (project.pieces || []).find((x) => x.id === pl.pieceId);
-    if (!p) continue;
+  for (const p of project.pieces || []) {
     const S = surfacesOf(p);
     for (const sp of [S.front, S.carcass, S.interior, S.upper]) if (sp) wood(sp.material);
     if (p.worktop) wood(p.worktop);
   }
-  wood('oak'); // room doors
-  const f = FLOOR_TEX[project.room.floor];
-  if (f) need.add(f[0]);
   return [...need];
 }
 
 // A material library for the render: the veneers, floors and handles get real PBR textures and metal; anything else
 // (lacquers, terrazzo, the plain painted parts) keeps what the live viewer uses. `transmissive`: glass in furniture
-// doors lets light through; glass in the walls stays a thin pane so the sun can reach the room.
+// doors lets light through.
 function pbrLib(THREE, lib, tex, { transmissive }) {
   const cache = new Map();
   const set = (name, m) => {
@@ -157,131 +148,70 @@ function pbrLib(THREE, lib, tex, { transmissive }) {
   return out;
 }
 
-export function buildRenderScene({ project, THREE, lib: libIn, fronts = 'closed', camera, hiddenWalls = [], hdr = null, background = '#f6f6f3', tex = {} }) {
-  let lib = libIn;
+export function buildRenderScene({ project, THREE, lib: libIn, fronts = 'closed', camera, hdr = null, background = '#f6f6f3', tex = {} }) {
   const baseLib = libIn;
-  const wallLib = pbrLib(THREE, baseLib, tex, { transmissive: false });
-  lib = pbrLib(THREE, baseLib, tex, { transmissive: true });
-  const room = project.room;
+  const lib = pbrLib(THREE, baseLib, tex, { transmissive: true });
+  const layout = layoutStudio(project);
   const scene = new THREE.Scene();
   const root = new THREE.Group();
   root.name = 'render-root';
   scene.add(root);
 
-  const camPos = new THREE.Vector3();
-  camera.getWorldPosition(camPos);
-  const ceilingY = ceilingHeightAt(room, camPos.x / M, camPos.z / M) * M;
-  const interior = !!camera.isPerspectiveCamera && insideRoom(room, camPos.x / M, camPos.z / M) && camPos.y < ceilingY - 0.05;
-  const hide = new Set(hiddenWalls);
-
-  // ----- room -----
-  const floorTex = FLOOR_TEX[room.floor];
-  const floorLib = Object.create(baseLib);
-  if (floorTex) {
-    floorLib.floorTileMetres = () => floorTex[1];
-    floorLib.floorTexture = () => { const t = tex[floorTex[0]]; return t && t.diff ? t.diff.clone() : baseLib.floorTexture(room.floor, '#b98f60'); };
+  // ----- the studio: one smooth floor and wall, with a fine plaster roughness and normal when the texture is there -----
+  const studioMat = new THREE.MeshStandardMaterial({ color: STUDIO_COLOR, roughness: 0.92, metalness: 0 });
+  const pl = tex.plaster;
+  if (pl) {
+    const lin = (src) => { const c = src.clone(); c.colorSpace = THREE.NoColorSpace; c.wrapS = c.wrapT = THREE.RepeatWrapping; c.repeat.set(1 / PLASTER_METRES, 1 / PLASTER_METRES); c.needsUpdate = true; return c; };
+    if (pl.rough) { studioMat.roughnessMap = lin(pl.rough); studioMat.roughness = 1; }
+    if (pl.nor) { studioMat.normalMap = lin(pl.nor); studioMat.normalScale = new THREE.Vector2(0.35, 0.35); }
   }
-  const floor = buildFloor(room, THREE, floorLib);
-  if (floorTex && tex[floorTex[0]] && tex[floorTex[0]].diff) {
-    const t = tex[floorTex[0]], m = floor.material;
-    const lin = (src) => { if (!src) return null; const c = src.clone(); c.colorSpace = THREE.NoColorSpace; c.wrapS = c.wrapT = THREE.RepeatWrapping; c.needsUpdate = true; return c; };
-    const d = m.map; d.colorSpace = THREE.SRGBColorSpace; d.wrapS = d.wrapT = THREE.RepeatWrapping; d.needsUpdate = true;
-    m.color = new THREE.Color(0xffffff);
-    m.roughnessMap = lin(t.rough); m.normalMap = lin(t.nor); m.roughness = 1;
+  if (!layout.empty) {
+    const studio = buildStudio(layout, THREE, studioMat);
+    root.add(studio);
   }
-  root.add(floor);
-  const wallGroups = [];
-  room.walls.forEach((c, i) => {
-    if (hide.has(c.id)) return;
-    const g = buildWall(room, i, THREE, wallLib);
-    const pl = tex.plaster;
-    if (pl && g.userData.face) { // plaster: a little roughness variation and a fine normal on the wall faces (UVs there are metres)
-      for (const fm of [g.userData.face, g.userData.edge]) {
-        const lin = (src) => { const c = src.clone(); c.colorSpace = THREE.NoColorSpace; c.wrapS = c.wrapT = THREE.RepeatWrapping; c.repeat.set(1 / PLASTER_METRES, 1 / PLASTER_METRES); c.needsUpdate = true; return c; };
-        if (pl.rough) fm.roughnessMap = lin(pl.rough);
-        if (pl.nor) { fm.normalMap = lin(pl.nor); fm.normalScale = new THREE.Vector2(0.5, 0.5); }
-        fm.roughness = 1;
-      }
-    }
-    g.traverse((o) => {
-      if (!o.isMesh) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) {
-        if (m.transparent && m.opacity < 0.5) { m.opacity = 0.1; m.depthWrite = true; } // window glass: clear enough for the sun
-        if (o.name === 'slope') { m.emissiveIntensity = 0; }                         // the viewer lifts it with a glow; light does that here
-      }
-    });
-    wallGroups.push(g);
-    root.add(g);
-  });
-
-  // ----- ceiling (inside views only; the slope plane of an attic is replaced by it) -----
-  const extras = []; // geometries and materials made here
-  if (interior) {
-    for (const g of wallGroups) g.traverse((o) => { if (o.name === 'slope') o.visible = false; });
-    const mat = lib.plain('#f3f1ec', 0.96);
-    for (const poly of ceilingPolygons(room)) {
-      const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x * M, -p.z * M)));
-      const geo = new THREE.ShapeGeometry(shape);
-      geo.rotateX(-Math.PI / 2);
-      const pos = geo.attributes.position;
-      for (let i = 0; i < pos.count; i++) pos.setY(i, ceilingHeightAt(room, pos.getX(i) / M, pos.getZ(i) / M) * M);
-      const idx = geo.index;
-      for (let i = 0; i < idx.count; i += 3) { const t = idx.getX(i + 1); idx.setX(i + 1, idx.getX(i + 2)); idx.setX(i + 2, t); } // face down
-      idx.needsUpdate = true;
-      geo.computeVertexNormals();
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.name = 'ceiling';
-      root.add(mesh);
-      extras.push(geo);
-    }
-  }
-  // looking in from outside there is no ground: the room floats on the page colour, like the live view
 
   // ----- pieces -----
   const ledMeshes = [];
-  for (const pl of project.placements || []) {
-    const piece = (project.pieces || []).find((p) => p.id === pl.pieceId);
-    const tr = piece && placedTransform(project, pl);
-    if (!tr) continue;
+  for (const it of layout.items) {
+    const piece = (project.pieces || []).find((p) => p.id === it.pieceId);
+    if (!piece) continue;
     const wrapper = new THREE.Group();
-    wrapper.name = `placed:${piece.id}`;
-    wrapper.position.set(tr.x, 0, tr.z);
-    wrapper.rotation.y = tr.rotY;
-    const lift = new THREE.Group();
-    lift.position.y = tr.lift;
+    wrapper.name = `piece:${piece.id}`;
+    wrapper.position.set(it.x * M, it.lift * M, it.z * M);
     const inner = buildPiece(piece, THREE, lib, { fronts });
-    lift.add(inner);
-    wrapper.add(lift);
+    wrapper.add(inner);
     root.add(wrapper);
     inner.traverse((o) => { if (o.isMesh && o.userData.part === 'led') ledMeshes.push(o); });
   }
   scene.updateMatrixWorld(true);
 
   // ----- light -----
-  // The sun and the LED strips are RectAreaLights (soft shadows, no noise from hoping a random ray finds them). The first
-  // attempt at these looked patchy, but that was the mesh order bug that flattenByMaterial now removes. A glowing panel is the
-  // ceiling lamp, and the HDRI is the sky. The LED strips also glow themselves.
-  const glowers = [];
+  // A product shot: a big soft key from the front left and above, a smaller fill from the right, and the HDRI for the
+  // reflections in glass, handles and the finish of the fronts. The LED strips are thin warm area lights that glow themselves.
+  // The earlier patchy RectAreaLight look was the mesh order bug that flattenByMaterial removes, not the lights.
   const lights = [];
   const addLight = (l) => { scene.add(l); lights.push(l); return l; };
   const ledMat = lib.led();
   ledMat.emissiveIntensity = 6;
-  let cx = 0, cz = 0;
-  for (const c of room.walls) { cx += c.x; cz += c.z; }
-  cx /= room.walls.length; cz /= room.walls.length;
-  if (interior) {
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff0dc, emissiveIntensity: 2, roughness: 1, side: THREE.FrontSide });
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), panelMat);
-    panel.rotation.x = Math.PI / 2; // faces down
-    panel.position.set(cx * M, ceilingHeightAt(room, cx, cz) * M - 0.02, cz * M);
-    panel.name = 'ceiling-lamp';
-    root.add(panel);
-    glowers.push(panel.geometry, panelMat);
-  }
+  const b = layout.bounds;
+  const cx = ((b.minX + b.maxX) / 2) * M;
+  const depthM = (layout.items.length ? Math.max(...layout.items.map((i) => i.z + i.d)) : 100) * M;
+  const topM = layout.wall.height * M;
+  const spread = Math.max(2.4, (layout.extent * M) / 2 + 1.2);
   const { flat, geos } = flattenByMaterial(THREE, root);
   scene.remove(root);
   scene.add(flat);
+  const aim = new THREE.Vector3(cx, Math.min(1.1, topM * 0.35), depthM * 0.35);
+  {
+    const keyLight = new THREE.RectAreaLight(0xfff0dc, 22, Math.max(2.6, spread), 2.2);
+    keyLight.position.set(cx - spread * 0.9, topM * 0.9 + 1.2, depthM + spread * 0.9 + 1.4);
+    keyLight.lookAt(aim);
+    addLight(keyLight);
+    const fillLight = new THREE.RectAreaLight(0xdce8f5, 5.5, 2.4, 1.8);
+    fillLight.position.set(cx + spread * 1.1, topM * 0.55 + 0.4, depthM + spread * 0.8 + 1.0);
+    fillLight.lookAt(aim);
+    addLight(fillLight);
+  }
 
   // LED strips: a thin warm area light under each
   {
@@ -298,55 +228,23 @@ export function buildRenderScene({ project, THREE, lib: libIn, fronts = 'closed'
     }
   }
 
-  // the sun: a soft-edged warm area light far away. Inside it aims at the biggest window from outside the wall, so the walls
-  // keep it out everywhere except through the opening; looking in from outside it stands on the camera's side, high up.
-  {
-    const walls = wallsOf(room);
-    let target = null, dir = null;
-    const wins = (room.openings || []).filter((o) => o.type === 'window' && walls.some((w) => w.id === o.wallId));
-    if (interior && wins.length) {
-      wins.sort((a, b) => b.width * b.height - a.width * a.height);
-      const o = wins[0], w = walls.find((x) => x.id === o.wallId);
-      const u = o.offset + o.width / 2;
-      target = new THREE.Vector3((w.start.x + w.dir.x * u) * M, (o.bottom + o.height / 2) * M, (w.start.z + w.dir.z * u) * M);
-      // slightly to one side of straight on, so the patch of sun falls across the floor
-      const side = new THREE.Vector3(w.dir.x, 0, w.dir.z);
-      dir = new THREE.Vector3(-w.normal.x * Math.cos(SUN_ELEVATION), Math.sin(SUN_ELEVATION), -w.normal.z * Math.cos(SUN_ELEVATION)).addScaledVector(side, 0.25).normalize();
-    } else if (!interior) {
-      target = new THREE.Vector3(cx * M, 0.6, cz * M);
-      let hx = camPos.x - cx * M, hz = camPos.z - cz * M;
-      const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
-      const rot = (-30 * Math.PI) / 180, rx = hx * Math.cos(rot) - hz * Math.sin(rot), rz = hx * Math.sin(rot) + hz * Math.cos(rot);
-      dir = new THREE.Vector3(rx * Math.cos(1), Math.sin(1), rz * Math.cos(1));
-    }
-    if (target) {
-      const sun = new THREE.RectAreaLight(0xffe2b8, 350, 1.6, 1.6);
-      sun.position.copy(target).addScaledVector(dir, 14);
-      sun.lookAt(target);
-      addLight(sun);
-    }
-  }
-
-  // ----- sky -----
-  // The HDRI is an indoor photograph: it is the daylight at the windows, so it lights the room from inside and is what you
-  // see out of a window. Looking in from outside it is turned up.
+  // ----- environment -----
+  // The HDRI is an indoor photograph: here it only gives the surfaces something to reflect and a little ambient light.
   if (hdr) {
     scene.environment = hdr;
-    scene.environmentIntensity = interior ? 0.7 : 1.6;
-    if (interior) { scene.background = hdr; scene.backgroundIntensity = 1; scene.backgroundBlurriness = 0.02; }
+    scene.environmentIntensity = 0.55;
   }
-  if (!scene.background) { scene.background = new THREE.Color(background); scene.backgroundIntensity = 1.3; }
+  scene.background = new THREE.Color(background);
+  scene.backgroundIntensity = 1.3;
 
   return {
-    scene, interior, ledCount: ledMeshes.length, lightCount: lights.length,
+    scene, ledCount: ledMeshes.length, lightCount: lights.length,
     dispose() {
-      disposeGroup(root); // the original meshes: their wall materials and floor material (the flat meshes share them)
+      disposeGroup(root);
       geos.forEach((g) => g.dispose());
       lights.forEach((l) => { scene.remove(l); l.dispose && l.dispose(); });
-      root.traverse((o) => { if (o.isMesh && o.userData && o.userData.part === 'floor' && o.material) o.material.dispose(); });
-      extras.forEach((e) => e.dispose());
-      glowers.forEach((e) => e.dispose());
-      lib.dispose(); wallLib.dispose(); baseLib.dispose();
+      studioMat.dispose();
+      lib.dispose(); baseLib.dispose();
       scene.clear();
     }
   };

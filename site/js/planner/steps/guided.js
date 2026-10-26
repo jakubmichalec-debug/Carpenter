@@ -1,15 +1,14 @@
 // The guided flow: the planner as one question per screen. It does not draw the editors itself. Every question shows the
-// sections of the planner's own step editors (room, furniture, interior, place, review) that answer it, hides their tab
-// bars, and adds the few things only a question needs: Yes/No answers, big type and preset cards, a short list of colours,
-// the list of pieces and the contact form. The store, the editors and every action stay the same; "Edit everything"
+// sections of the planner's own step editors (furniture, interior, review) that answer it, hides their tab bars, and adds
+// the few things only a question needs: big type and preset cards, a short list of colours, the list of pieces and the
+// contact form. The store, the editors and every action stay the same; "Edit everything"
 // switches back to the tabbed view without losing anything.
 import * as F from '../flow.js';
 import {
-  TYPES, STYLES, HANDLES, ITEMS, OPENING_TYPES, pieceLabel, updatePiece, applyPreset, presetsFor, pieceGeometry, wallsOf
+  TYPES, HANDLES, ITEMS, pieceLabel, updatePiece, applyPreset, presetsFor, pieceGeometry
 } from '../model.js';
 import { MATERIALS, materialsFor, handleFinishes } from '../materials.js';
 import { quoteProject } from '../pricing.js';
-import * as G from '../place-geom.js';
 import * as R from '../review-logic.js';
 import { esc, ICON_NOTE, ICON_TRASH } from './shared.js';
 import { TYPE_ICON } from './furniture.js';
@@ -20,13 +19,6 @@ const VIEW_KEY = 'gj.planner.view';
 const HANDLE_LABEL = { bar: 'Bar', knob: 'Knob', cup: 'Cup pull', edge: 'Finger pull', push: 'Push to open' };
 const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const OPEN_ICON = {
-  door: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V3h9v18M3 21h18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="12.5" r="1" fill="currentColor"/></svg>',
-  window: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="15" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v15M4 11h16M2.5 21h19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-  radiator: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM8 6v12M12 6v12M16 6v12M6 20v1M18 20v1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  socket: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9.5" cy="12" r="1.1" fill="currentColor"/><circle cx="14.5" cy="12" r="1.1" fill="currentColor"/></svg>'
-};
-const wallNo = (id) => String(id).replace(/^w/, '');
 const eur = (cents) => {
   const n = Math.round(Math.abs(cents) / 100);
   return `${cents > 0 ? '+' : cents < 0 ? '−' : ''}€${n.toLocaleString('en-IE')}`;
@@ -40,19 +32,18 @@ function saveMode(m) { try { localStorage.setItem(VIEW_KEY, m); } catch { /* pri
 export function createGuided({ store, announce = () => {}, confirmAction, views, app, host, refresh = () => {}, focusTitle = () => {}, getValidation = () => ({ errors: [] }) }) {
   let state = store.getState();
   let active = savedMode() === 'guided';
-  let q = 'shape';
+  let q = 'type';
   let entry = state.project;          // the project when this question was opened: "nothing changed yet" means still the same object
   let navigating = false;             // true while go() dispatches, so the step change it causes is not taken for an outside one
   let userNav = false;                // false until the person has moved, so the first paint does not steal focus
-  const flags = { openings: null, arrange: false, lookMore: false, scope: 'all' };
+  const flags = { arrange: false, lookMore: false, scope: 'all' };
   const chosen = {};                  // interior preset picked in this visit, by section ("all" or an index)
   const reached = new Set([0]);
-  const placedTried = new Set();
   const contact = { name: '', email: '', phone: '', postcode: '', message: '', consent: false };
   let contactErr = {};
   let sent = null;                    // { ref, name } after the contact form
   let touchedBlock = false;           // the form was submitted once, so its errors update as you type
-  const keys = { type: '', look: '', inside: '', more: '', open: '', send: '' };
+  const keys = { type: '', look: '', inside: '', more: '', send: '' };
   let priceTimer = 0;
   let returnTo = null;                // 'more' while a second piece is being chosen: Back goes back to the list
 
@@ -60,28 +51,13 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   const piece = () => state.project.pieces.find((p) => p.id === state.ui.pieceId) || null;
   const insideOf = () => (piece() ? F.hasInside(piece()) : true);
   const ctx = () => ({ hasInside: insideOf() });
-  const placedCount = () => state.project.placements.filter((pl) => state.project.pieces.some((p) => p.id === pl.pieceId)).length;
-  const vflags = () => ({ openings: openingsYes(), arrange: flags.arrange, lookMore: flags.lookMore });
-  const openingsYes = () => F.openingsAnswer(state.project, flags.openings) === true;
+  const vflags = () => ({ arrange: flags.arrange, lookMore: flags.lookMore });
   const seal = () => store.dispatch({ type: 'history/seal' });
   const touched = () => state.project !== entry;
   const isCompact = () => matchMedia('(max-width: 1279px)').matches;
 
   // ---------- the markup the questions add ----------
   host.innerHTML = `
-    <section class="pl-gq" data-gq="openings" hidden>
-      <div class="pl-yn" id="pl-g-yn" role="group" aria-label="Does the room have doors, windows or radiators?">
-        <button type="button" class="pl-ynbtn" data-yn="yes" aria-pressed="false"><b>Yes</b><span>I will add them</span></button>
-        <button type="button" class="pl-ynbtn" data-yn="no" aria-pressed="false"><b>No</b><span>Just bare walls</span></button>
-      </div>
-      <div class="pl-g-open" id="pl-g-open" hidden>
-        <div class="pl-addrow" id="pl-g-add" role="group" aria-label="Add to the room">
-          ${Object.entries(OPENING_TYPES).map(([k, t]) => `<button type="button" class="pl-addbtn" data-add="${k}">${OPEN_ICON[k]}<span><span aria-hidden="true">+ </span>${t.label}</span></button>`).join('')}
-        </div>
-        <div class="pl-chips pl-chips--row pl-g-oplist" id="pl-g-oplist" role="radiogroup" aria-label="Your doors, windows and radiators" hidden></div>
-      </div>
-    </section>
-
     <section class="pl-gq" data-gq="type" hidden>
       <div class="pl-types pl-types--big" id="pl-g-types" role="group" aria-label="What to build">
         ${Object.entries(TYPES).map(([id, t]) => `
@@ -118,7 +94,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
       <ul class="pl-gpieces" id="pl-g-pieces" aria-label="Your pieces"></ul>
       <div class="pl-yn pl-yn--stack" role="group" aria-label="What next?">
         <button type="button" class="pl-ynbtn pl-ynbtn--add" data-more="add" id="pl-g-add-piece"><b>Yes, add another piece</b><span>Back to choosing a type</span></button>
-        <button type="button" class="pl-ynbtn pl-ynbtn--go" data-more="done"><b>No, show me the result</b><span>See your room in 3D and the price</span></button>
+        <button type="button" class="pl-ynbtn pl-ynbtn--go" data-more="done"><b>No, show me the result</b><span>See your furniture in 3D and the price</span></button>
       </div>
     </section>
 
@@ -144,9 +120,6 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     </section>`;
 
   roving($('#pl-g-types'), { selector: '[data-type]' });
-  roving($('#pl-g-add'), { selector: '[data-add]' });
-  roving($('#pl-g-oplist'), { selector: '[data-op]', selects: true });
-  roving($('#pl-g-yn'), { selector: '[data-yn]' });
   roving($('#pl-g-arrange'), { selector: '[data-arr]' });
   roving($('#pl-g-colour'), { selector: '[data-front]', selects: true });
   roving($('#pl-g-handle'), { selector: '[data-handle]', selects: true });
@@ -155,16 +128,8 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   roving($('#pl-g-presets'), { selector: '[data-preset]' });
 
   // ---------- going from question to question ----------
-  function ensurePlaced() {
-    const p = piece();
-    if (!p || state.project.placements.some((pl) => pl.pieceId === p.id) || placedTried.has(p.id)) return;
-    placedTried.add(p.id);
-    store.dispatch({ type: 'place/set', id: p.id, spec: { ...G.suggestPlacement(state.project, p.id), snap: false } });
-    seal();
-  }
-
   function go(id, { quiet = false } = {}) {
-    id = F.settle(id, { pieces: state.project.pieces.length, placed: placedCount(), hasInside: insideOf() });
+    id = F.settle(id, { pieces: state.project.pieces.length, hasInside: insideOf() });
     const v = F.view(id, vflags());
     navigating = true;
     userNav = userNav || !quiet;
@@ -173,13 +138,11 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     if (id === 'look') flags.lookMore = false;
     if (id === 'arrange') flags.arrange = false;
     if (id === 'inside') flags.scope = 'all';
-    if (id === 'place') placedTried.clear();
     if (id !== 'send') sent = null;
     if (id !== 'type') returnTo = null;
     reached.add(F.chapterOf(id));
     if (id !== 'type' && state.ui.starting && piece()) store.dispatch({ type: 'ui/piece', id: piece().id });
     if (state.ui.step !== v.step) store.dispatch({ type: 'ui/step', step: v.step });
-    if (id === 'place') ensurePlaced();
     navigating = false;
     refresh();
     if (!quiet) { focusTitle(); announce(F.announcement(id, ctx())); }
@@ -211,7 +174,6 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     let label = meta.next, hidden = false;
     const p = piece();
     switch (q) {
-      case 'openings': hidden = F.openingsAnswer(state.project, flags.openings) !== true; break;
       case 'type': hidden = !p || !!state.ui.starting; break;
       case 'inside': label = touched() ? 'Continue' : 'Use your suggestion'; break;
       case 'arrange': hidden = !flags.arrange; label = 'Done arranging'; break;
@@ -222,7 +184,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     const skipShown = !!meta.optional && q !== 'arrange' && !touched();
     return {
       label, nextHidden: hidden, skipHidden: !skipShown,
-      backDisabled: F.prevId(q, ctx()) === null || (q === 'send' && false),
+      backDisabled: F.prevId(q, ctx()) === null,
       review: q === 'review', last: q === 'send'
     };
   }
@@ -232,10 +194,9 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     if (q === 'send' && sent) return { prefix: '', title: `Thank you, ${sent.name.split(/\s+/)[0]}.`, help: 'Here is your reference. This is a concept site, so nothing left your browser.', key: 'sent' };
     // with more than one piece, the help line says which one the question is about
     const p = piece();
-    const about = p && state.project.pieces.length > 1 && ['style', 'look', 'piece-size', 'inside', 'arrange', 'place'].includes(q) ? `${pieceLabel(state.project, p.id)}. ` : '';
+    const about = p && state.project.pieces.length > 1 && ['style', 'look', 'piece-size', 'inside', 'arrange'].includes(q) ? `${pieceLabel(state.project, p.id)}. ` : '';
     return { prefix: `Question ${pos.n} of ${pos.total}: `, title: meta.title, help: about + meta.help, key: `${q}|${pos.n}|${pos.total}|${about}` };
   }
-  const elevation = () => q === 'openings' && openingsYes();
 
   // the questions of the current chapter as dots under the title; any question up to the furthest one reached can be
   // jumped to (later ones stay shut so nobody lands on a question whose earlier answers are missing)
@@ -257,14 +218,14 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     buttons.forEach((b, i) => {
       const li = b.closest('.pl-step');
       const current = i === cur;
-      const skipped = i === 2 && !c.hasInside;
+      const skipped = i === 1 && !c.hasInside;
       const ok = current || reached.has(i) || skipped;
       const warn = issues[i] > 0 && reached.has(i) && !current;
       const done = !current && (reached.has(i) || i < cur) && !warn;
-      const complete = current && i === 4 && placedCount() > 0;
+      const complete = current && i === 2 && state.project.pieces.length > 0;
       li.classList.toggle('is-current', current);
       li.classList.toggle('is-warn', warn);
-      li.classList.toggle('is-done', done || (skipped && cur > 2));
+      li.classList.toggle('is-done', done || (skipped && cur > 1));
       li.classList.toggle('is-complete', complete);
       li.classList.toggle('is-skipped', skipped);
       const q2 = li.querySelector('.pl-step__q');
@@ -287,7 +248,6 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     set('q', q);
     set('arrange', flags.arrange ? '1' : '0');
     set('more', flags.lookMore ? '1' : '0');
-    set('answered', q === 'openings' ? (openingsYes() ? 'yes' : F.openingsAnswer(state.project, flags.openings) === false ? 'no' : '') : '');
   }
 
   function settleWithState() {
@@ -297,10 +257,9 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
       if (v.step !== state.ui.step) {
         const p = piece();
         const item = p && state.ui.item !== null;
-        const to = F.questionForStep(state.ui.step, { openingId: state.ui.openingId, itemSelected: item, starting: state.ui.starting, hasPiece: !!p });
-        if (to === 'openings') flags.openings = true;
+        const to = F.questionForStep(state.ui.step, { itemSelected: item, starting: state.ui.starting, hasPiece: !!p });
         if (to === 'arrange' && item) flags.arrange = true;
-        q = F.settle(to, { pieces: state.project.pieces.length, placed: placedCount(), hasInside: p ? F.hasInside(p) : true });
+        q = F.settle(to, { pieces: state.project.pieces.length, hasInside: p ? F.hasInside(p) : true });
         entry = state.project;
         reached.add(F.chapterOf(q));
         if (userNav) { focusTitle(); announce(F.announcement(q, ctx())); }
@@ -310,76 +269,11 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     const needs = F.byId(q).needs;
     if (needs && !piece() && !state.project.pieces.length) {
       q = 'type';
-      queueMicrotask(() => { if (active && state.ui.step !== 1) { navigating = true; store.dispatch({ type: 'ui/step', step: 1 }); navigating = false; } });
+      queueMicrotask(() => { if (active && state.ui.step !== 0) { navigating = true; store.dispatch({ type: 'ui/step', step: 0 }); navigating = false; } });
     } else if (q === 'inside' || q === 'arrange') {
-      if (!F.hasInside(piece())) q = 'place';
-    }
-    if (q === 'place' && piece() && !state.project.placements.some((pl) => pl.pieceId === piece().id) && !placedTried.has(piece().id)) {
-      queueMicrotask(() => { if (active && q === 'place') ensurePlaced(); });
+      if (!F.hasInside(piece())) q = 'more';
     }
     reached.add(F.chapterOf(q));
-  }
-
-  // ---------- Yes / No answers ----------
-  $('#pl-g-yn').addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-yn]');
-    if (!b) return;
-    if (b.dataset.yn === 'yes') {
-      flags.openings = true;
-      refresh();
-      announce('Add the doors, windows and radiators of the room.');
-      const first = $('#pl-g-add [data-add]');
-      if (first) first.focus();
-      return;
-    }
-    const n = state.project.room.openings.length;
-    if (n) {
-      const ok = await confirmAction({
-        title: 'Remove them from the room?',
-        text: `You have ${n} ${n === 1 ? 'opening' : 'openings'} in the room. Saying no takes ${n === 1 ? 'it' : 'them'} out again. Undo brings ${n === 1 ? 'it' : 'them'} back.`,
-        yes: 'Remove', no: 'Keep them'
-      });
-      if (!ok) return;
-      for (const o of [...state.project.room.openings]) store.dispatch({ type: 'room/opening/remove', id: o.id });
-      seal();
-    }
-    flags.openings = false;
-    go(F.nextId('openings', ctx()));
-  });
-  $('#pl-g-add').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-add]');
-    if (!b) return;
-    const before = state.project.room.openings.length;
-    store.dispatch({ type: 'room/opening/add', opening: { type: b.dataset.add } });
-    seal();
-    if (state.project.room.openings.length > before) {
-      announce(`${OPENING_TYPES[b.dataset.add].label} added to wall ${wallNo(state.ui.wallId)}.`);
-    }
-  });
-  $('#pl-g-oplist').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-op]');
-    if (b) store.dispatch({ type: 'ui/opening', id: b.dataset.op });
-  });
-  function renderOpenings() {
-    const room = state.project.room;
-    const ans = F.openingsAnswer(state.project, flags.openings);
-    const yn = $('#pl-g-yn');
-    yn.classList.toggle('is-answered', ans !== null);
-    yn.querySelector('[data-yn="yes"]').setAttribute('aria-pressed', String(ans === true));
-    yn.querySelector('[data-yn="no"]').setAttribute('aria-pressed', String(ans === false));
-    $('#pl-g-open').hidden = ans !== true;
-    const list = $('#pl-g-oplist');
-    list.hidden = !room.openings.length;
-    const key = JSON.stringify(room.openings.map((o) => [o.id, o.type, o.wallId]));
-    if (key !== keys.open) {
-      keys.open = key;
-      list.innerHTML = room.openings.map((o) => {
-        const same = room.openings.filter((x) => x.type === o.type);
-        const name = `${OPENING_TYPES[o.type].label}${same.length > 1 ? ` ${same.indexOf(o) + 1}` : ''}`;
-        return `<button type="button" role="radio" class="pl-chip pl-chip--plain" data-op="${esc(o.id)}" aria-checked="false" tabindex="-1">${esc(name)}<i>${wallNo(o.wallId)}</i><span class="visually-hidden"> on wall ${wallNo(o.wallId)}</span></button>`;
-      }).join('');
-    }
-    list.querySelectorAll('[data-op]').forEach((b) => { const on = String(b.dataset.op === state.ui.openingId); if (b.getAttribute('aria-checked') !== on) b.setAttribute('aria-checked', on); });
   }
 
   // ---------- "What would you like us to build?" ----------
@@ -396,7 +290,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     store.dispatch({ type: 'piece/add', pieceType: type });
     seal();
     const made = piece();
-    if (!made || (adding && state.project.pieces.length <= n)) { announce('There is no room for another piece.'); return; }
+    if (!made || (adding && state.project.pieces.length <= n)) { announce('A design can hold up to 40 pieces, and you have reached that.'); return; }
     announce(`${pieceLabel(state.project, made.id)} added. Choose its look next.`);
     go('style', { quiet: true });
     focusTitle();
@@ -414,7 +308,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   }
 
   // ---------- "Want to change the colour or handles?" ----------
-  const solo = (pc) => ({ v: 2, room: state.project.room, pieces: [pc], placements: [] });
+  const solo = (pc) => ({ v: 2, pieces: [pc] });
   const totalOf = (pc) => quoteProject(solo(pc), { vat: true }).cents.total;
   function patchPiece(patch) {
     store.dispatch({ type: 'piece/update', patch: { ...patch, style: 'custom' } });
@@ -484,7 +378,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   $('#pl-g-more').addEventListener('click', () => {
     flags.lookMore = true;
     refresh();
-    const first = host.ownerDocument.querySelector('[data-panel="1"] .pl-ltab[aria-selected="true"], [data-panel="1"] .pl-ltab');
+    const first = host.ownerDocument.querySelector('[data-panel="0"] .pl-ltab[aria-selected="true"], [data-panel="0"] .pl-ltab');
     $('#pl-g-less').focus();
     void first;
     announce('All the look options are open.');
@@ -565,7 +459,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     if (b.dataset.arr === 'no') { go(F.nextId('arrange', ctx())); return; }
     flags.arrange = true;
     refresh();
-    const first = document.querySelector('[data-panel="2"] [role="tab"][aria-selected="true"]');
+    const first = document.querySelector('[data-panel="1"] [role="tab"][aria-selected="true"]');
     if (first) first.focus();
     announce('The inside editor is open. Drag items up and down, or use the arrow keys.');
   });
@@ -573,15 +467,14 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   // ---------- "Would you like anything else built?" ----------
   function renderMore() {
     const prj = state.project;
-    const key = JSON.stringify([prj.pieces.map((p) => [p.id, p.type, p.width, p.height, p.depth]), prj.placements.map((pl) => [pl.pieceId, pl.mode, pl.wallId]), state.ui.pieceId]);
+    const key = JSON.stringify([prj.pieces.map((p) => [p.id, p.type, p.width, p.height, p.depth, p.fronts.material]), state.ui.pieceId]);
     if (key === keys.more) return;
     keys.more = key;
     $('#pl-g-pieces').innerHTML = prj.pieces.map((p) => {
-      const pl = prj.placements.find((x) => x.pieceId === p.id);
-      const where = !pl ? 'Not placed yet' : pl.mode === 'free' ? 'Free-standing' : `Wall ${wallNo(pl.wallId)}`;
       const name = pieceLabel(prj, p.id);
-      return `<li class="pl-gpiece${pl ? '' : ' is-unplaced'}"><span class="pl-gpiece__t"><b>${esc(name)}</b><span>${p.width} × ${p.height} × ${p.depth} cm · ${esc(where)}</span></span>
-        <span class="pl-gpiece__a">${pl ? '' : `<button type="button" class="pl-btn pl-btn--small pl-btn--accent" data-place="${esc(p.id)}">Place<span class="visually-hidden"> ${esc(name)}</span></button>`}<button type="button" class="pl-btn pl-btn--small pl-btn--ghost" data-edit="${esc(p.id)}">Edit<span class="visually-hidden"> ${esc(name)}</span></button><button type="button" class="pl-btn pl-btn--small pl-btn--ghost pl-btn--del" data-remove="${esc(p.id)}">${ICON_TRASH}<span class="pl-btn__t">Remove</span><span class="visually-hidden"> ${esc(name)}</span></button></span></li>`;
+      const look = (MATERIALS[p.fronts.material] || { label: '' }).label;
+      return `<li class="pl-gpiece"><span class="pl-gpiece__t"><b>${esc(name)}</b><span>${p.width} × ${p.height} × ${p.depth} cm${look ? ` · ${esc(look.toLowerCase())}` : ''}</span></span>
+        <span class="pl-gpiece__a"><button type="button" class="pl-btn pl-btn--small pl-btn--ghost" data-edit="${esc(p.id)}">Edit<span class="visually-hidden"> ${esc(name)}</span></button><button type="button" class="pl-btn pl-btn--small pl-btn--ghost pl-btn--del" data-remove="${esc(p.id)}">${ICON_TRASH}<span class="pl-btn__t">Remove</span><span class="visually-hidden"> ${esc(name)}</span></button></span></li>`;
     }).join('');
   }
   $('[data-gq="more"]').addEventListener('click', async (e) => {
@@ -598,15 +491,13 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     }
     const ed = e.target.closest('[data-edit]');
     if (ed) { store.dispatch({ type: 'ui/piece', id: ed.dataset.edit }); go('style'); return; }
-    const pl = e.target.closest('[data-place]');
-    if (pl) { store.dispatch({ type: 'ui/piece', id: pl.dataset.place }); go('place'); return; }
     const rm = e.target.closest('[data-remove]');
     if (rm) {
       const id = rm.dataset.remove;
       const name = pieceLabel(state.project, id);
       const ok = await confirmAction({
         title: `Remove ${name}?`,
-        text: `This takes the ${name.toLowerCase()} and its place in the room out of your design. Undo brings it back.`,
+        text: `This takes the ${name.toLowerCase()} out of your design. Undo brings it back.`,
         yes: `Remove ${name.toLowerCase()}`, no: 'Keep it'
       });
       if (!ok) return;
@@ -649,11 +540,10 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     if (!item) return;
     if (item.code === 'no-pieces') { navigating = true; store.dispatch({ type: 'ui/new-piece' }); navigating = false; go('type'); return; }
     if (item.pieceId) store.dispatch({ type: 'ui/piece', id: item.pieceId });
-    if (item.openingId) { flags.openings = true; store.dispatch({ type: 'ui/opening', id: item.openingId }); }
     const r = item.ref;
     if (r && r.type === 'bay') store.dispatch({ type: 'ui/bay', bay: r.bay });
     if (r && r.type === 'item') { flags.arrange = true; store.dispatch({ type: 'ui/item', bay: r.bay, index: r.index }); }
-    const to = F.questionForStep(item.step, { openingId: item.openingId, itemSelected: r && r.type === 'item', hasPiece: !!piece() });
+    const to = F.questionForStep(item.step, { itemSelected: r && r.type === 'item', hasPiece: !!piece() });
     if (to === 'arrange' && r && r.type === 'item') flags.arrange = true;
     go(to);
     if (to === 'arrange') flags.arrange = !!(r && r.type === 'item');
@@ -720,7 +610,6 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     host.hidden = false;
     host.querySelectorAll('[data-gq]').forEach((s) => { const on = s.dataset.gq === q; if (s.hidden === on) s.hidden = !on; });
     switch (q) {
-      case 'openings': renderOpenings(); break;
       case 'type': renderTypes(); break;
       case 'look': if (piece()) syncLook(piece()); break;
       case 'inside': renderInside(); break;
@@ -742,15 +631,15 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     if (save) saveMode(on ? 'guided' : 'expert');
     if (on) {
       const p = piece();
-      q = F.questionForStep(state.ui.step, { openingId: state.ui.openingId, itemSelected: p && state.ui.item !== null, starting: state.ui.starting, hasPiece: !!p });
-      q = F.settle(q, { pieces: state.project.pieces.length, placed: placedCount(), hasInside: p ? F.hasInside(p) : true });
+      q = F.questionForStep(state.ui.step, { itemSelected: p && state.ui.item !== null, starting: state.ui.starting, hasPiece: !!p });
+      q = F.settle(q, { pieces: state.project.pieces.length, hasInside: p ? F.hasInside(p) : true });
       for (let i = 0; i <= state.ui.step; i++) reached.add(i);
       entry = state.project;
       app.dataset.mode = 'guided';
       host.hidden = false;
     } else {
       app.dataset.mode = 'expert';
-      delete app.dataset.q; delete app.dataset.arrange; delete app.dataset.more; delete app.dataset.answered;
+      delete app.dataset.q; delete app.dataset.arrange; delete app.dataset.more;
       host.hidden = true;
       // every step goes back to one section at a time, the one that answers the question on show for this step
       views.forEach((v, i) => {
@@ -765,10 +654,10 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
   function init({ landing } = {}) {
     app.dataset.mode = active ? 'guided' : 'expert';
     if (landing) {
-      q = F.settle(landing, { pieces: state.project.pieces.length, placed: placedCount(), hasInside: insideOf() });
+      q = F.settle(landing, { pieces: state.project.pieces.length, hasInside: insideOf() });
       const ch = F.chapterOf(q);
       for (let i = 0; i <= ch; i++) reached.add(i);
-      if (q === 'review') for (let i = 0; i < 5; i++) reached.add(i);
+      if (q === 'review') for (let i = 0; i < F.CHAPTERS.length; i++) reached.add(i);
       entry = state.project;
       const v = F.view(q, vflags());
       // the tabbed view opens on the first step, as it always has; only the questions land on the review
@@ -780,7 +669,7 @@ export function createGuided({ store, announce = () => {}, confirmAction, views,
     get active() { return active; },
     get q() { return q; },
     get mode() { return active ? 'guided' : 'expert'; },
-    setMode, init, update, go, next, back, skip, goChapter, footer, head, dots, elevation, renderStepper,
+    setMode, init, update, go, next, back, skip, goChapter, footer, head, dots, renderStepper,
     moved() { userNav = true; },
     isCompact
   };

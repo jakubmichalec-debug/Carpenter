@@ -9,31 +9,36 @@ const withPiece = (type) => {
   return { project: p, piece: p.pieces[0] };
 };
 
-test('the flow has 14 questions in the five chapters, each asked once', () => {
-  assert.equal(F.QUESTIONS.length, 14);
-  assert.equal(new Set(F.IDS).size, 14);
-  assert.deepEqual(F.CHAPTERS, ['Room', 'Furniture', 'Interior', 'Place', 'Review']);
+test('the flow has 9 questions in the three chapters, each asked once, in the order of the brief', () => {
+  assert.equal(F.QUESTIONS.length, 9);
+  assert.equal(new Set(F.IDS).size, 9);
+  assert.deepEqual(F.CHAPTERS, ['Furniture', 'Interior', 'Review']);
   const per = F.CHAPTERS.map((_, i) => F.QUESTIONS.filter((q) => q.chapter === i).map((q) => q.id));
   assert.deepEqual(per, [
-    ['shape', 'size', 'openings', 'finish'],
     ['type', 'style', 'look', 'piece-size'],
     ['inside', 'arrange'],
-    ['place', 'more'],
-    ['review', 'send']
+    ['more', 'review', 'send']
   ]);
+  assert.deepEqual(F.QUESTIONS.map((q) => q.title), [
+    'What would you like us to build?', 'Which look do you like best?', 'Want to change the colour or handles?', 'How big should it be?',
+    'What should go inside?', 'Want to arrange it yourself?', 'Would you like anything else built?', 'Here’s your furniture.', 'Where should we send your design?'
+  ]);
+  assert.deepEqual(F.QUESTIONS.filter((q) => q.optional).map((q) => q.id), ['look', 'arrange']);
   for (const q of F.QUESTIONS) {
     assert.ok(q.title.length > 3 && q.help.length > 3 && q.next, q.id);
     assert.ok(q.help.length <= 60, `${q.id}: one short line of help`);
+    assert.ok(!/room|wall|place it|where should it go/i.test(`${q.title} ${q.help}`) || q.id === 'piece-size', `${q.id}: no room planner copy`);
   }
+  assert.equal(F.IDS.includes('shape') || F.IDS.includes('size') || F.IDS.includes('openings') || F.IDS.includes('finish') || F.IDS.includes('place'), false, 'no Room or Place questions');
   // chapters never go backwards along the list
   const ch = F.QUESTIONS.map((q) => q.chapter);
   assert.deepEqual(ch, [...ch].sort((a, b) => a - b));
 });
 
 test('every question names the editor sections it shows, in the step it belongs to', () => {
-  const SECTIONS = [['shape', 'size', 'walls', 'finish'], ['pieces', 'style', 'look', 'size'], ['layout', 'add', 'options', 'item'], ['pieces', 'position', 'clashes'], ['quote', 'share']];
+  const SECTIONS = [['pieces', 'style', 'look', 'size'], ['layout', 'add', 'options', 'item'], ['quote', 'share']];
   for (const q of F.QUESTIONS) {
-    for (const flags of [{}, { openings: true, arrange: true, lookMore: true }]) {
+    for (const flags of [{}, { arrange: true, lookMore: true }]) {
       const v = F.view(q.id, flags);
       assert.equal(v.step, q.chapter, q.id);
       for (const s of v.sections) assert.ok(SECTIONS[v.step].includes(s), `${q.id}: ${s}`);
@@ -42,38 +47,41 @@ test('every question names the editor sections it shows, in the step it belongs 
     assert.ok(SECTIONS[q.chapter].includes(ex), `${q.id} has a tab in the tabbed view`);
   }
   // an answer opens the editor behind it
-  assert.deepEqual(F.view('openings', {}).sections, []);
-  assert.deepEqual(F.view('openings', { openings: true }).sections, ['walls']);
   assert.deepEqual(F.view('look', {}).sections, []);
   assert.deepEqual(F.view('look', { lookMore: true }).sections, ['look']);
   assert.deepEqual(F.view('arrange', {}).sections, []);
-  assert.deepEqual(F.view('place').sections, ['position', 'clashes']);
+  assert.deepEqual(F.view('arrange', { arrange: true }).sections, ['layout']);
+  assert.deepEqual(F.view('piece-size').sections, ['size']);
+  assert.deepEqual(F.view('review').sections, ['quote', 'share']);
+  assert.deepEqual(F.DEFAULT_SECTIONS, ['pieces', 'layout', 'quote']);
 });
 
-test('next and back walk the questions in order', () => {
+test('flow order without Room or Place: Furniture, Interior, Review', () => {
   const all = F.activeIds({ hasInside: true });
-  assert.equal(all.length, 14);
-  let id = 'shape';
+  assert.deepEqual(all, ['type', 'style', 'look', 'piece-size', 'inside', 'arrange', 'more', 'review', 'send']);
+  let id = 'type';
   const seen = [id];
   while (F.nextId(id, { hasInside: true })) { id = F.nextId(id, { hasInside: true }); seen.push(id); }
   assert.deepEqual(seen, F.IDS);
-  assert.equal(F.prevId('shape', {}), null);
+  assert.equal(F.prevId('type', {}), null);
   assert.equal(F.nextId('send', {}), null);
   for (let i = 1; i < F.IDS.length; i++) assert.equal(F.prevId(F.IDS[i], {}), F.IDS[i - 1]);
+  assert.equal(F.firstOfChapter(0, {}), 'type');
+  assert.equal(F.firstOfChapter(2, {}), 'more');
 });
 
 test('a piece with no inside skips the two Interior questions, both ways', () => {
   const ctx = { hasInside: false };
-  assert.equal(F.activeIds(ctx).length, 12);
-  assert.equal(F.nextId('piece-size', ctx), 'place');
-  assert.equal(F.prevId('place', ctx), 'piece-size');
-  assert.equal(F.firstOfChapter(2, ctx), null);
-  assert.equal(F.firstOfChapter(2, { hasInside: true }), 'inside');
+  assert.deepEqual(F.activeIds(ctx), ['type', 'style', 'look', 'piece-size', 'more', 'review', 'send']);
+  assert.equal(F.nextId('piece-size', ctx), 'more');
+  assert.equal(F.prevId('more', ctx), 'piece-size');
+  assert.equal(F.firstOfChapter(1, ctx), null);
+  assert.equal(F.firstOfChapter(1, { hasInside: true }), 'inside');
   // asked about a question that is not asked: still finds its neighbours
-  assert.equal(F.nextId('inside', ctx), 'place');
+  assert.equal(F.nextId('inside', ctx), 'more');
   assert.equal(F.prevId('arrange', ctx), 'piece-size');
-  assert.equal(F.position('place', ctx).n, 9);
-  assert.equal(F.position('place', ctx).total, 12);
+  assert.equal(F.position('more', ctx).n, 5);
+  assert.equal(F.position('more', ctx).total, 7);
 });
 
 test('hasInside follows the type: a table has none, a wardrobe has', () => {
@@ -84,58 +92,42 @@ test('hasInside follows the type: a table has none, a wardrobe has', () => {
 });
 
 test('position and the spoken announcement', () => {
-  const p = F.position('openings', { hasInside: true });
-  assert.deepEqual(p, { n: 3, total: 14, k: 3, of: 4, chapter: 0 });
-  assert.equal(F.announcement('openings', { hasInside: true }), 'Question 3 of 14: Are there doors, windows or radiators?');
-  assert.equal(F.chapterProgress('size', {}), 'Question 2 of 4');
+  const p = F.position('piece-size', { hasInside: true });
+  assert.deepEqual(p, { n: 4, total: 9, k: 4, of: 4, chapter: 0 });
+  assert.equal(F.announcement('piece-size', { hasInside: true }), 'Question 4 of 9: How big should it be?');
+  assert.equal(F.chapterProgress('style', {}), 'Question 2 of 4');
   assert.equal(F.chapterProgress('arrange', { hasInside: true }), 'Question 2 of 2');
-  assert.equal(F.chapterProgress('send', {}), 'Question 2 of 2');
-  assert.equal(F.position('send', { hasInside: true }).n, 14);
-  assert.equal(F.byId('shape').title, 'Hi! What shape is your room?');
+  assert.equal(F.chapterProgress('send', {}), 'Question 3 of 3');
+  assert.equal(F.position('send', { hasInside: true }).n, 9);
+  assert.equal(F.byId('type').title, 'What would you like us to build?');
 });
 
 test('settle: a question that cannot be asked yet becomes the one that comes first', () => {
-  const none = { pieces: 0, placed: 0, hasInside: true };
-  for (const id of ['style', 'look', 'piece-size', 'inside', 'arrange', 'place', 'more', 'review', 'send']) assert.equal(F.settle(id, none), 'type', id);
-  for (const id of ['shape', 'size', 'openings', 'finish', 'type']) assert.equal(F.settle(id, none), id, id);
-  const some = { pieces: 1, placed: 0, hasInside: true };
+  const none = { pieces: 0, hasInside: true };
+  for (const id of ['style', 'look', 'piece-size', 'inside', 'arrange', 'more', 'review', 'send']) assert.equal(F.settle(id, none), 'type', id);
+  assert.equal(F.settle('type', none), 'type');
+  const some = { pieces: 1, hasInside: true };
   assert.equal(F.settle('style', some), 'style');
-  assert.equal(F.settle('send', some), 'place', 'nothing stands in the room yet');
-  assert.equal(F.settle('send', { ...some, placed: 1 }), 'send');
-  assert.equal(F.settle('inside', { ...some, hasInside: false }), 'place');
-  assert.equal(F.settle('nonsense', some), 'shape');
+  assert.equal(F.settle('send', some), 'send', 'nothing has to be placed any more');
+  assert.equal(F.settle('inside', { ...some, hasInside: false }), 'more');
+  assert.equal(F.settle('nonsense', some), 'type');
 });
 
-test('landing: saved projects and links open on the review when something stands in the room', () => {
+test('landing: saved projects and links open on the review when there is something to see', () => {
   const blank = M.createBlankProject();
   assert.equal(F.landing(blank), 'type');
-  const piece = M.addPiece(blank, 'wardrobe');
-  assert.equal(F.landing(piece), 'place');
-  assert.equal(F.landing(M.createProject()), 'review', 'the example project has pieces in place');
+  assert.equal(F.landing(M.addPiece(blank, 'wardrobe')), 'review', 'one piece is enough: nothing needs placing');
+  assert.equal(F.landing(M.createProject()), 'review');
   assert.equal(F.landing(null), 'type');
 });
 
 test('an outside step change maps to that step’s question', () => {
-  assert.equal(F.questionForStep(0, {}), 'shape');
-  assert.equal(F.questionForStep(0, { openingId: 'o1' }), 'openings');
-  assert.equal(F.questionForStep(1, { hasPiece: true }), 'style');
-  assert.equal(F.questionForStep(1, { hasPiece: true, starting: true }), 'type');
-  assert.equal(F.questionForStep(1, { hasPiece: false }), 'type');
-  assert.equal(F.questionForStep(2, {}), 'inside');
-  assert.equal(F.questionForStep(2, { itemSelected: true }), 'arrange');
-  assert.equal(F.questionForStep(3, {}), 'place');
-  assert.equal(F.questionForStep(4, {}), 'review');
-});
-
-test('openingsAnswer: a room with openings is a Yes; otherwise what was said', () => {
-  const blank = M.createBlankProject();
-  assert.equal(F.openingsAnswer(blank, undefined), null);
-  assert.equal(F.openingsAnswer(blank, null), null);
-  assert.equal(F.openingsAnswer(blank, true), true);
-  assert.equal(F.openingsAnswer(blank, false), false);
-  const door = M.addOpening(blank, { type: 'door', wallId: blank.room.walls[0].id, offset: 50, width: 90, height: 210, bottom: 0 });
-  assert.ok(door.room.openings.length > 0);
-  assert.equal(F.openingsAnswer(door, false), true);
+  assert.equal(F.questionForStep(0, { hasPiece: true }), 'style');
+  assert.equal(F.questionForStep(0, { hasPiece: true, starting: true }), 'type');
+  assert.equal(F.questionForStep(0, { hasPiece: false }), 'type');
+  assert.equal(F.questionForStep(1, {}), 'inside');
+  assert.equal(F.questionForStep(1, { itemSelected: true }), 'arrange');
+  assert.equal(F.questionForStep(2, {}), 'review');
 });
 
 test('commonFronts keeps the short list in order, only what is in stock, and the piece’s own colour', () => {

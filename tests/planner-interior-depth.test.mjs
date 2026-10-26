@@ -11,8 +11,7 @@ import { changeBayCount, suggestY } from '../site/js/planner/interior-geom.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const FIX = new URL('./fixtures/', import.meta.url);
-const room = M.createProject().room;
-const solo = (piece) => ({ v: 2, room, pieces: [piece], placements: [] });
+const solo = (piece) => ({ v: 2, pieces: [piece] });
 const total = (piece) => quoteProject(solo(piece), { vat: false }).cents.total;
 const lines = (piece) => quoteProject(solo(piece), { vat: false }).pieces[0].lines;
 const wardrobe = (o = {}) => M.createPiece('wardrobe', 'flat-oak', { id: 'w', width: 200, bays: 2, ...o });
@@ -153,7 +152,7 @@ test('presets: every one builds for its types, with items that type may hold and
         const items = piece.bays[0].items;
         if (id !== 'shelves') assert.ok(items.length > 0, `${id}/${type}/${width} is empty`);
         for (const it of items) assert.ok(T.palette.includes(it.kind), `${id}/${type}: ${it.kind} is not in the palette`);
-        const errs = validateProject({ ...p, placements: [] }).errors.filter((e) => e.blocking && e.ref.type !== 'placement' && !/wide|deep/.test(e.message));
+        const errs = validateProject({ ...p }).errors.filter((e) => e.blocking && e.ref.type !== 'placement' && !/wide|deep/.test(e.message));
         assert.deepEqual(errs.map((e) => e.message), [], `${id}/${type}/${width}`);
       }
     }

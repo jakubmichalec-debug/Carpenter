@@ -7,32 +7,21 @@ import { createDesign, addModule } from '../site/js/configurator/model.js';
 
 const cents = (x) => Math.round(x * 100);
 
-function rectRoom() {
-  const p = M.createProject();
-  const room = M.setTemplate(p, 'rect', { width: 600, depth: 420 }).room;
-  return { ...M.setTemplate(p, 'rect', { width: 600, depth: 420 }), room: { ...room, openings: [] }, pieces: [], placements: [] };
-}
+const empty = () => ({ v: 2, pieces: [] });
 function wardrobe240(extra = {}) {
-  let p = rectRoom();
-  p = M.addPiece(p, 'wardrobe', 'flat-oak', { id: 'w', ...extra });
-  return M.placePiece(p, 'w', { mode: 'wall', wallId: 'w1', offset: 0 });
+  return M.addPiece(empty(), 'wardrobe', 'flat-oak', { id: 'w', ...extra });
 }
 function kitchenRun() {
-  let p = rectRoom();
+  let p = empty();
   for (let i = 0; i < 5; i++) {
     p = M.addPiece(p, 'kitchen-base', 'sage-kitchen', { id: `b${i}` });
-    p = M.placePiece(p, `b${i}`, { mode: 'wall', wallId: 'w1', offset: i * 60 });
     p = M.addPiece(p, 'kitchen-wall', 'sage-kitchen', { id: `u${i}` });
-    p = M.placePiece(p, `u${i}`, { mode: 'wall', wallId: 'w1', offset: i * 60 });
   }
   return p;
 }
 const everything = () => {
   let p = M.createProject();
-  for (const t of Object.keys(M.TYPES)) {
-    p = M.addPiece(p, t, undefined, { id: `x-${t}` });
-    p = M.placePiece(p, `x-${t}`, M.TYPES[t].freestanding ? { mode: 'free', x: 300, z: 200, rotation: 0 } : { mode: 'wall', wallId: 'w7', offset: 0 });
-  }
+  for (const t of Object.keys(M.TYPES)) p = M.addPiece(p, t, undefined, { id: `x-${t}` });
   p = M.addPiece(p, 'wardrobe', 'charcoal-sliding', { id: 'sl' });
   p = M.addPiece(p, 'tall-cabinet', 'glass-oak', { id: 'gl' });
   p = M.addPiece(p, 'wardrobe', 'flat-oak', { id: 'fe', bays: 4 });
@@ -73,15 +62,15 @@ function checkInvariants(p, opts) {
 }
 
 test('quote invariants hold on every kind of project, with and without VAT', () => {
-  for (const [name, p] of [['default', M.createProject()], ['wardrobe', wardrobe240()], ['kitchen', kitchenRun()], ['everything', everything()], ['empty', rectRoom()]]) {
+  for (const [name, p] of [['default', M.createProject()], ['wardrobe', wardrobe240()], ['kitchen', kitchenRun()], ['everything', everything()], ['empty', empty()]]) {
     for (const vat of [true, false]) {
       const q = checkInvariants(p, { vat });
       assert.ok(q.leadTimeWeeks >= 4, name);
     }
     checkInvariants(p);
   }
-  const empty = quoteProject(rectRoom());
-  assert.deepEqual([empty.subtotal, empty.vat, empty.total, empty.pieces.length, empty.cutList.length], [0, 0, 0, 0, 0]);
+  const none = quoteProject(empty());
+  assert.deepEqual([none.subtotal, none.vat, none.total, none.pieces.length, none.cutList.length], [0, 0, 0, 0, 0]);
 });
 
 test('a 240 cm oak wardrobe with three fitted bays costs roughly EUR 4,500 to 8,000 incl. VAT', () => {
@@ -143,7 +132,7 @@ test('every line points at a piece, bay or item: "Wardrobe 1 > Section 2 > 3 dra
 
 test('hinges follow the door height: 2 up to 100 cm, 3 up to 200 cm, 4 above', () => {
   const hinges = (type, height) => {
-    let p = rectRoom();
+    let p = empty();
     p = M.addPiece(p, type, undefined, { id: 'h', height, width: 60, bays: 1 });
     p.pieces[0].bays = [{ width: p.pieces[0].bays[0].width, door: 'left', items: [] }];
     const q = quoteProject(p);
@@ -156,7 +145,7 @@ test('hinges follow the door height: 2 up to 100 cm, 3 up to 200 cm, 4 above', (
   assert.equal(hinges('tall-cabinet', 220), 4);
   assert.equal(hinges('tall-cabinet', 300), 4);
   // double doors double it
-  let p = rectRoom();
+  let p = empty();
   p = M.addPiece(p, 'tall-cabinet', undefined, { id: 'h', height: 180, width: 60 });
   p.pieces[0].bays[0].door = 'double';
   assert.equal(quoteProject(p).pieces[0].lines.find((l) => l.label === 'Hinges').qty, 6);
@@ -164,34 +153,34 @@ test('hinges follow the door height: 2 up to 100 cm, 3 up to 200 cm, 4 above', (
   assert.equal(PRICES_V2.hinge * 2, PRICES.hingePair);
 });
 
-test('fitting is charged per placed piece, with extras for slope and radiator cut-outs', () => {
-  let p = wardrobe240();
-  const placed = quoteProject(p);
-  const fit = (q) => q.pieces[0].lines.filter((l) => l.group === 'Fitting');
-  assert.equal(fit(placed).length, 1);
-  assert.equal(fit(placed)[0].cents, cents(PRICES_V2.fitting.base + 2.4 * PRICES_V2.fitting.perMetre));
-  const unplaced = quoteProject(M.unplace(p, 'w'));
-  assert.equal(fit(unplaced).length, 0);
-  assert.deepEqual(unplaced.unplaced, ['w']);
-  assert.deepEqual(placed.unplaced, []);
-  assert.equal(unplaced.lines.find((l) => l.label === 'Fitting').cents, 0);
-  assert.ok(unplaced.total < placed.total);
-  // scribing to a slope
-  let a = M.setTemplate(p, 'attic', { slopeWall: 1, slopeAngle: 45, kneeHeight: 100, width: 600, depth: 420 });
-  a = M.updatePiece(a, 'w', { height: 180 });
-  a = M.placePiece(a, 'w', { mode: 'wall', wallId: 'w3', offset: 0 });
-  assert.equal(fit(quoteProject(a)).length, 1, 'against the high wall: no scribing');
-  a = M.placePiece(a, 'w', { mode: 'wall', wallId: 'w1', offset: 0 });
-  a = M.updatePiece(a, 'w', { height: 110 });
-  const s = fit(quoteProject(a));
-  assert.ok(s.some((l) => l.label.startsWith('Scribing')) && s.find((l) => l.label.startsWith('Scribing')).cents === cents(PRICES_V2.fitting.slope));
-  // radiator cut-out
-  let r = wardrobe240({ radiatorCutout: true });
-  r.room.openings = [{ id: 'o1', wallId: 'w1', type: 'radiator', offset: 50, bottom: 15, width: 80, height: 60, depth: 10 }];
-  const rc = fit(quoteProject(r)).find((l) => l.label === 'Radiator cut-out');
-  assert.equal(rc.cents, cents(PRICES_V2.fitting.radiator));
-  r.pieces[0].radiatorCutout = false;
-  assert.equal(fit(quoteProject(r)).find((l) => l.label === 'Radiator cut-out'), undefined);
+test('fitting is charged per piece by its width, with nothing that depends on a room', () => {
+  const p = wardrobe240();
+  const q = quoteProject(p);
+  const fit = (x) => x.pieces[0].lines.filter((l) => l.group === 'Fitting');
+  assert.equal(fit(q).length, 1);
+  assert.equal(fit(q)[0].cents, cents(PRICES_V2.fitting.base + 2.4 * PRICES_V2.fitting.perMetre));
+  assert.equal(q.lines.find((l) => l.label === 'Fitting').cents, fit(q)[0].cents);
+  assert.equal('unplaced' in q, false, 'no placements, so nothing is unplaced');
+  assert.equal(PRICES_V2.fitting.slope, undefined);
+  assert.equal(PRICES_V2.fitting.radiator, undefined);
+  // a wider piece costs more to fit; the same piece costs the same wherever it is listed
+  const wide = M.updatePiece(p, 'w', { width: 300 });
+  assert.ok(fit(quoteProject(wide))[0].cents > fit(q)[0].cents);
+  const old = JSON.parse(JSON.stringify(p));
+  old.room = { walls: [], openings: [{ type: 'radiator' }], height: 150, slope: { wallId: 'w1', lowHeight: 100, depth: 100 } };
+  old.placements = [{ pieceId: 'w', mode: 'wall', wallId: 'w1', offset: 0, elevation: 0 }];
+  assert.deepEqual(quoteProject(old).cents, q.cents, 'a room and placements in the data change no price');
+  assert.deepEqual(quoteProject(M.clampProject(old)).cents, q.cents);
+});
+
+test('a quote without placements: two pieces, each with its fitting, and the totals add up', () => {
+  const p = M.addPiece(wardrobe240(), 'desk', 'walnut-grooved', { id: 'd' });
+  const q = checkInvariants(p);
+  assert.equal(q.pieces.length, 2);
+  assert.ok(q.pieces.every((x) => x.lines.some((l) => l.group === 'Fitting')));
+  assert.equal(q.cents.subtotal, q.pieces.reduce((s, x) => s + x.cents, 0) + cents(PRICES.designFee));
+  assert.deepEqual(Object.keys(q).sort(), ['cents', 'cutList', 'boardM2ByMaterial', 'leadTimeWeeks', 'lines', 'pieces', 'subtotal', 'total', 'vat'].sort());
+  assert.equal(checkInvariants(empty()).cents.total, 0);
 });
 
 test('the cut list: boards come from carcass, dividers, back, shelves, drawers, doors, plinth and worktop', () => {

@@ -4,13 +4,14 @@ import { deflateRawSync } from 'node:zlib';
 import * as M from '../site/js/planner/model.js';
 import { validateProject } from '../site/js/planner/validate.js';
 import { encodeProject, decodeProject, saveLocal, loadLocal, compactProject } from '../site/js/planner/share.js';
+import { quoteProject } from '../site/js/planner/pricing.js';
 import { createDesign, addModule, updateRoom as v1UpdateRoom } from '../site/js/configurator/model.js';
 import { encodeDesign } from '../site/js/configurator/share.js';
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 
 function largeProject() {
-  let p = M.setTemplate(M.createProject(), 'bay', { width: 900, depth: 800 });
+  let p = M.createProject();
   const types = Object.keys(M.TYPES);
   for (let i = 0; i < 36; i++) {
     const t = types[i % types.length];
@@ -19,9 +20,7 @@ function largeProject() {
     for (let b = 0; b < p.pieces.at(-1).bays.length; b++) {
       for (const kind of M.TYPES[t].palette.slice(0, 8)) p = M.addItem(p, id, b, { kind, y: 10 + b * 7 + i });
     }
-    p = M.placePiece(p, id, M.TYPES[t].freestanding ? { mode: 'free', x: 200 + i * 10, z: 300, rotation: i * 10 } : { mode: 'wall', wallId: `w${(i % 8) + 1}`, offset: i * 3 });
   }
-  for (let i = 0; i < 12; i++) p = M.addOpening(p, { type: i % 2 ? 'window' : 'radiator', wallId: `w${(i % 8) + 1}`, offset: i * 9, width: 40 });
   return p;
 }
 
@@ -35,26 +34,19 @@ test('round trip: the default project survives encode and decode unchanged', asy
   assert.deepEqual(await decodeProject(`p=${s}`), p);
   assert.deepEqual(await decodeProject(`https://example.test/planner.html#p=${s}`), p);
   assert.deepEqual(await decodeProject(`  #p=${s}\n`), p);
-  assert.ok(s.length < 1200, `default link is ${s.length} characters`);
+  assert.ok(s.length < 1000, `default link is ${s.length} characters`);
 });
 
-test('round trip: every template, every piece type, rich interiors', async () => {
-  for (const id of Object.keys(M.TEMPLATE_PARAMS)) {
-    let p = M.setTemplate(M.createProject(), id, {});
-    p = M.addOpening(p, { type: 'window', wallId: 'w1', offset: 10, width: 50 });
-    const q = await decodeProject(await encodeProject(p));
-    assert.deepEqual(q, M.clampProject(p), id);
-    assert.deepEqual(q.room.walls, p.room.walls);
-    assert.deepEqual(q.room.slope, p.room.slope);
-  }
+test('round trip: every piece type, rich interiors, a space', async () => {
   let p = M.createProject();
   for (const t of Object.keys(M.TYPES)) p = M.addPiece(p, t, undefined);
   p = M.updatePiece(p, 'p3', { style: 'glass-oak' });
+  p = M.updatePiece(p, 'p1', { space: { width: 220, height: 250 } });
   for (const kind of M.TYPES.wardrobe.palette) p = M.addItem(p, 'p1', 0, { kind, y: 33 });
-  assert.deepEqual(await decodeProject(await encodeProject(p)), M.clampProject(p));
-  // a free-form room (walls that no template makes) keeps its walls
-  const custom = M.clampProject({ ...M.createProject(), room: { ...M.createProject().room, walls: [{ id: 'w1', x: 0, z: 0 }, { id: 'w2', x: 300, z: 20 }, { id: 'w3', x: 280, z: 300 }, { id: 'w4', x: 0, z: 310 }] } });
-  assert.deepEqual((await decodeProject(await encodeProject(custom))).room.walls, custom.room.walls);
+  const q = await decodeProject(await encodeProject(p));
+  assert.deepEqual(q, M.clampProject(p));
+  assert.deepEqual(q.pieces[0].space, { width: 220, height: 250 });
+  assert.deepEqual(Object.keys(q).sort(), ['pieces', 'v']);
 });
 
 test('round trip: a large project', async () => {
@@ -68,16 +60,36 @@ test('round trip: a large project', async () => {
   assert.equal(validateProject(await decodeProject(s)).errors.every((e) => typeof e.code === 'string'), true);
 });
 
-test('the template regenerates walls, so the link leaves them out', async () => {
+test('the link carries pieces only: no room, no placements, and it stays small', async () => {
   const p = M.createProject();
   const c = compactProject(p);
-  assert.equal(c.room.walls, undefined);
-  assert.ok(p.room.walls);
-  const q = M.setTemplate(p, 'attic', {});
-  const c2 = compactProject(q);
-  assert.equal(c2.room.walls, undefined);
-  assert.equal(c2.room.slope, undefined);
-  assert.deepEqual(await decodeProject(await encodeProject(q)), q);
+  assert.deepEqual(Object.keys(c).sort(), ['pieces', 'v']);
+  // a project that still has a room and placements in memory (an old save) is shrunk to pieces when it is shared
+  const old = { ...JSON.parse(JSON.stringify(p)), room: { walls: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, x: i * 50, z: i * 30 })), openings: [] }, placements: [{ pieceId: 'p1', mode: 'wall', wallId: 'w1', offset: 0, elevation: 0 }] };
+  const withRoom = JSON.stringify(old).length, without = JSON.stringify(compactProject(old)).length;
+  assert.ok(without < withRoom);
+  assert.deepEqual(await decodeProject(await encodeProject(old)), p);
+  const s = await encodeProject(p);
+  assert.ok(s.length < 1000, `two furnished pieces: ${s.length} characters`);
+  const one = await encodeProject(M.addPiece(M.createBlankProject(), 'wardrobe'));
+  assert.ok(one.length < 900, `one piece: ${one.length} characters`);
+});
+
+test('an old share link with a room and placements loads its pieces and ignores the rest', async () => {
+  const room = { walls: [{ id: 'w1', x: 0, z: 0 }, { id: 'w2', x: 400, z: 0 }, { id: 'w3', x: 400, z: 300 }, { id: 'w4', x: 0, z: 300 }], height: 250, slope: null,
+    openings: [{ id: 'o1', wallId: 'w1', type: 'window', offset: 20, bottom: 90, width: 100, height: 120 }], floor: 'oak-floor', wall: 'chalk', skirting: 7, template: { id: 'rect', params: { width: 400, depth: 300 } } };
+  const pieces = [M.createPiece('wardrobe', 'flat-oak', { id: 'p1', width: 200 }), M.createPiece('kitchen-wall', 'sage-kitchen', { id: 'p2' })];
+  const placements = [{ pieceId: 'p1', mode: 'wall', wallId: 'w1', offset: 100, elevation: 0 }, { pieceId: 'p2', mode: 'wall', wallId: 'w1', offset: 300, elevation: 140 }];
+  const json = JSON.stringify({ v: 2, room, pieces, placements });
+  for (const link of ['z' + b64u(deflateRawSync(Buffer.from(json))), 'u' + b64u(json)]) {
+    const p = await decodeProject(`#p=${link}`);
+    assert.ok(p, 'it loads');
+    assert.deepEqual(Object.keys(p).sort(), ['pieces', 'v']);
+    assert.deepEqual(p.pieces.map((x) => [x.id, x.type, x.width]), [['p1', 'wardrobe', 200], ['p2', 'kitchen-wall', M.TYPES['kitchen-wall'].defaults.width]]);
+    assert.equal(p.pieces[1].elevation, 140, 'the wall unit keeps the height it hung at');
+    assert.deepEqual(validateProject(p).errors.filter((e) => e.blocking), []);
+    assert.ok(quoteProject(p).cents.total > 0);
+  }
 });
 
 test('without CompressionStream the link is plain base64url with its own prefix', async () => {
@@ -117,7 +129,6 @@ test('old v1 links still work: "#design=" and the bare configurator string', asy
   const q = await decodeProject(encodeDesign(createDesign()));
   assert.equal(q.v, 2);
   assert.deepEqual(q.pieces.map((x) => x.type), ['wardrobe', 'desk']);
-  assert.deepEqual(q.placements.map((x) => x.wallId), ['w1', 'w1']);
   // a v1 design inside a v2 envelope (JSON with v: 1) is migrated too
   const wrapped = 'u' + b64u(JSON.stringify(createDesign()));
   const w = await decodeProject(wrapped);
@@ -129,15 +140,17 @@ test('decoded projects are clamped', async () => {
   const evil = M.createProject();
   evil.pieces[0].width = 99999;
   evil.pieces[0].fronts.material = 'steel-black';
+  evil.pieces[0].space = { width: 1e9, height: 'x' };
   evil.pieces[0].bays[0].items.push({ kind: 'shelf', y: 99999 }, { kind: 'bogus', y: 1 });
-  evil.room.height = 5;
-  evil.placements.push({ pieceId: 'ghost', mode: 'free', x: 1, z: 1 });
+  evil.room = { height: 5 };
+  evil.placements = [{ pieceId: 'ghost', mode: 'free', x: 1, z: 1 }];
   const s = 'u' + b64u(JSON.stringify(evil));
   const p = await decodeProject(s);
   assert.equal(p.pieces[0].width, 500);
   assert.notEqual(p.pieces[0].fronts.material, 'steel-black');
-  assert.equal(p.room.height, 220);
-  assert.equal(p.placements.length, 2);
+  assert.deepEqual(p.pieces[0].space, { width: 1500, height: null });
+  assert.equal('room' in p, false);
+  assert.equal('placements' in p, false);
   assert.ok(p.pieces[0].bays[0].items.every((i) => M.ITEMS[i.kind]));
   assert.deepEqual(M.clampProject(JSON.parse(JSON.stringify(p))), p);
 });
@@ -147,7 +160,7 @@ test('garbage input gives null and never throws', async () => {
   const cases = [
     undefined, null, 0, 42, {}, [], true, '', ' ', '#', '#p=', 'p=', '#design=', 'z', 'u', 'e', 'zzzz', 'z!!!', 'u???', 'AAAA', 'hello world', '#p=not-valid-at-all!',
     'zAAAA', 'z' + b64u('definitely not deflate'), 'u' + b64u('not json'), 'u' + b64u('{}'), 'u' + b64u('[]'), 'u' + b64u('null'), 'u' + b64u('5'),
-    'u' + b64u('{"v":2}'), 'u' + b64u('{"room":{},"pieces":"x"}'), 'u' + b64u('{"room":5,"pieces":[]}'), 'u' + b64u(JSON.stringify({ v: 1, room: {}, modules: 'x' })),
+    'u' + b64u('{"v":2}'), 'u' + b64u('{"room":{},"pieces":"x"}'), 'u' + b64u(JSON.stringify({ v: 1, room: {}, modules: 'x' })),
     'u' + b64u(Buffer.from([0xff, 0xfe, 0xfd, 0x80])), 'z' + b64u(deflateRawSync(Buffer.from('not json'))), 'z' + b64u(deflateRawSync(Buffer.from('{"v":2}'))),
     'e', 'eyJ', 'eyJ2IjoxfQ', '#design=!!!', '#design=eyJ2IjoxfQ', 'x' + 'A'.repeat(100), 'A'.repeat(300000), 'z' + 'A'.repeat(100000),
     bomb, '<script>alert(1)</script>', '../../etc/passwd', 'z' + b64u(Buffer.from(Array.from({ length: 200 }, (_, i) => (i * 37) % 256)))

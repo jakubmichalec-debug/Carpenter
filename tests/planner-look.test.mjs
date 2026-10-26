@@ -7,11 +7,11 @@ import * as MAT from '../site/js/planner/materials.js';
 import { quoteProject, cutListFor } from '../site/js/planner/pricing.js';
 import { decodeProject } from '../site/js/planner/share.js';
 import { validateProject } from '../site/js/planner/validate.js';
-import { fitToWall, fitToCeiling } from '../site/js/planner/fit.js';
+import { spaceCheck, fitToSpace, spaceMessage } from '../site/js/planner/fit.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const FIX = new URL('./fixtures/', import.meta.url);
-const solo = (piece, room) => ({ v: 2, room: room || M.createProject().room, pieces: [piece], placements: [] });
+const solo = (piece) => ({ v: 2, pieces: [piece] });
 const total = (piece) => quoteProject(solo(piece), { vat: false }).cents.total;
 const one = (type, style, o) => M.createPiece(type, style, { id: 'p1', ...o });
 
@@ -125,7 +125,7 @@ test('styles: a dozen on offer, all from the table, every one builds for every t
     for (const type of Object.keys(M.TYPES)) {
       const p = M.createPiece(type, id, { id: 'p1' });
       assert.equal(p.style, id);
-      assert.deepEqual(validateProject({ v: 2, room: M.createProject().room, pieces: [p], placements: [] }).errors.filter((e) => e.blocking), [], `${id} ${type}`);
+      assert.deepEqual(validateProject({ v: 2, room: M.createProject().room, pieces: [p] }).errors.filter((e) => e.blocking), [], `${id} ${type}`);
     }
   }
   assert.equal(M.createPiece('wardrobe', 'ink-oak').look.upper.material, 'oak');
@@ -194,8 +194,7 @@ test('base, top and sizes: pieceGeometry follows the look', () => {
   assert.equal(M.clampPiece({ type: 'wardrobe', elevation: 50 }).elevation, 0, 'type limits hold');
   let pr = M.createProject();
   pr = M.addPiece(pr, 'kitchen-wall', 'sage-kitchen', { elevation: 130 });
-  pr = M.placePiece(pr, 'p3', { mode: 'wall', wallId: 'w2', offset: 10 });
-  assert.equal(pr.placements.find((x) => x.pieceId === 'p3').elevation, 130, 'placed at its own elevation');
+  assert.equal(pr.pieces.find((x) => x.id === 'p3').elevation, 130, 'a wall unit hangs at its own height');
 });
 
 test('roleSegments splits a stretch of front at the two-tone line', () => {
@@ -218,30 +217,70 @@ test('surfacesOf: inside follows the sides, the fronts or its own material', () 
   assert.equal(M.surfacesOf(p).interior.material, 'black');
 });
 
-// ---------- fit ----------
-test('fit to wall fills the free stretch; fit to ceiling follows the ceiling', () => {
+// ---------- fit to the space ----------
+test('space check: a piece fits when it is no wider than the wall and no taller than the ceiling', () => {
   let p = M.createProject();
-  const wall = M.wallsOf(p.room).find((w) => w.id === 'w1');
-  let r = fitToWall(p, 'p1');
-  assert.equal(r.wallId, 'w1');
-  assert.equal(r.offset, 0);
-  assert.equal(r.width, Math.min(M.TYPES.wardrobe.limits.width[1], Math.floor(wall.length)));
-  // another piece beside it ends the stretch
-  p = M.updatePiece(p, 'p1', { width: 100 });
-  p = M.addPiece(p, 'tall-cabinet', 'white-minimal', { width: 50 });
-  p = M.placePiece(p, 'p3', { mode: 'wall', wallId: 'w1', offset: 120, snap: false });
-  r = fitToWall(p, 'p1');
-  assert.equal(r.offset, 0);
-  assert.equal(r.width, 120, 'stops at the neighbour');
-  const c = fitToCeiling(p, 'p1');
-  assert.equal(c.ceiling, 260);
-  assert.equal(c.height, 259);
-  const scribed = M.updatePiece(p, 'p1', { look: { scribe: true } });
-  assert.equal(fitToCeiling(scribed, 'p1').height, 258, 'room for the strip');
-  const low = M.updateRoom(p, { height: 220 });
-  assert.equal(fitToCeiling(low, 'p1').height, 219);
-  assert.equal(fitToCeiling(M.updateRoom(p, { height: 400 }), 'p1').height, 300, 'the type limit');
-  assert.equal(fitToWall(p, 'nope'), null);
+  assert.deepEqual(spaceCheck(p.pieces[0]), { has: false, fits: true, tooWide: false, tooTall: false, overWidth: 0, overHeight: 0, space: null });
+  assert.equal(spaceMessage(p.pieces[0]), null);
+  assert.equal(fitToSpace(p.pieces[0]), null, 'nothing to fit without a space');
+  // p1 is a 170 x 240 cm wardrobe
+  const check = (space, patch = {}) => spaceCheck(M.updatePiece(p, 'p1', { space, ...patch }).pieces[0]);
+  assert.equal(check({ width: 170, height: 240 }).fits, true, 'exactly as big as the space');
+  assert.equal(check({ width: 300, height: 260 }).fits, true);
+  let c = check({ width: 160, height: 250 });
+  assert.deepEqual([c.fits, c.tooWide, c.tooTall, c.overWidth], [false, true, false, 10]);
+  c = check({ width: 200, height: 230 });
+  assert.deepEqual([c.fits, c.tooWide, c.tooTall, c.overHeight], [false, false, true, 10]);
+  c = check({ width: 100, height: 200 });
+  assert.deepEqual([c.overWidth, c.overHeight], [70, 40]);
+  assert.equal(check({ width: null, height: 250 }).fits, true, 'either side can be left empty');
+  assert.equal(check({ width: 100, height: null }).tooWide, true);
+  assert.match(spaceMessage(M.updatePiece(p, 'p1', { space: { width: 160, height: 230 } }).pieces[0]), /10 cm too wide and 10 cm too tall/);
+  assert.equal(spaceMessage(M.updatePiece(p, 'p1', { space: { width: 200, height: 250 } }).pieces[0]), 'This fits the space you have.');
+  // a piece that hangs above the floor counts its height from the floor
+  const hung = M.createPiece('kitchen-wall', undefined, { id: 'p9', elevation: 150, space: { width: 300, height: 260 } });
+  assert.equal(spaceCheck(hung).fits, true);
+  const low = M.createPiece('kitchen-wall', undefined, { id: 'p9', elevation: 150, space: { width: 300, height: 200 } });
+  assert.equal(spaceCheck(low).overHeight, 150 + low.height - 200);
+});
+
+test('fit to the space: the width fills the wall, the height stays under the ceiling, both within the type limits', () => {
+  const p = M.createProject();
+  const fit = (space, patch = {}) => { const pc = M.updatePiece(p, 'p1', { space, ...patch }).pieces[0]; return [pc, fitToSpace(pc)]; };
+  let [pc, r] = fit({ width: 220, height: 250 });
+  assert.deepEqual([r.width, r.height, r.exact, r.changed], [220, 249, true, true]);
+  const fitted = M.updatePiece(M.createProject(), 'p1', { space: pc.space, width: r.width, height: r.height }).pieces[0];
+  assert.equal(spaceCheck(fitted).fits, true);
+  assert.equal(fitted.width, 220);
+  assert.equal(fitted.height, 249);
+  assert.equal(fitToSpace(fitted).changed, false, 'fitting twice changes nothing more');
+  // scribe strips close the gap at the top, so there is more room to leave
+  [pc, r] = fit({ width: 220, height: 250 }, { look: { scribe: true } });
+  assert.equal(r.height, 248);
+  // the limits of the type win, and say so
+  const L = M.TYPES.wardrobe.limits;
+  [pc, r] = fit({ width: 40, height: 100 });
+  assert.deepEqual([r.width, r.height, r.exact], [L.width[0], L.height[0], false]);
+  [pc, r] = fit({ width: 1400, height: 450 });
+  assert.deepEqual([r.width, r.height, r.exact], [L.width[1], L.height[1], false]);
+  // only the width given: the height stays as it is
+  [pc, r] = fit({ width: 190, height: null });
+  assert.deepEqual([r.width, r.height], [190, 240]);
+  // the sections still add up after the size changes
+  const out = M.updatePiece(p, 'p1', { width: r.width, height: r.height }).pieces[0];
+  assert.equal(out.bays.reduce((s, b) => s + b.width, 0), M.pieceGeometry(out).innerW);
+  assert.deepEqual(validateProject({ v: 2, pieces: [out] }).errors.filter((e) => e.blocking), []);
+});
+
+test('validate: a piece that does not fit its space is advice, never a block', () => {
+  const p = M.updatePiece(M.createProject(), 'p1', { space: { width: 150, height: 230 } });
+  const v = validateProject(p);
+  const codes = v.errors.map((e) => e.code).sort();
+  assert.deepEqual(codes.filter((c) => c.startsWith('space-')), ['space-too-tall', 'space-too-wide']);
+  assert.equal(v.ok, true);
+  assert.ok(v.errors.filter((e) => e.code.startsWith('space-')).every((e) => !e.blocking && e.ref.type === 'piece' && e.ref.id === 'p1'));
+  const fine = M.updatePiece(M.createProject(), 'p1', { space: { width: 400, height: 300 } });
+  assert.deepEqual(validateProject(fine).errors, []);
 });
 
 // ---------- price ----------

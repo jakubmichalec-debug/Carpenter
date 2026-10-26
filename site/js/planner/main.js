@@ -1,22 +1,19 @@
 // Planner page boot: store, stepper, step views and the live viewer. Three.js loads here and nowhere else.
 // The page is one screen: the sidebar shows one section of a step at a time, the bottom bar always shows Back, Next
-// and the running price, and nothing scrolls.
+// and the running price, and nothing scrolls. The planner designs furniture only: no room, no placing.
 import { createStore, loadStart } from './store.js';
 import { createBlankProject } from './model.js';
 import { validateProject } from './validate.js';
 import { quoteProject } from './pricing.js';
 import * as R from './review-logic.js';
-import { createRoomStep } from './steps/room.js';
 import { createFurnitureStep } from './steps/furniture.js';
 import { createInteriorStep } from './steps/interior.js';
-import { createPlaceStep } from './steps/place.js';
 import { createReviewStep } from './steps/review.js';
 import { createGuided } from './steps/guided.js';
 import * as F from './flow.js';
 import { roving, disclosure } from './steps/ui.js';
 import { issueStep } from './review-logic.js';
-import { clashesByPiece } from './place-geom.js';
-import { STEP_NAMES, NEXT_LABELS, stepAnnouncement, priceSummary, elevationVisible, hasPullouts } from './ui-logic.js';
+import { STEP_NAMES, NEXT_LABELS, stepAnnouncement, priceSummary } from './ui-logic.js';
 import { prefs, onPrefs } from './prefs.js';
 
 const LABELS = STEP_NAMES;
@@ -26,19 +23,11 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 // What each step says about itself: one sentence, and the keyboard tips behind the (?) button.
 const META = [
   {
-    lede: 'Pick a shape, size it, add doors and windows.',
+    lede: 'Choose a piece, then its look and size.',
     tips: [
-      'Click a wall in the plan to select it, or pick it under Walls and openings.',
-      'Round handles on the plan: drag them, or Tab to one and use the arrow keys (1 cm, with Shift 10 cm).',
-      'On the wall drawing, Tab to a door or window and use the arrow keys to move it. Delete removes it.'
-    ]
-  },
-  {
-    lede: 'Choose a piece, then its style, look and size.',
-    tips: [
-      'In a row of pieces, styles or swatches, Tab goes in once and the arrow keys move between the choices.',
+      'In a row of pieces, looks or swatches, Tab goes in once and the arrow keys move between the choices.',
       'A price on an option is what it adds to or takes off this piece, VAT included.',
-      'Fit to wall fills the free length of the wall the piece stands on.'
+      'Tell us the width and height of your space, and Fit to the space sets the size for you.'
     ]
   },
   {
@@ -52,16 +41,9 @@ const META = [
     ]
   },
   {
-    lede: 'Put each piece where it will stand.',
+    lede: 'Check your furniture and the price, then send it.',
     tips: [
-      'Drag a piece on the plan, or click a wall to put the selected piece there.',
-      'With a piece focused, the arrow keys move it 1 cm (Shift: 10 cm). R turns a free-standing piece. Delete takes it out of the room.'
-    ]
-  },
-  {
-    lede: 'Check the room and the price, then send it.',
-    tips: [
-      'Drag to orbit the 3D view and scroll to zoom. The row under it jumps to the room, the top or the front of a piece.',
+      'Drag to orbit the 3D view and scroll to zoom. The row under it jumps to all your pieces, or the front of one.',
       'Render makes a realistic picture. It starts rough and gets cleaner for up to a minute.'
     ]
   }
@@ -112,7 +94,6 @@ function confirmAction({ title, text, yes, no }) {
   dlg.showModal();
   return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'yes'), { once: true }));
 }
-const confirmShape = (text) => confirmAction({ title: 'Change the room shape?', text, yes: 'Change shape', no: 'Keep this room' });
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(''); });
 
 // ---------- steps ----------
@@ -132,18 +113,16 @@ const issueLists = LABELS.map((_, i) => {
 });
 const setFronts = (mode) => applyFronts(mode);
 const views = [
-  createRoomStep({ side: panels[0], plan: $('#pl-plan'), elev: $('#pl-elev') }, { store, announce, confirmShape, issues: issueLists[0] }),
-  createFurnitureStep(panels[1], { store, announce, confirmAction, issues: issueLists[1] }),
-  createInteriorStep(panels[2], { insideBox: $('#pl-inside'), store, announce, showInside, issues: issueLists[2] }),
-  createPlaceStep(panels[3], { plan: $('#pl-place'), store, announce, confirmAction, showPlan: showInside }),
-  createReviewStep(panels[4], {
+  createFurnitureStep(panels[0], { store, announce, confirmAction, issues: issueLists[0] }),
+  createInteriorStep(panels[1], { insideBox: $('#pl-inside'), store, announce, showInside, issues: issueLists[1] }),
+  createReviewStep(panels[2], {
     store, announce, getViewer: () => viewer, getFronts: () => frontsMode, setFronts,
     rbar: $('#pl-rbar'), stage: $('#pl-stage'), host: $('#pl-render'), printBox: $('#pl-print'), footSlot: $('#pl-foot-review'),
     // "Send to the workshop" in the tabbed view opens the guided flow's contact question (the mode choice is not saved)
     onSend: () => { guided.setMode('guided', { save: false }); guided.go('send'); announce('Where should we send your design?'); }
   })
 ];
-const review = views[4];
+const review = views[2];
 // The guided flow asks one question per screen using these same step views; "Edit everything" switches to their tabs.
 const guided = createGuided({
   store, announce, confirmAction, views, app: $('#pl-app'), host: $('#pl-gpanel'),
@@ -151,8 +130,6 @@ const guided = createGuided({
 });
 guided.init({ landing: start.kind !== 'new' || exampleBase ? F.landing(state.project) : null });
 state = store.getState();
-let wallPicked = false;
-const sectionOf = {}; // the open section of each step, told by the steps' tabs
 
 // validation is cached per project object
 let vProject = null, validation = { errors: [] };
@@ -167,8 +144,8 @@ const visited = new Set([state.ui.step]);
 
 function renderStepper() {
   const v = validated();
-  const issues = [0, 0, 0, 0, 0];
-  for (const e of v.errors) issues[issueStep(e.ref, e.code)]++;
+  const issues = [0, 0, 0];
+  for (const e of v.errors) issues[issueStep(e.ref)]++;
   if (guided.active) { guided.renderStepper(stepButtons, issues); return; }
   stepButtons.forEach((b, i) => {
     const li = b.closest('.pl-step');
@@ -178,6 +155,9 @@ function renderStepper() {
     li.classList.toggle('is-current', current);
     li.classList.toggle('is-warn', warn);
     li.classList.toggle('is-done', done && !warn);
+    li.classList.remove('is-complete', 'is-skipped');
+    const sub = li.querySelector('.pl-step__q');
+    if (sub && sub.textContent) sub.textContent = '';
     if (current) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
     const status = warn ? (current ? 'current step, needs attention' : 'needs attention') : current ? 'current step' : done ? 'done' : 'not started';
     $('.pl-step__state', b).textContent = `, ${status}`;
@@ -422,110 +402,70 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 pricePop.addEventListener('click', (e) => {
   if (!e.target.closest('#pl-pp-quote')) return;
   priceDisc.close();
-  store.dispatch({ type: 'ui/step', step: 4 });
+  store.dispatch({ type: 'ui/step', step: 2 });
   if (review.sections) review.sections.show('quote');
 });
 onPrefs(() => { renderPrice(); });
 
-// phone toggle: Plan, Wall or 3D
+// phone toggle: the drawing (on the Interior step) or 3D
 const paneBtns = $$('[data-pane-btn]');
 paneBtns.forEach((b) => b.addEventListener('click', () => store.dispatch({ type: 'ui/pane', pane: b.dataset.paneBtn })));
 roving($('.pl-tabs'), { selector: '[data-pane-btn]', selects: true });
-function elevOn() {
-  if (guided.active) return guided.elevation();
-  const room = state.project.room;
-  return elevationVisible({
-    section: sectionOf[0], wallPicked, openingId: state.ui.openingId,
-    openingsOnWall: room.openings.filter((o) => o.wallId === state.ui.wallId).length
-  });
-}
 function renderPane() {
   const app = $('.pl-app');
   const s = state.ui.step;
-  const kind = s === 0 ? 'room' : s === 2 ? 'interior' : s === 3 ? 'place' : 'other';
-  const elev = kind === 'room' && elevOn();
-  // only the Room step has a wall view; on the Interior step "plan" is the front view of the piece
-  const pane = (kind !== 'room' || !elev) && state.ui.pane === 'wall' ? 'plan' : state.ui.pane;
+  const kind = s === 1 ? 'interior' : 'other';
+  const pane = state.ui.pane;
   const set = (k, v) => { if (app.dataset[k] !== v) app.dataset[k] = v; };
-  set('pane', pane); set('kind', kind); set('step', String(s)); set('elev', elev || kind !== 'room' ? 'on' : 'off');
+  set('pane', pane); set('kind', kind); set('step', String(s));
   paneBtns.forEach((b) => {
     const on = String(b.dataset.paneBtn === pane);
     if (b.getAttribute('aria-checked') !== on) b.setAttribute('aria-checked', on);
-    if (b.dataset.paneBtn === 'wall') b.hidden = !elev;
-    if (b.dataset.paneBtn === 'plan') { const t = kind === 'interior' ? 'Drawing' : 'Plan'; if (b.textContent !== t) b.textContent = t; }
   });
 }
-document.addEventListener('pl-section', (e) => {
-  const panel = e.target.closest && e.target.closest('[data-panel]');
-  if (!panel) return;
-  sectionOf[Number(panel.dataset.panel)] = e.detail.id;
-  renderPane();
-});
 
 // ---------- viewer ----------
 let viewer = null;
 let pendingRaf = 0;
 const stage = $('#pl-stage');
-function pushProject() {
-  pendingRaf = 0;
-  if (viewer) viewer.setProject(state.project);
-}
-// fronts shown on the piece: closed on the Furniture step, hidden on the Interior step, and the pill cycles them
+// Doors: closed or ajar. On the Furniture and Interior steps the piece being edited stands alone in the studio and the pill
+// cycles closed, ajar and hidden; on the Review step every piece is shown and the pill opens or closes the doors.
 const FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors ajar', hidden: 'Doors hidden' };
 const REVIEW_FRONT_LABEL = { closed: 'Doors closed', ajar: 'Doors open' };
 let frontsMode = 'closed';
 const doorsBtn = $('#pl-doors');
-// on the Place step the selected piece is outlined and pieces with a blocking problem get a red mark on the floor
-function placeMarks() {
-  if (state.ui.step !== 3) return {};
-  const by = clashesByPiece(state.project, validated().errors);
-  return { selected: state.ui.pieceId, clashes: Object.keys(by).filter((id) => by[id].blocking.length) };
-}
-function pushPiece() {
+function pushProject() {
   pendingRaf = 0;
   if (!viewer) return;
   const s = state.ui.step;
-  const piece = s === 1 || s === 2 ? state.project.pieces.find((p) => p.id === state.ui.pieceId) : null;
-  viewer.setPiece(piece || null, { fronts: frontsMode });
-  if (!piece) viewer.setProject(state.project, placeMarks());
+  const inPiece = s === 0 || s === 1;
+  const piece = inPiece ? state.project.pieces.find((p) => p.id === state.ui.pieceId) : null;
+  viewer.setProject(state.project, { only: inPiece && piece ? piece.id : null, fronts: frontsMode });
 }
-// Review: the doors of everything in the room are closed or open. The "Front of" views open them when the piece has
-// pull-outs, which only show with the doors open.
+// Review: the doors of every piece are closed or open. The "Front of" views open them when the piece has pull-outs, which
+// only show with the doors open.
 function applyFronts(mode) {
-  if (state.ui.step !== 4) return;
+  if (state.ui.step !== 2) return;
   frontsMode = mode === 'ajar' ? 'ajar' : 'closed';
   doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
   $('#pl-doors-label').textContent = REVIEW_FRONT_LABEL[frontsMode];
-  if (viewer) viewer.setPlacedFronts(frontsMode);
+  pushProject();
   review.frontsChanged();
 }
 function syncViewer(before) {
   if (!viewer) return;
   const s = state.ui.step;
-  const inPiece = s === 1 || s === 2;
-  const inReview = s === 4;
+  const inPiece = s === 0 || s === 1;
+  const inReview = s === 2;
   if (!before || before.ui.step !== s) {
-    if (inPiece) frontsMode = s === 1 ? 'closed' : 'hidden';
+    if (inPiece) frontsMode = s === 0 ? 'closed' : 'hidden';
     if (inReview) frontsMode = 'closed';
-    doorsBtn.hidden = !(inPiece || inReview);
-    $('.pl-viewer__hint').textContent = inPiece || inReview ? 'Drag to orbit · scroll to zoom'
-      : s === 3 ? 'Drag to orbit · scroll to zoom · click a piece to select it'
-        : 'Drag to orbit · scroll to zoom · click a wall to select it';
-    viewer.setPiecePicking(s === 3);
-    $('#pl-top').hidden = inPiece || inReview; // Review has its own Top preset
     $('#pl-doors-label').textContent = (inReview ? REVIEW_FRONT_LABEL : FRONT_LABEL)[frontsMode];
     doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
-    if (inPiece && viewer.getView() === 'plan') viewer.setView('3d');
-    viewer.setPlacedFronts(inReview ? frontsMode : 'closed'); // pieces in the room have their doors open only in Review
+    $('.pl-viewer__hint').textContent = 'Drag to orbit · scroll to zoom';
   }
   if (!before || state.project !== before.project || before.ui.step !== s || before.ui.pieceId !== state.ui.pieceId) {
-    if (!pendingRaf) pendingRaf = requestAnimationFrame(pushPiece);
-  }
-  if (inPiece) return;
-  const wall = state.ui.step === 0 ? state.ui.wallId : null;
-  const was = before ? (before.ui.step === 0 ? before.ui.wallId : null) : undefined;
-  if (wall !== was) {
-    if (wall && (!before || before.ui.wallId !== wall)) viewer.focusWall(wall); else viewer.highlightWall(wall);
+    if (!pendingRaf) pendingRaf = requestAnimationFrame(pushProject);
   }
 }
 
@@ -533,23 +473,16 @@ async function bootViewer() {
   const canvas = $('#pl-canvas');
   try {
     const { createViewer } = await import('./viewer.js');
-    viewer = createViewer(canvas, {
-      onWallPick: (id) => store.dispatch({ type: 'ui/wall', wallId: id }),
-      onPiecePick: (id) => { if (state.ui.step === 3) store.dispatch({ type: 'ui/piece', id }); }
-    });
-    viewer.setProject(state.project);
-    viewer.highlightWall(state.ui.step === 0 ? state.ui.wallId : null);
+    viewer = createViewer(canvas);
+    pushProject();
     syncViewer(null);
     doorsBtn.addEventListener('click', () => {
-      if (state.ui.step === 4) { applyFronts(frontsMode === 'closed' ? 'ajar' : 'closed'); return; }
+      if (state.ui.step === 2) { applyFronts(frontsMode === 'closed' ? 'ajar' : 'closed'); return; }
       frontsMode = frontsMode === 'closed' ? 'ajar' : frontsMode === 'ajar' ? 'hidden' : 'closed';
       doorsBtn.setAttribute('aria-pressed', String(frontsMode !== 'closed'));
       $('#pl-doors-label').textContent = FRONT_LABEL[frontsMode];
-      pushPiece();
+      pushProject();
     });
-    const top = $('#pl-top');
-    top.addEventListener('click', () => viewer.setView(viewer.getView() === 'plan' ? '3d' : 'plan'));
-    viewer.onViewChange((m) => top.setAttribute('aria-pressed', String(m === 'plan')));
     $('#pl-reset').addEventListener('click', () => viewer.resetView());
     stage.classList.add('is-ready');
     window.gjPlanner = { store, viewer, review, guided };
@@ -584,8 +517,6 @@ function render(before) {
 store.subscribe((s, before, action) => {
   state = s;
   if (action && (action.type === 'ui/step')) { userNav = true; guided.moved(); }
-  if (action && (action.type === 'ui/wall' || (action.type === 'ui/opening' && action.id))) wallPicked = true;
-  if (action && action.type === 'project/load') wallPicked = false;
   render(before);
 });
 

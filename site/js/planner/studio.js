@@ -6,11 +6,11 @@ import { TYPES, defaultElevation, pieceLabel } from './model.js';
 
 export const STUDIO = {
   gap: 30,          // between neighbouring pieces in a row
-  side: 100,        // floor and wall beyond the outer pieces
-  front: 120,       // floor in front of the front row
+  side: 360,        // floor and wall beyond the outer pieces, so the edges stay out of the picture
+  front: 260,       // floor in front of the front row
   freeGap: 80,      // between the back row and the free-standing row (or the wall, when only tables are there)
-  wallAbove: 70,    // wall above the tallest piece
-  wallMin: 250,     // never a lower wall than this
+  wallAbove: 140,   // wall above the tallest piece
+  wallMin: 300,     // never a lower wall than this
   cove: 25          // radius of the curve where the floor meets the wall
 };
 
@@ -78,21 +78,43 @@ export function frontPose(layout, pieceId, { aspect = 1.5, fov = 36 } = {}) {
   return { position: [target[0], cy, (it.z + it.d) * M + dist - dM / 2], target };
 }
 
-// The pose that shows everything (metres): used by the live viewer's first view and by the "All pieces" preset.
-export function overviewPose(layout, { aspect = 1.5, fov = 36 } = {}) {
+// The pose that shows everything (metres): used by the live viewer's first view and by the "All pieces" preset. The camera
+// stands in front, a little to the left and above the middle, and backs off until every corner of every piece is inside the
+// picture with some air around it (worked out by projecting the corners, so a tall wardrobe and a long row both fit).
+export function overviewPose(layout, { aspect = 1.5, fov = 36, fill = 0.74 } = {}) {
   const M = 0.01;
-  const b = layout.bounds;
-  const cx = ((b.minX + b.maxX) / 2) * M, cz = (layout.items.length ? Math.max(...layout.items.map((i) => i.z + i.d)) / 2 : 100) * M;
-  const topM = Math.max(...layout.items.map((i) => i.lift + i.h), 100) * M;
-  const halfW = (layout.extent / 2 + STUDIO.side * 0.55) * M;
+  const items = layout.items;
+  const half = [(layout.extent / 2) * M, 0, 0];
+  const top = Math.max(...items.map((i) => i.lift + i.h), 100) * M;
+  const depth = (items.length ? Math.max(...items.map((i) => i.z + i.d)) : 100) * M;
+  const target = [half[0], top * 0.46, depth * 0.45];
+  const az = -0.32, polar = 1.28; // a little from the left and above
+  const dir = [Math.sin(az) * Math.sin(polar), Math.cos(polar), Math.cos(az) * Math.sin(polar)];
   const th = Math.tan((fov * Math.PI) / 360);
-  const dist = Math.max(2.4, Math.max(halfW / (th * Math.max(0.6, aspect)), (topM / 2) * 1.35 / th) + 0.9);
-  const target = [cx, topM * 0.45, cz];
-  const az = -0.38, polar = 1.2; // a little from the left and above
-  const position = [
-    target[0] + Math.sin(az) * Math.sin(polar) * dist,
-    target[1] + Math.cos(polar) * dist,
-    target[2] + Math.cos(az) * Math.sin(polar) * dist
-  ];
-  return { position, target };
+  // camera basis for a camera at target + dir * d looking at the target
+  const f = dir.map((v) => -v);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
+  const right = norm(cross(f, [0, 1, 0]));
+  const up = cross(right, f);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const corners = [];
+  for (const it of items) {
+    for (const x of [it.x, it.x + it.w]) for (const y of [it.lift, it.lift + it.h]) for (const z of [it.z, it.z + it.d]) corners.push([x * M, y * M, z * M]);
+  }
+  if (!corners.length) corners.push([0, 0, 0], [1, 2, 0.6]);
+  const fits = (d) => {
+    const pos = target.map((t, i) => t + dir[i] * d);
+    for (const c of corners) {
+      const v = c.map((x, i) => x - pos[i]);
+      const z = dot(v, f);
+      if (z < 0.2) return false;
+      if (Math.abs(dot(v, right)) / (z * th * aspect) > fill || Math.abs(dot(v, up)) / (z * th) > fill) return false;
+    }
+    return true;
+  };
+  let lo = 0.8, hi = 60;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
+  const dist = Math.max(2.2, hi);
+  return { position: target.map((t, i) => t + dir[i] * dist), target };
 }

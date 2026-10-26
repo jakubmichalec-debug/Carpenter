@@ -1,11 +1,10 @@
-// Step 5: Review. The live 3D view with preset views and a doors toggle, a Render button (path tracing, loaded only
+// Step 3: Review. The live 3D view with preset views and a doors toggle, a Render button (path tracing, loaded only
 // when it is pressed), the itemised quote, and the ways out: copy a link, print the quote, and send it to the workshop (the guided flow's last question).
 // The DOM is built once; update(state) only touches what changed. Nothing here runs a loop except the render itself.
 import { quoteProject } from '../pricing.js';
 import { encodeProject } from '../share.js';
-import { FLOORS, WALL_COLORS, pieceLabel } from '../model.js';
-import { roomBounds } from '../plan-geom.js';
 import * as R from '../review-logic.js';
+import { presetList, frontPose } from '../studio.js';
 import { esc, ICON_NOTE } from './shared.js';
 import { createTabs, roving, scrollCue } from './ui.js';
 import { prefs, setVat } from '../prefs.js';
@@ -27,11 +26,11 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   let validation = { errors: [] };
   let lastBlockers = [];
   let quoteKey = '', problemsKey = '', presetKey = '', printKey = '';
-  let activePreset = 'room';
+  let activePreset = 'all';
   let job = null;              // the render that is running
   let shown = null;            // { canvas, project, fronts, samples, seconds, settings } the picture on screen, or the last one
   let rendering = false;
-  let active = false;          // step 5 is the current step
+  let active = false;          // the Review step is the current step
   let probe = null;
   let statusTimer = 0;
   let lastText = '', lastPct = -1;
@@ -65,7 +64,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
         <label for="pl-r-link">Your link</label>
         <input type="text" id="pl-r-link" readonly>
       </div>
-      <p class="pl-hint">An estimate from your design, not a contract: the workshop confirms it after measuring your room.</p>
+      <p class="pl-hint">An estimate from your design, not a contract: the workshop confirms it after measuring your space.</p>
       <p class="pl-hint">Send to the workshop takes you to one last question for your contact details. On this concept site nothing is sent, so your details stay in your browser.</p>
     </section>`;
 
@@ -119,7 +118,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
 
   // ---------- small helpers ----------
   const project = () => state.project;
-  const placedCount = () => project().placements.filter((pl) => project().pieces.some((p) => p.id === pl.pieceId)).length;
+  const pieceCount = () => project().pieces.length;
   function say(text, quiet = false) {
     const el = $('#pl-r-status');
     el.textContent = text;
@@ -134,10 +133,8 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   // ---------- problems and notes ----------
   function renderProblems() {
     const blockers = R.sendBlockers(project(), validation.errors || []);
-    const advice = R.adviceList(validation.errors || []).filter((a) => a.code !== 'piece-unplaced');
-    const q = quote();
-    const unplaced = q.unplaced.map((id) => ({ id, label: pieceLabel(project(), id) }));
-    const key = JSON.stringify([blockers.map((b) => [b.code, b.message, b.step, b.pieceId, b.openingId]), advice.map((a) => a.message), unplaced.map((u) => u.id)]);
+    const advice = R.adviceList(validation.errors || []);
+    const key = JSON.stringify([blockers.map((b) => [b.code, b.message, b.step, b.pieceId]), advice.map((a) => a.message)]);
     lastBlockers = blockers;
     if (key === problemsKey) return blockers;
     problemsKey = key;
@@ -146,9 +143,6 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
       html += `<div class="pl-r-block"><h4 class="pl-sec__sub" id="pl-r-h-block">Fix these first</h4>
         <p class="pl-hint pl-hint--tight">You can look around and render as it is. Sending the design needs these sorted.</p>
         <ul class="pl-notes">${blockers.map((b, i) => `<li class="pl-note pl-note--block pl-note--stack"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(b.message)}</span><span class="pl-note__actions"><button type="button" class="pl-link" data-fix="${i}">${esc(b.label)}</button></span></li>`).join('')}</ul></div>`;
-    }
-    if (unplaced.length) {
-      html += `<p class="pl-addnote pl-addnote--static">${unplaced.map((u) => esc(u.label)).join(', ')} ${unplaced.length === 1 ? 'is' : 'are'} not in the room, so ${unplaced.length === 1 ? 'it is' : 'they are'} quoted without fitting and left out of the picture.</p>`;
     }
     if (advice.length) {
       html += `<details class="pl-r-advice"><summary>Good to know (${advice.length})</summary><ul class="pl-notes">${advice.map((a) => `<li class="pl-note pl-note--info"><span class="pl-note__icon">${ICON_NOTE}</span><span class="pl-note__text">${esc(a.message)}</span></li>`).join('')}</ul></details>`;
@@ -161,7 +155,6 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   function fixBlocker(b) {
     if (b.code === 'no-pieces') { store.dispatch({ type: 'ui/new-piece' }); return; }
     if (b.pieceId) store.dispatch({ type: 'ui/piece', id: b.pieceId });
-    if (b.openingId) store.dispatch({ type: 'ui/opening', id: b.openingId });
     const r = b.ref;
     if (r && r.type === 'bay') store.dispatch({ type: 'ui/bay', bay: r.bay });
     if (r && r.type === 'item') store.dispatch({ type: 'ui/item', bay: r.bay, index: r.index });
@@ -178,7 +171,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   const rowsHtml = (rows) => rows.map((r) => `<li><span>${esc(r.label)}</span><span class="pl-q-amt">${eur(r.cents)}</span></li>`).join('');
   function quoteHtml(view, { forPrint = false } = {}) {
     if (!view.pieces.length) {
-      const msg = `<p class="pl-r-empty">There is nothing to quote yet. Design a piece and place it in the room, and its price appears here.</p>`;
+      const msg = `<p class="pl-r-empty">There is nothing to quote yet. Design a piece and its price appears here.</p>`;
       return forPrint ? msg : { body: msg, pin: '' };
     }
     const pieces = view.pieces.map((p) => {
@@ -186,8 +179,8 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
           ${p.sections.map((s) => `<section class="pl-q-sec"><h4><span>${esc(s.title)}</span><span class="pl-q-amt">${eur(s.cents)}</span></h4><ul class="pl-q-rows">${rowsHtml(s.rows)}</ul></section>`).join('')}
           <dl class="pl-q-groups">${p.groups.map((g) => `<div><dt>${esc(g.label)}</dt><dd>${eur(g.cents)}</dd></div>`).join('')}</dl>
         </div>`;
-      if (forPrint) return `<section class="pl-q-piece pl-q-piece--print"><h4 class="pl-q-head"><span class="pl-q-name">${esc(p.label)} <small>${esc(p.size)}${p.placed ? '' : ', not placed'}</small></span><span class="pl-q-amt">${eur(p.cents)}</span></h4>${inner}</section>`;
-      return `<details class="pl-q-piece" data-piece="${esc(p.id)}"${openPieces.has(p.id) ? ' open' : ''}><summary><span class="pl-q-name">${esc(p.label)} <small>${esc(p.size)}${p.placed ? '' : ', not placed'}</small></span><span class="pl-q-amt">${eur(p.cents)}</span></summary>${inner}</details>`;
+      if (forPrint) return `<section class="pl-q-piece pl-q-piece--print"><h4 class="pl-q-head"><span class="pl-q-name">${esc(p.label)} <small>${esc(p.size)}</small></span><span class="pl-q-amt">${eur(p.cents)}</span></h4>${inner}</section>`;
+      return `<details class="pl-q-piece" data-piece="${esc(p.id)}"${openPieces.has(p.id) ? ' open' : ''}><summary><span class="pl-q-name">${esc(p.label)} <small>${esc(p.size)}</small></span><span class="pl-q-amt">${eur(p.cents)}</span></summary>${inner}</details>`;
     }).join('');
     const t = view.totals;
     const SUB = new Set(['Materials', 'Hardware', 'Workshop labour', 'Fitting']);
@@ -217,7 +210,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   }
   function renderQuote() {
     const q = quote();
-    const key = JSON.stringify([q.cents, q.pieces.map((p) => [p.id, p.cents]), q.unplaced, prefs.vat]);
+    const key = JSON.stringify([q.cents, q.pieces.map((p) => [p.id, p.cents]), prefs.vat]);
     if (key === quoteKey) return;
     quoteKey = key;
     const html = quoteHtml(R.quoteView(q, project()));
@@ -236,11 +229,11 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
 
   // ---------- views ----------
   function renderPresets() {
-    const list = R.presetList(project());
+    const list = presetList(project());
     const key = JSON.stringify(list.map((x) => x.id)) + activePreset;
     if (key === presetKey) return;
     presetKey = key;
-    if (!list.some((x) => x.id === activePreset)) activePreset = 'room';
+    if (!list.some((x) => x.id === activePreset)) activePreset = 'all';
     viewsEl.innerHTML = list.map((x) => `<button type="button" role="radio" class="pl-chip pl-chip--plain" data-preset="${esc(x.id)}" aria-checked="${x.id === activePreset}" tabindex="-1">${esc(x.label)}</button>`).join('');
   }
   function markPreset(id) {
@@ -255,12 +248,10 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     if (shown && shown.visible) backToLive();
     const id = b.dataset.preset;
     markPreset(id);
-    if (id === 'top') { viewer.setView('plan'); return; }
-    if (viewer.getView() !== '3d') viewer.setView('3d');
-    if (id === 'room') { viewer.resetView(); return; }
+    if (id === 'all') { viewer.resetView(); return; }
     const pieceId = id.slice('front:'.length);
     const { w, h } = stageSize();
-    const pose = R.frontPose(project(), pieceId, { aspect: w && h ? w / h : 1.5 });
+    const pose = frontPose(viewer.layout, pieceId, { aspect: w && h ? w / h : 1.5 });
     if (pose) viewer.setPose(pose);
     // pull-outs (a larder, spice racks, baskets) only show with the doors open, so the front view opens them
     const piece = project().pieces.find((x) => x.id === pieceId);
@@ -269,14 +260,8 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
       announce('Doors opened, so the pull-outs show.');
     }
   });
-  // the person took the camera: no preset is "current" any more (Top stays while the plan view is on)
-  stage.addEventListener('pointerdown', () => { if (active && !rendering && activePreset !== 'top') { presetKey = ''; activePreset = ''; viewsEl.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-checked', 'false')); } });
-
-  function onViewMode(mode) {
-    if (!active) return;
-    if (mode === 'plan') markPreset('top');
-    else if (activePreset === 'top') markPreset('room');
-  }
+  // the person took the camera: no preset is "current" any more
+  stage.addEventListener('pointerdown', () => { if (active && !rendering && activePreset) { presetKey = ''; activePreset = ''; viewsEl.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-checked', 'false')); } });
 
   // ---------- the render ----------
   function setNote(text) { if (noteEl.textContent !== text) noteEl.textContent = text; noteEl.hidden = !text; }
@@ -286,21 +271,21 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   }
   function updateButtons() {
     const viewer = getViewer();
-    const hasPlaced = placedCount() > 0;
+    const hasPieces = pieceCount() > 0;
     const unsupported = probe && !probe.ok;
     const label = rendering ? 'Stop render' : shown && shown.canvas ? 'Render again' : 'Render';
     const text = renderBtn.querySelector('#pl-r-render-label');
     if (text.textContent !== label) text.textContent = label;
-    renderBtn.disabled = !viewer || (!rendering && (!hasPlaced || unsupported));
+    renderBtn.disabled = !viewer || (!rendering && (!hasPieces || unsupported));
     renderBtn.classList.toggle('is-busy', rendering);
-    renderBtn.title = unsupported ? 'This browser cannot path-trace' : !hasPlaced ? 'Place a piece in the room first' : '';
+    renderBtn.title = unsupported ? 'This browser cannot path-trace' : !hasPieces ? 'Design a piece first' : '';
     pngBtn.disabled = !viewer && !(shown && shown.canvas);
     const pngTitle = shown && shown.canvas && validShown() && shown.visible ? 'Save the render as a PNG' : 'Save the live view as a PNG';
     if (pngBtn.title !== pngTitle) { pngBtn.title = pngTitle; pngBtn.setAttribute('aria-label', `Download PNG: ${pngTitle.toLowerCase()}`); }
     if (!rendering) {
       if (unsupported) setNote(probe.reason === 'load' ? 'The realistic render could not load. The live view still works, and you can download it.'
         : 'This browser has no WebGL 2 with float textures, so it cannot path-trace. The live view has soft shadows and you can download it as a PNG.');
-      else if (!hasPlaced) setNote('Place a piece in the room to render it.');
+      else if (!hasPieces) setNote('Design a piece to render it.');
       else setNote('');
     }
   }
@@ -333,7 +318,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     imgBox.appendChild(shown.canvas);
     shown.canvas.className = 'pl-render__canvas';
     shown.canvas.setAttribute('role', 'img');
-    shown.canvas.setAttribute('aria-label', 'Your finished room, rendered');
+    shown.canvas.setAttribute('aria-label', 'Your furniture, rendered');
     showHost('picture');
     $h('#pl-r-statusbox').hidden = false;
     host.classList.add('is-done');
@@ -372,9 +357,9 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     try { renderMod = await import('../render.js'); } catch (err) { console.warn('The render module did not load.', err); finishFailed('The realistic render could not load. The live view still works.'); return; }
     let onScreen = false;
     job = renderMod.startRender({
-      host: imgBox, project: renderedProject, camera: cs.camera, hiddenWalls: cs.hiddenWalls, fronts, settings,
+      host: imgBox, project: renderedProject, camera: cs.camera, fronts, settings,
       onStage(name) {
-        if (name === 'building') setText('Building the room for the renderer.');
+        if (name === 'building') setText('Building the set for the renderer.');
         else if (name === 'compiling') setText('Compiling the light transport. This is the slow part on some devices.');
       },
       onProgress(p) {
@@ -431,7 +416,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     const useRender = validShown() && shown.visible;
     const c = useRender ? shown.canvas : liveCanvas(1600);
     if (!c) { say('There is no picture to save yet.'); return; }
-    const name = useRender ? 'grain-and-joint-render.png' : 'grain-and-joint-room.png';
+    const name = useRender ? 'grain-and-joint-render.png' : 'grain-and-joint-design.png';
     const done = (blob) => {
       if (!blob) { say('Your browser could not make the picture.'); return; }
       const url = URL.createObjectURL(blob);
@@ -490,18 +475,12 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
   $f('#pl-r-send').addEventListener('click', send);
 
   // ---------- print ----------
-  function describeRoom() {
-    const prj = project();
-    const b = roomBounds(prj.room);
-    const floor = (FLOORS[prj.room.floor] || {}).label, wall = (WALL_COLORS[prj.room.wall] || {}).label;
-    return `${Math.round(b.width)} × ${Math.round(b.depth)} cm, ceiling ${prj.room.height} cm${floor ? `, ${floor.toLowerCase()} floor` : ''}${wall ? `, ${wall.toLowerCase()} walls` : ''}`;
-  }
   function fillPrint() {
     if (!printBox) return;
     const prj = project();
     const q = quoteProject(prj, { vat: true }); // the printed quote always shows the price with VAT
     const view = R.quoteView(q, prj);
-    const pic = prj.placements.length ? jpegOf(pictureCanvas(1400), 1000, 0.85) : null;
+    const pic = prj.pieces.length ? jpegOf(pictureCanvas(1400), 1000, 0.85) : null;
     const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const key = JSON.stringify([q.cents, view.pieces.map((p) => p.id), !!pic && pic.length]);
     if (key === printKey && printBox.childElementCount) return;
@@ -512,10 +491,9 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
         <p class="pl-print__meta">Quote from the planner<br>${esc(date)}</p>
       </header>
       <h1 class="pl-print__title">Your built-in furniture</h1>
-      <p class="pl-print__room">Room: ${esc(describeRoom())}</p>
-      ${pic ? `<img class="pl-print__img" src="${pic}" alt="The room with your pieces in it">` : ''}
+      ${pic ? `<img class="pl-print__img" src="${pic}" alt="Your pieces side by side">` : ''}
       ${view.pieces.length ? quoteHtml(view, { forPrint: true }) : '<p>There is nothing to quote yet.</p>'}
-      <p class="pl-print__foot">An estimate from your design, not a contract: the workshop confirms it after measuring your room. Prices in euro, including 21% VAT. Grain &amp; Joint is a concept studio and this quote is not a real offer.</p>`;
+      <p class="pl-print__foot">An estimate from your design, not a contract: the workshop confirms it after measuring your space. Prices in euro, including 21% VAT. Grain &amp; Joint is a concept studio and this quote is not a real offer.</p>`;
     printBox.hidden = false;
   }
   $('#pl-r-print').addEventListener('click', () => { fillPrint(); window.print(); });
@@ -551,7 +529,7 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     active = true;
     rbar.hidden = false;
     problemsKey = ''; quoteKey = ''; presetKey = '';
-    activePreset = 'room';
+    activePreset = 'all';
     update(state);
     ensureProbe();
     viewerReady();
@@ -563,14 +541,9 @@ export function createReviewStep(root, { store, announce = () => {}, getViewer =
     rbar.hidden = true;
     $('#pl-r-linkbox').hidden = true;
   }
-  let hooked = false;
-  function viewerReady() {
-    const viewer = getViewer();
-    if (viewer && !hooked) { hooked = true; viewer.onViewChange(onViewMode); }
-    if (active) { updateButtons(); }
-  }
+  function viewerReady() { if (active) updateButtons(); }
   // the doors toggle changes what a render would show, so a picture of the other state is put away
   function frontsChanged() { if (active && shown && shown.visible && !validShown()) backToLive(); if (active) updateButtons(); }
 
-  return { update, show, hide, viewerReady, frontsChanged, fillPrint, sections, status: () => ({ count: lastBlockers.length, ok: placedCount() > 0 && !lastBlockers.length, jump: 'quote' }), destroy: hide };
+  return { update, show, hide, viewerReady, frontsChanged, fillPrint, sections, status: () => ({ count: lastBlockers.length, ok: pieceCount() > 0 && !lastBlockers.length, jump: 'quote' }), destroy: hide };
 }

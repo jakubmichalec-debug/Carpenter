@@ -1,5 +1,5 @@
 // Planner v2 realistic render: progressive path tracing in the browser with three-gpu-pathtracer and three-mesh-bvh.
-// This file, the libraries and render-scene.js are imported only when somebody presses Render on step 5. Nothing here
+// This file, the libraries and render-scene.js are imported only when somebody presses Render on the review question. Nothing here
 // runs outside a render: one requestAnimationFrame loop while it works, and when it ends the GPU resources are freed and
 // only a plain 2D canvas with the picture is left.
 const HDR_URL = new URL('../../assets/3d/room_1k.hdr', import.meta.url).href;
@@ -53,10 +53,10 @@ const cssColor = (name, fallback) => {
 };
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
-// opts: { host, project, camera, hiddenWalls, fronts, settings, onStage(name, info), onProgress(info) }
+// opts: { host, project, camera, fronts, settings, onStage(name, info), onProgress(info) }
 // camera is a Three.js camera (the viewer's, cloned). Returns { stop(), dispose(), done: Promise<result> }.
 export function startRender(opts) {
-  const { host, project, camera, hiddenWalls = [], fronts = 'closed', settings, onStage = () => {}, onProgress = () => {} } = opts;
+  const { host, project, camera, fronts = 'closed', settings, onStage = () => {}, onProgress = () => {} } = opts;
   let stage = 'loading';
   let stopRequested = false, disposed = false, finished = false, raf = 0, skipGap = false;
   // a hidden tab pauses requestAnimationFrame; the gap when it returns must not use up the time limit
@@ -164,7 +164,7 @@ export function startRender(opts) {
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     const lib = mats.createPlannerLib(THREE);
-    R.built = scn.buildRenderScene({ project, THREE, lib, fronts, camera: cam, hiddenWalls, hdr, background: cssColor('--paper', '#f6f6f3'), tex });
+    R.built = scn.buildRenderScene({ project, THREE, lib, fronts, camera: cam, hdr, background: cssColor('--paper', '#f6f6f3'), tex });
 
     const tracer = new PT.WebGLPathTracer(renderer);
     R.tracer = tracer;

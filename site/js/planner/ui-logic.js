@@ -2,8 +2,8 @@
 import { formatEuroWhole } from './review-logic.js';
 
 // One name per step: the stepper, the title, the Next button and the spoken announcement all use these.
-export const STEP_NAMES = ['Room', 'Furniture', 'Interior', 'Place', 'Review'];
-export const NEXT_LABELS = ['Next: furniture', 'Next: interior', 'Next: place', 'Next: review', ''];
+export const STEP_NAMES = ['Furniture', 'Interior', 'Review'];
+export const NEXT_LABELS = ['Next: interior', 'Next: review', ''];
 export const stepAnnouncement = (i) => `Step ${i + 1} of ${STEP_NAMES.length}, ${STEP_NAMES[i]}`;
 
 // Where the arrow keys move inside a roving-tabindex group of n items laid out in rows of `cols`. Returns the new
@@ -27,12 +27,6 @@ export function priceSummary(project, quote, vatOn) {
   if (!project || !project.pieces || !project.pieces.length) return { empty: true, text: 'No pieces yet', cents: 0 };
   const cents = quote && quote.cents ? quote.cents.total : 0;
   return { empty: false, text: `${formatEuroWhole(cents / 100)} ${vatOn ? 'incl. VAT' : 'excl. VAT'}`, cents };
-}
-
-// The wall elevation on step 1 only earns its space when a wall is being worked on: the walls section is open, a wall
-// was picked, an opening is selected, or the selected wall already has openings. Otherwise the plan gets the room.
-export function elevationVisible({ section, wallPicked, openingId, openingsOnWall }) {
-  return section === 'walls' || !!wallPicked || !!openingId || openingsOnWall > 0;
 }
 
 // Pieces whose pull-outs are only visible with the doors open (the Review "Front of" views open them).

@@ -1,4 +1,4 @@
-// Step 2: Furniture. Four sections: Pieces (the list, "+ Add a piece", and the type cards while one is being added),
+// Step 1: Furniture. Four sections: Pieces (the list, "+ Add a piece", and the type cards while one is being added),
 // Style, Look and Size. Leaving the step is always allowed.
 import { TYPES, STYLES, updatePiece, pieceLabel } from '../model.js';
 import { quoteProject } from '../pricing.js';
@@ -96,7 +96,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     store.dispatch({ type: 'history/seal' });
     const p = current();
     if (p) announce(`${pieceLabel(state.project, p.id)} ${state.project.pieces.length > before ? 'added' : 'chosen'}. Choose its style next.`);
-    else announce('There is no room for another piece.');
+    else announce('A design can hold up to 40 pieces, and you have reached that.');
   });
   $('#pl-f-add').addEventListener('click', () => { store.dispatch({ type: 'ui/new-piece' }); });
   $('#pl-f-cancel').addEventListener('click', () => {
@@ -118,10 +118,9 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     const p = current();
     if (!p) return;
     const name = pieceLabel(state.project, p.id);
-    const placed = state.project.placements.some((pl) => pl.pieceId === p.id);
     const ok = await confirmAction({
       title: `Delete ${name}?`,
-      text: `This removes the ${name.toLowerCase()}, everything inside it${placed ? ' and its place in the room' : ''}. You can bring it back with Undo.`,
+      text: `This removes the ${name.toLowerCase()}, everything inside it. You can bring it back with Undo.`,
       yes: `Delete ${name.toLowerCase()}`, no: 'Keep it'
     });
     if (!ok) return;
@@ -142,7 +141,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     priceTimer = 0;
     const p = current();
     if (!p || state.ui.starting || sections.current() !== 'style') return;
-    const solo = (piece) => ({ v: 2, room: state.project.room, pieces: [piece], placements: [] });
+    const solo = (piece) => ({ v: 2, pieces: [piece] });
     const total = (piece) => quoteProject(solo(piece), { vat: true }).cents.total;
     const base = total(p);
     stylesEl.querySelectorAll('[data-style]').forEach((b) => {
@@ -167,7 +166,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     const starting = !!state.ui.starting;
     const adding = starting || !project.pieces.length;
 
-    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), project.placements.map((x) => x.pieceId), state.ui.pieceId, starting]);
+    const ck = JSON.stringify([project.pieces.map((x) => [x.id, x.type, x.width, x.height]), state.ui.pieceId, starting]);
     if (ck !== chipsKey) { chipsKey = ck; chipsEl.innerHTML = pieceChipsHtml(project, starting ? null : state.ui.pieceId); }
     $('#pl-f-listbox').hidden = !project.pieces.length;
     $('#pl-f-typebox').hidden = !adding;
@@ -197,7 +196,7 @@ export function createFurnitureStep(root, { store, announce = () => {}, confirmA
     look.sync(p, state);
     if (sections.current() === 'style') { if (priceTimer) clearTimeout(priceTimer); priceTimer = setTimeout(stylePrices, 220); }
 
-    const list = (validation.errors || []).filter((e) => e.ref && e.ref.type === 'piece' && e.ref.id === p.id && e.code !== 'piece-unplaced');
+    const list = (validation.errors || []).filter((e) => e.ref && e.ref.type === 'piece' && e.ref.id === p.id);
     issueCount = list.length;
     const html = notesHtml(list);
     if (html !== notesKey) { notesKey = html; notesEl.innerHTML = html; }

@@ -1,13 +1,10 @@
 // Planner v2 Review step: pure logic (no DOM, no Three.js), so Node can test it. Quote grouping and formatting, the
 // blockers that stop "Send to the workshop", render settings per device class and camera presets. Money is integer cents wherever it is added up.
-import {
-  MATERIALS, wallsOf, footprintOf, ceilingHeightAt, pieceLabel
-} from './model.js';
+import { MATERIALS } from './model.js';
 
 export const THUMB_MAX = 300 * 1024;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const M = 0.01;
 
 // ---------- money and time ----------
 let eur = null;
@@ -31,35 +28,31 @@ export function formatDuration(seconds) {
 }
 
 // ---------- problems ----------
-// Which step fixes a validation error.
-export function issueStep(ref, code) {
-  const t = ref && ref.type;
-  if (code === 'piece-unplaced') return 3; // a piece that is not placed yet is the Place step's business
-  return t === 'room' || t === 'opening' ? 0 : t === 'piece' || t === 'bay' ? 1 : t === 'item' ? 2 : t === 'placement' ? 3 : 0;
+// Which step fixes a validation error: 0 Furniture (the piece, its sections, its size), 1 Interior (an item inside).
+export function issueStep(ref) {
+  return ref && ref.type === 'item' ? 1 : 0;
 }
-export const STEP_NAMES = ['Room', 'Furniture', 'Interior', 'Place'];
+export const STEP_NAMES = ['Furniture', 'Interior'];
 
-// Everything that stops "Send to the workshop": blocking errors, and nothing in the room at all.
+// Everything that stops "Send to the workshop": blocking errors, and nothing designed at all.
 export function sendBlockers(project, errors = []) {
   const out = [];
   if (!project.pieces || !project.pieces.length) {
-    out.push({ code: 'no-pieces', message: 'You have not designed a piece yet. Add one, then place it in the room.', ref: null, step: 1, label: 'Add a piece' });
-  } else if (!project.placements || !project.placements.length) {
-    out.push({ code: 'none-placed', message: 'No piece is in the room yet. Place at least one before you send the design.', ref: null, step: 3, label: 'Place a piece' });
+    out.push({ code: 'no-pieces', message: 'You have not designed a piece yet. Add one, then send the design.', ref: null, step: 0, label: 'Add a piece' });
   }
   for (const e of errors) {
     if (!e.blocking) continue;
-    const step = issueStep(e.ref, e.code);
+    const step = issueStep(e.ref);
     const r = e.ref || {};
     out.push({
-      code: e.code, message: String(e.message).replace(/\b([Ww])all w(\d+)\b/g, '$1all $2'), ref: e.ref || null, step, label: `Fix in ${STEP_NAMES[step]}`,
-      pieceId: r.pieceId || (r.type === 'piece' ? r.id : undefined), openingId: r.type === 'opening' ? r.id : undefined
+      code: e.code, message: String(e.message), ref: e.ref || null, step, label: `Fix in ${STEP_NAMES[step]}`,
+      pieceId: r.pieceId || (r.type === 'piece' ? r.id : undefined)
     });
   }
   return out;
 }
 export function adviceList(errors = []) {
-  return errors.filter((e) => !e.blocking).map((e) => ({ code: e.code, message: String(e.message).replace(/\b([Ww])all w(\d+)\b/g, '$1all $2'), ref: e.ref || null }));
+  return errors.filter((e) => !e.blocking).map((e) => ({ code: e.code, message: String(e.message), ref: e.ref || null }));
 }
 
 // ---------- the quote, shaped for the panel ----------
@@ -73,7 +66,6 @@ export function quoteView(quote, project) {
   const pieces = [];
   for (const pq of quote.pieces) {
     const piece = (project.pieces || []).find((p) => p.id === pq.id);
-    const placed = (project.placements || []).some((pl) => pl.pieceId === pq.id);
     const rowsByKey = new Map();
     for (const l of pq.lines) {
       const bay = l.ref.bay;
@@ -102,7 +94,7 @@ export function quoteView(quote, project) {
     for (const l of pq.lines) groupMap.set(l.group, (groupMap.get(l.group) || 0) + l.cents);
     const groups = ['Materials', 'Hardware', 'Workshop labour', 'Fitting'].filter((g) => groupMap.get(g)).map((g) => ({ label: g, cents: groupMap.get(g) }));
     pieces.push({
-      id: pq.id, label: pq.label, placed,
+      id: pq.id, label: pq.label,
       size: piece ? `${piece.width} × ${piece.height} × ${piece.depth} cm` : '',
       cents: pq.cents, groups, sections
     });
@@ -117,8 +109,7 @@ export function quoteView(quote, project) {
       subtotalCents: quote.cents.subtotal, vatCents: quote.cents.vat, totalCents: quote.cents.total,
       vatOn: quote.cents.vat > 0, leadTimeWeeks: quote.leadTimeWeeks
     },
-    materials,
-    unplaced: (quote.unplaced || []).map((id) => ({ id, label: pieceLabel(project, id) }))
+    materials
   };
 }
 
@@ -157,113 +148,4 @@ export function renderSettings(env = {}, override = null) {
 
 export function progressFraction({ samples = 0, maxSamples = 1, elapsed = 0, maxSeconds = 1 }) {
   return clamp(Math.max(samples / Math.max(1, maxSamples), elapsed / Math.max(1, maxSeconds)), 0, 1);
-}
-
-// ---------- geometry helpers ----------
-export function insideRoom(room, x, z) {
-  const c = room.walls;
-  let inside = false;
-  for (let i = 0, j = c.length - 1; i < c.length; j = i++) {
-    const a = c[i], b = c[j];
-    if ((a.z > z) !== (b.z > z) && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
-  }
-  return inside;
-}
-
-// Walls whose outer face is toward the camera (position in metres): the viewer fades them, so the render leaves them out.
-export function hiddenWalls(room, cam) {
-  const out = [];
-  for (const w of wallsOf(room)) {
-    const mx = ((w.start.x + w.end.x) / 2) * M, mz = ((w.start.z + w.end.z) / 2) * M;
-    const dOut = (cam[0] - mx) * -w.normal.x + (cam[2] - mz) * -w.normal.z;
-    if (dOut > 0.02) out.push(w.id);
-  }
-  return out;
-}
-
-// Polygon clipped to one side of a line: keep points where (x - ox) * nx + (z - oz) * nz is >= 0 (keep = 1) or <= 0 (keep = -1).
-function clipHalf(poly, ox, oz, nx, nz, keep) {
-  const d = (p) => keep * ((p.x - ox) * nx + (p.z - oz) * nz);
-  const out = [];
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length];
-    const da = d(a), db = d(b);
-    if (da >= 0) out.push(a);
-    if ((da > 0 && db < 0) || (da < 0 && db > 0)) {
-      const t = da / (da - db);
-      out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
-    }
-  }
-  return out;
-}
-const polyArea = (p) => {
-  let s = 0;
-  for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a.x * b.z - b.x * a.z; }
-  return Math.abs(s / 2);
-};
-
-// The ceiling as polygons (cm). Flat: the room outline. An attic: split where the slope reaches the ridge, so each
-// polygon is flat or a single slope. Each vertex carries `y`, the ceiling height there (cm).
-export function ceilingPolygons(room) {
-  const base = room.walls.map((c) => ({ x: c.x, z: c.z }));
-  const withY = (poly) => poly.map((p) => ({ x: p.x, z: p.z, y: ceilingHeightAt(room, p.x, p.z) }));
-  const s = room.slope;
-  const wall = s && wallsOf(room).find((w) => w.id === s.wallId);
-  if (!s || !wall) return [withY(base)];
-  const ox = wall.start.x + wall.normal.x * s.depth, oz = wall.start.z + wall.normal.z * s.depth;
-  const near = clipHalf(base, ox, oz, wall.normal.x, wall.normal.z, -1);
-  const far = clipHalf(base, ox, oz, wall.normal.x, wall.normal.z, 1);
-  return [near, far].filter((p) => p.length >= 3 && polyArea(p) > 1).map(withY);
-}
-
-// Where a placed piece's group goes in the scene (metres, radians), exactly as the viewer places it.
-export function placedTransform(project, placement) {
-  const fp = footprintOf(project, placement);
-  if (!fp) return null;
-  const c = fp.corners[0];
-  return { x: c.x * M, z: c.z * M, rotY: (-fp.rotation * Math.PI) / 180, lift: (placement.elevation || 0) * M };
-}
-
-// Distance (cm) from a point along a direction to the nearest wall; Infinity when the ray leaves through nothing.
-export function rayToWall(room, ox, oz, dx, dz) {
-  let best = Infinity;
-  for (const w of wallsOf(room)) {
-    const ex = w.end.x - w.start.x, ez = w.end.z - w.start.z;
-    const den = dx * ez - dz * ex;
-    if (Math.abs(den) < 1e-9) continue;
-    const t = ((w.start.x - ox) * ez - (w.start.z - oz) * ex) / den;
-    const u = ((w.start.x - ox) * dz - (w.start.z - oz) * dx) / den;
-    if (t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9 && t < best) best = t;
-  }
-  return best;
-}
-
-// ---------- camera presets ----------
-export function presetList(project) {
-  const list = [{ id: 'room', label: 'Room' }, { id: 'top', label: 'Top' }];
-  for (const pl of project.placements || []) {
-    if (footprintOf(project, pl)) list.push({ id: `front:${pl.pieceId}`, label: `Front of ${pieceLabel(project, pl.pieceId)}` });
-  }
-  return list;
-}
-
-export function frontPose(project, pieceId, { aspect = 1.5, fov = 36 } = {}) {
-  const pl = (project.placements || []).find((p) => p.pieceId === pieceId);
-  const piece = (project.pieces || []).find((p) => p.id === pieceId);
-  const fp = pl && piece && footprintOf(project, pl);
-  if (!fp) return null;
-  const r = (fp.rotation * Math.PI) / 180;
-  const f = { x: -Math.sin(r), z: Math.cos(r) }; // the way the front faces
-  const wM = piece.width * M, hM = piece.height * M, dM = piece.depth * M;
-  const lift = (pl.elevation || 0) * M;
-  const th = Math.tan((fov * Math.PI) / 360);
-  const need = Math.max((wM / 2) * 1.25 / (th * Math.max(0.6, aspect)), ((hM + lift) / 2) * 1.15 / th);
-  // stand far enough to frame the piece, but keep the camera inside the room when it can
-  const avail = rayToWall(project.room, fp.cx, fp.cz, f.x, f.z) * M;
-  const dist = clamp(Math.min(need + dM / 2, avail - 0.3), 1.6, 9);
-  const ty = clamp(lift + hM / 2, 0.55, 1.35);
-  const cy = clamp(Math.max(1.1, ty), 1.1, 1.55);
-  const target = [fp.cx * M, ty, fp.cz * M];
-  const position = [target[0] + f.x * dist, cy, target[2] + f.z * dist];
-  return { position, target, inRoom: insideRoom(project.room, position[0] / M, position[2] / M) };
 }
