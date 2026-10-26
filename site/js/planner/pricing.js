@@ -2,7 +2,7 @@
 import { PRICES } from '../configurator/pricing.js';
 import {
   ITEMS, TYPES, MATERIALS, LAYOUT_T, pieceGeometry, describeItem, pieceLabel, visibleFrontHeight,
-  footprintOf, ceilingHeightAt, wallById, surfacesOf, roleSegments, legCount, SCRIBE, TOP_CAP
+  surfacesOf, roleSegments, legCount, SCRIBE, TOP_CAP
 } from './model.js';
 import { pricePerM2, canonicalId, isStone } from './materials.js';
 
@@ -63,10 +63,8 @@ export const PRICES_V2 = {
     stoneWorktopHours: 3.5
   },
   fitting: {
-    base: PRICES.installPerModule,   // per placed piece
-    perMetre: 30,                    // per metre of width
-    slope: 85,                       // scribing to a sloping ceiling
-    radiator: 60                     // cutting around a radiator
+    base: PRICES.installPerModule,   // per piece
+    perMetre: 30                     // per metre of width
   },
   slabThickness: { desk: 3.8, table: 3.8, 'window-seat': 3.2 },
   // Looks: handle by style (EUR each, medium size, black), multiplied by size and finish; legs; extra workshop time per front.
@@ -244,7 +242,7 @@ function doorParts(piece, bay, d, g) {
 // ---------- the quote ----------
 const GROUPS = ['Materials', 'Hardware', 'Workshop labour', 'Fitting'];
 
-function quotePiece(project, piece, label, placement) {
+function quotePiece(project, piece, label) {
   const T = TYPES[piece.type];
   const g = pieceGeometry(piece);
   const lines = [];
@@ -375,25 +373,10 @@ function quotePiece(project, piece, label, placement) {
     });
   });
 
-  // Fitting (placed pieces only)
-  if (placement) {
+  // Fitting: per piece, by its width. Nothing depends on the room, which the planner does not know.
+  {
     const F = PRICES_V2.fitting;
     line('Fitting', { part: 'fitting' }, 'Fitting', 1, 'pc', cents(F.base + (piece.width / 100) * F.perMetre));
-    const room = project.room;
-    const fp = footprintOf(project, placement);
-    if (fp) {
-      const lowest = Math.min(...fp.corners.map((c) => ceilingHeightAt(room, c.x, c.z)));
-      if (room.slope && lowest < room.height - 0.5 && placement.elevation + piece.height > lowest - 25) {
-        line('Fitting', { part: 'fitting' }, 'Scribing to the sloping ceiling', 1, 'pc', cents(F.slope));
-      }
-    }
-    if (piece.radiatorCutout && placement.mode === 'wall') {
-      const wall = wallById(room, placement.wallId);
-      const hits = wall ? room.openings.filter((o) => o.type === 'radiator' && o.wallId === wall.id
-        && placement.offset < o.offset + o.width && o.offset < placement.offset + piece.width
-        && placement.elevation < o.bottom + o.height && o.bottom < placement.elevation + piece.height).length : 0;
-      if (hits) line('Fitting', { part: 'fitting' }, 'Radiator cut-out', hits, 'pc', hits * cents(F.radiator));
-    }
   }
 
   const total = lines.reduce((s, l) => s + l.cents, 0);
@@ -409,15 +392,11 @@ function quotePiece(project, piece, label, placement) {
 }
 
 export function quoteProject(project, { vat = true } = {}) {
-  const placements = new Map((project.placements || []).map((pl) => [pl.pieceId, pl]));
   const quotes = [];
-  const unplaced = [];
   let hours = 0;
   for (const piece of project.pieces || []) {
     if (!TYPES[piece.type]) continue;
-    const placement = placements.get(piece.id);
-    if (!placement) unplaced.push(piece.id);
-    const q = quotePiece(project, piece, pieceLabel(project, piece.id), placement);
+    const q = quotePiece(project, piece, pieceLabel(project, piece.id));
     hours += q.hours;
     quotes.push(q);
   }
@@ -450,7 +429,6 @@ export function quoteProject(project, { vat = true } = {}) {
     subtotal: money(subtotal), vat: money(vatC), total: money(subtotal + vatC),
     cents: { subtotal, vat: vatC, total: subtotal + vatC },
     cutList, boardM2ByMaterial: byMat,
-    leadTimeWeeks: 4 + Math.ceil(hours / 40),
-    unplaced
+    leadTimeWeeks: 4 + Math.ceil(hours / 40)
   };
 }

@@ -1,12 +1,12 @@
 // Planner v2 model: pure data and helpers, no DOM, no Three.js. All lengths in cm.
 // Shapes are specified in CONTRACTS.md, section "Planner v2".
-import { FLOORS, WALL_COLORS, clampDesign } from '../configurator/model.js';
+import { clampDesign } from '../configurator/model.js';
 import {
   MATERIALS, isUsable, resolveMaterial, cleanSurface, thicknessOf, resolveHandleFinish, HANDLE_ALIASES, DESIGN_ALIASES,
   railFinishes, liningColours, railInfo, LINING_ALIASES
 } from './materials.js';
 
-export { MATERIALS, FLOORS, WALL_COLORS };
+export { MATERIALS };
 
 // ---------- the look of a piece: option lists (the materials themselves live in materials.js) ----------
 export const HANDLES = ['bar', 'knob', 'cup', 'edge', 'push'];
@@ -29,15 +29,7 @@ export const GRID = 3.2;            // 32 mm system
 export const MIN_BAY = 20;
 export const FRONT_KINDS = ['hinged', 'sliding', 'open', 'glass', 'none'];
 export const DOOR_SIDES = ['left', 'right', 'double', 'none'];
-export const SWINGS = ['in-left', 'in-right', 'out-left', 'out-right'];
-export const LIMITS = { height: [220, 400], skirting: [0, 20], pieces: 40, openings: 30, bays: 12, itemsPerBay: 24, walls: 24, coord: 5000 };
-
-export const OPENING_TYPES = {
-  door:     { label: 'Door',     width: [60, 200], height: [180, 260], bottom: [0, 0],   defaults: { width: 90,  height: 210, bottom: 0,  swing: 'in-left' } },
-  window:   { label: 'Window',   width: [30, 600], height: [30, 300],  bottom: [0, 250], defaults: { width: 120, height: 130, bottom: 90 } },
-  radiator: { label: 'Radiator', width: [20, 300], height: [20, 200],  bottom: [0, 150], defaults: { width: 80,  height: 60,  bottom: 15, depth: 10 } },
-  socket:   { label: 'Socket',   width: [4, 20],   height: [4, 20],    bottom: [0, 200], defaults: { width: 8,   height: 8,   bottom: 30 } }
-};
+export const LIMITS = { pieces: 40, bays: 12, itemsPerBay: 24, space: { width: [40, 1500], height: [60, 500] } };
 
 // ---------- small helpers ----------
 const EPS = 1e-6;
@@ -933,9 +925,10 @@ export function clampPiece(raw, fallbackId = 'p0') {
     look,
     plinth,
     worktop: T.allowWorktop ? (isUsable(raw.worktop, 'top') ? resolveMaterial(raw.worktop, 'top') : raw.worktop === null ? null : bundle.worktop) : null,
-    radiatorCutout: !!raw.radiatorCutout,
     bays: []
   };
+  const space = clampSpace(raw.space);
+  if (space) piece.space = space;
   const srcBays = Array.isArray(raw.bays) ? raw.bays.filter(isObj) : [];
   const wanted = srcBays.length ? srcBays.length : D.bays;
   const n = clamp(Math.min(wanted, LIMITS.bays), L.bays[0], maxBaysFor(raw.type, piece.width));
@@ -958,176 +951,6 @@ export function clampPiece(raw, fallbackId = 'p0') {
   return piece;
 }
 
-// ---------- room templates ----------
-export const TEMPLATES = {
-  rect: { label: 'Rectangle' },
-  'l-shape': { label: 'L-shape' },
-  alcoves: { label: 'Chimney breast with alcoves' },
-  attic: { label: 'Attic with sloping ceiling' },
-  hallway: { label: 'Hallway' },
-  bay: { label: 'Bay window' }
-};
-
-const P = (label, min, max, def) => ({ label, min, max, default: def });
-export const TEMPLATE_PARAMS = {
-  rect: { width: P('Width', 200, 900, 420), depth: P('Depth', 200, 800, 380) },
-  'l-shape': {
-    lengthA: P('Top bar length', 200, 900, 500), widthA: P('Top bar width', 100, 700, 300),
-    lengthB: P('Left arm length', 200, 900, 450), widthB: P('Left arm width', 100, 700, 250)
-  },
-  alcoves: {
-    width: P('Wall length', 300, 900, 460), depth: P('Depth', 250, 800, 380),
-    breastWidth: P('Chimney breast width', 60, 300, 100), breastDepth: P('Chimney breast depth', 10, 80, 40),
-    breastOffset: P('Breast from the left', 60, 700, 170)
-  },
-  attic: {
-    width: P('Width', 250, 900, 480), depth: P('Depth', 250, 800, 400),
-    kneeHeight: P('Knee wall height', 40, 200, 120), slopeAngle: P('Slope angle (degrees)', 15, 65, 40), slopeWall: P('Sloping wall (1 to 4)', 1, 4, 1)
-  },
-  hallway: { length: P('Length', 250, 1200, 500), width: P('Width', 90, 200, 120) },
-  bay: {
-    width: P('Width', 300, 900, 420), depth: P('Depth', 250, 800, 360),
-    bayWidth: P('Bay opening width', 150, 500, 240), bayDepth: P('Bay depth', 20, 120, 50)
-  }
-};
-
-export function clampTemplateParams(id, params) {
-  if (!has(TEMPLATE_PARAMS, id)) return {};
-  const spec = TEMPLATE_PARAMS[id];
-  const src = isObj(params) ? params : {};
-  const o = {};
-  for (const [k, s] of Object.entries(spec)) o[k] = clamp(toInt(src[k], s.default), s.min, s.max);
-  if (id === 'l-shape') {
-    o.widthB = Math.min(o.widthB, o.lengthA - 60);
-    o.widthA = Math.min(o.widthA, o.lengthB - 60);
-  } else if (id === 'alcoves') {
-    o.breastWidth = Math.min(o.breastWidth, o.width - 120);
-    o.breastOffset = clamp(o.breastOffset, 60, Math.max(60, o.width - o.breastWidth - 60));
-    o.breastDepth = Math.min(o.breastDepth, o.depth - 120);
-  } else if (id === 'bay') {
-    o.bayWidth = Math.min(o.bayWidth, o.width - 60);
-    o.bayDepth = Math.min(o.bayDepth, Math.floor((o.bayWidth - 40) / 2));
-  }
-  return o;
-}
-
-const withIds = (pts) => pts.map(([x, z], i) => ({ id: `w${i + 1}`, x, z }));
-
-function cornersFor(id, p) {
-  switch (id) {
-    case 'rect': case 'attic':
-      return [[0, 0], [p.width, 0], [p.width, p.depth], [0, p.depth]];
-    case 'hallway':
-      return [[0, 0], [p.length, 0], [p.length, p.width], [0, p.width]];
-    case 'l-shape':
-      return [[0, 0], [p.lengthA, 0], [p.lengthA, p.widthA], [p.widthB, p.widthA], [p.widthB, p.lengthB], [0, p.lengthB]];
-    case 'alcoves': {
-      const a = p.breastOffset, b = p.breastOffset + p.breastWidth;
-      return [[0, 0], [a, 0], [a, p.breastDepth], [b, p.breastDepth], [b, 0], [p.width, 0], [p.width, p.depth], [0, p.depth]];
-    }
-    case 'bay': {
-      const x0 = Math.round((p.width - p.bayWidth) / 2), d = p.bayDepth, x1 = x0 + p.bayWidth;
-      return [[0, d], [x0, d], [x0 + d, 0], [x1 - d, 0], [x1, d], [p.width, d], [p.width, p.depth + d], [0, p.depth + d]];
-    }
-    default:
-      return null;
-  }
-}
-
-// Returns a room for a template. `base` may carry height, floor, wall, skirting, openings.
-export function roomFromTemplate(id, params, base = {}) {
-  if (!has(TEMPLATE_PARAMS, id)) throw new Error(`Unknown room template: ${id}`);
-  const p = clampTemplateParams(id, params);
-  const walls = withIds(cornersFor(id, p));
-  const b = isObj(base) ? base : {};
-  const height = clamp(toInt(b.height, id === 'attic' ? 250 : 260), LIMITS.height[0], LIMITS.height[1]);
-  let slope = null;
-  if (id === 'attic') {
-    const knee = Math.min(p.kneeHeight, height - 20);
-    const perp = p.slopeWall % 2 === 1 ? p.depth : p.width;
-    const run = Math.round((height - knee) / Math.tan((p.slopeAngle * Math.PI) / 180));
-    slope = { wallId: `w${p.slopeWall}`, lowHeight: knee, depth: clamp(run, 20, perp - 50) };
-  }
-  let openings = Array.isArray(b.openings) ? b.openings : null;
-  if (!openings) {
-    openings = [];
-    if (id === 'hallway') {
-      const dw = Math.min(90, p.width - 20);
-      const off = Math.round((p.width - dw) / 2);
-      openings = [
-        { id: 'o1', wallId: 'w2', type: 'door', offset: off, bottom: 0, width: dw, height: 210, swing: 'in-left' },
-        { id: 'o2', wallId: 'w4', type: 'door', offset: off, bottom: 0, width: dw, height: 210, swing: 'in-left' }
-      ];
-    }
-  }
-  return {
-    walls, height, slope, openings,
-    floor: has(FLOORS, b.floor) ? b.floor : 'oak-floor',
-    wall: has(WALL_COLORS, b.wall) ? b.wall : 'chalk',
-    skirting: clamp(toInt(b.skirting, 7), LIMITS.skirting[0], LIMITS.skirting[1]),
-    template: { id, params: p }
-  };
-}
-
-// ---------- room helpers ----------
-export function wallsOf(room) {
-  const c = room.walls;
-  return c.map((s, i) => {
-    const e = c[(i + 1) % c.length];
-    const dx = e.x - s.x, dz = e.z - s.z;
-    const length = Math.hypot(dx, dz);
-    const dir = length ? { x: dx / length, z: dz / length } : { x: 1, z: 0 };
-    return {
-      id: s.id, index: i, start: { x: s.x, z: s.z }, end: { x: e.x, z: e.z }, length,
-      angle: (Math.atan2(dz, dx) * 180) / Math.PI, dir,
-      normal: length ? { x: -dir.z, z: dir.x } : { x: 0, z: 1 }
-    };
-  });
-}
-export const perimeter = (room) => wallsOf(room).reduce((s, w) => s + w.length, 0);
-export function signedArea(room) {
-  const c = room.walls;
-  let s = 0;
-  for (let i = 0; i < c.length; i++) {
-    const a = c[i], b = c[(i + 1) % c.length];
-    s += a.x * b.z - b.x * a.z;
-  }
-  return s / 2;
-}
-export const area = (room) => Math.abs(signedArea(room));
-export const wallById = (room, id) => wallsOf(room).find((w) => w.id === id) || null;
-
-export function ceilingHeightAt(room, x, z) {
-  if (!room.slope) return room.height;
-  const w = wallById(room, room.slope.wallId);
-  if (!w) return room.height;
-  const t = (x - w.start.x) * w.normal.x + (z - w.start.z) * w.normal.z;
-  const f = clamp(t / Math.max(1, room.slope.depth), 0, 1);
-  return room.slope.lowHeight + (room.height - room.slope.lowHeight) * f;
-}
-
-// Footprint of a placed piece: four corners in plan coordinates (back-left, back-right, front-right, front-left).
-export function footprintOf(project, placement) {
-  if (!isObj(placement)) return null;
-  const piece = (project.pieces || []).find((p) => p.id === placement.pieceId);
-  if (!piece) return null;
-  const w = piece.width, d = piece.depth;
-  if (placement.mode === 'wall') {
-    const wall = wallById(project.room, placement.wallId);
-    if (!wall) return null;
-    const u = wall.dir, n = wall.normal;
-    const bx = wall.start.x + u.x * placement.offset, bz = wall.start.z + u.z * placement.offset;
-    const corners = [[0, 0], [w, 0], [w, d], [0, d]].map(([a, b]) => ({ x: bx + u.x * a + n.x * b, z: bz + u.z * a + n.z * b }));
-    return { corners, cx: (corners[0].x + corners[2].x) / 2, cz: (corners[0].z + corners[2].z) / 2, rotation: wall.angle, wall };
-  }
-  const r = ((placement.rotation || 0) * Math.PI) / 180;
-  const u = { x: Math.cos(r), z: Math.sin(r) }, f = { x: -Math.sin(r), z: Math.cos(r) };
-  const corners = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([a, b]) => ({
-    x: placement.x + u.x * a + f.x * b, z: placement.z + u.z * a + f.z * b
-  }));
-  return { corners, cx: placement.x, cz: placement.z, rotation: placement.rotation || 0 };
-}
-
 export function pieceLabel(project, pieceId) {
   const pieces = project.pieces || [];
   const p = pieces.find((x) => x.id === pieceId);
@@ -1136,113 +959,37 @@ export function pieceLabel(project, pieceId) {
   return `${TYPES[p.type] ? TYPES[p.type].label : p.type} ${n}`;
 }
 
-// ---------- room clamping ----------
-function clampWalls(raw) {
-  if (!Array.isArray(raw) || raw.length < 3 || raw.length > LIMITS.walls) return null;
-  const out = [];
-  const ids = new Set();
-  for (let i = 0; i < raw.length; i++) {
-    const c = raw[i];
-    if (!isObj(c) || !Number.isFinite(Number(c.x)) || !Number.isFinite(Number(c.z))) return null;
-    let id = safeId(c.id, `w${i + 1}`);
-    if (ids.has(id)) id = `w${i + 1}`;
-    if (ids.has(id)) return null;
-    ids.add(id);
-    out.push({ id, x: clamp(Math.round(Number(c.x)), -LIMITS.coord, LIMITS.coord), z: clamp(Math.round(Number(c.z)), -LIMITS.coord, LIMITS.coord) });
-  }
-  return out;
-}
-
-function clampOpening(raw, i, ids, roomHeight) {
-  if (!isObj(raw) || !has(OPENING_TYPES, raw.type)) return null;
-  const S = OPENING_TYPES[raw.type], D = S.defaults;
-  let id = safeId(raw.id, `o${i + 1}`);
-  for (let n = 1; ids.has(id); n++) id = `o${i + 1}_${n}`;
-  ids.add(id);
-  const o = {
-    id, wallId: typeof raw.wallId === 'string' ? raw.wallId.slice(0, 24) : '', type: raw.type,
-    offset: clamp(toInt(raw.offset, 0), -LIMITS.coord, LIMITS.coord),
-    bottom: clamp(toInt(raw.bottom, D.bottom), S.bottom[0], S.bottom[1]),
-    width: clamp(toInt(raw.width, D.width), S.width[0], S.width[1]),
-    height: clamp(toInt(raw.height, D.height), S.height[0], S.height[1])
-  };
-  if (raw.type === 'door') o.swing = SWINGS.includes(raw.swing) ? raw.swing : D.swing;
-  if (raw.type === 'radiator') o.depth = clamp(toInt(raw.depth, D.depth), 3, 30);
-  if (raw.flagged === true) o.flagged = true;
-  return o;
-}
-
-export function clampRoom(raw) {
-  const r = isObj(raw) ? raw : {};
-  let tmpl = null;
-  if (isObj(r.template) && has(TEMPLATE_PARAMS, r.template.id)) {
-    tmpl = { id: r.template.id, params: clampTemplateParams(r.template.id, r.template.params) };
-  }
-  let walls = clampWalls(r.walls);
-  if (!walls) {
-    if (!tmpl) tmpl = { id: 'rect', params: clampTemplateParams('rect', {}) };
-    walls = roomFromTemplate(tmpl.id, tmpl.params, { height: r.height }).walls;
-  }
-  const height = clamp(toInt(r.height, tmpl && tmpl.id === 'attic' ? 250 : 260), LIMITS.height[0], LIMITS.height[1]);
-  let slope = null;
-  if (isObj(r.slope) && typeof r.slope.wallId === 'string') {
-    slope = {
-      wallId: r.slope.wallId.slice(0, 24),
-      lowHeight: clamp(toInt(r.slope.lowHeight, 120), 30, height),
-      depth: clamp(toInt(r.slope.depth, 150), 10, 900)
-    };
-  } else if (tmpl && tmpl.id === 'attic' && r.slope === undefined) {
-    slope = roomFromTemplate('attic', tmpl.params, { height }).slope;
-  }
-  const ids = new Set();
-  const src = Array.isArray(r.openings) ? r.openings.slice(0, LIMITS.openings) : [];
-  const openings = src.map((o, i) => clampOpening(o, i, ids, height)).filter(Boolean);
-  return {
-    walls, height, slope, openings,
-    floor: has(FLOORS, r.floor) ? r.floor : 'oak-floor',
-    wall: has(WALL_COLORS, r.wall) ? r.wall : 'chalk',
-    skirting: clamp(toInt(r.skirting, 7), LIMITS.skirting[0], LIMITS.skirting[1]),
-    template: tmpl
-  };
-}
-
-// ---------- placement clamping ----------
-function clampPlacement(raw, project) {
+// ---------- the space a piece has to fit ----------
+// `piece.space = { width, height }` (cm, either may be null) is the wall width and ceiling height the person has; it only
+// drives a warning and "Fit to the space". A piece without one has no `space` key at all.
+export function clampSpace(raw) {
   if (!isObj(raw)) return null;
-  const piece = project.pieces.find((p) => p.id === raw.pieceId);
-  if (!piece) return null;
-  const T = TYPES[piece.type];
-  const elevation = clamp(toInt(raw.elevation, T.defaults.elevation), T.limits.elevation[0], T.limits.elevation[1]);
-  if (raw.mode === 'wall') {
-    return { pieceId: piece.id, mode: 'wall', wallId: typeof raw.wallId === 'string' ? raw.wallId.slice(0, 24) : '', offset: clamp(toInt(raw.offset, 0), -LIMITS.coord, LIMITS.coord), elevation };
-  }
-  if (raw.mode === 'free') {
-    const rot = ((toInt(raw.rotation, 0) % 360) + 360) % 360;
-    return { pieceId: piece.id, mode: 'free', x: clamp(toInt(raw.x, 0), -LIMITS.coord, LIMITS.coord), z: clamp(toInt(raw.z, 0), -LIMITS.coord, LIMITS.coord), rotation: rot, elevation };
-  }
-  return null;
+  const one = (v, [lo, hi]) => { const n = typeof v === 'string' && v.trim() === '' ? NaN : Number(v); return v === null || v === undefined || !Number.isFinite(n) ? null : clamp(Math.round(n), lo, hi); };
+  const width = one(raw.width, LIMITS.space.width), height = one(raw.height, LIMITS.space.height);
+  return width === null && height === null ? null : { width, height };
 }
 
+// ---------- project clamping ----------
+// Takes any object and returns a valid project: `{ v: 2, pieces }`. Older saves and links also carry a room and
+// placements; they are ignored (a wall-hung piece keeps the height it was placed at).
 export function clampProject(raw) {
   const r = isObj(raw) ? raw : {};
-  const room = clampRoom(r.room);
   const pieces = [];
   const ids = new Set();
+  const oldElevation = new Map();
+  for (const pl of Array.isArray(r.placements) ? r.placements : []) {
+    if (isObj(pl) && typeof pl.pieceId === 'string' && Number.isFinite(Number(pl.elevation))) oldElevation.set(pl.pieceId, Number(pl.elevation));
+  }
   for (const src of (Array.isArray(r.pieces) ? r.pieces : []).slice(0, LIMITS.pieces)) {
-    const probe = clampPiece(src, 'p0');
+    const was = isObj(src) && oldElevation.has(src.id) ? { ...src, elevation: oldElevation.get(src.id) } : src;
+    const probe = clampPiece(was, 'p0');
     if (!probe) continue;
     let id = probe.id;
     if (id === 'p0' || ids.has(id)) { let n = 1; while (ids.has(`p${n}`)) n++; id = `p${n}`; }
     ids.add(id);
     pieces.push({ ...probe, id });
   }
-  const project = { v: 2, room, pieces, placements: [] };
-  const seen = new Set();
-  for (const pl of Array.isArray(r.placements) ? r.placements : []) {
-    const c = clampPlacement(pl, project);
-    if (c && !seen.has(c.pieceId)) { seen.add(c.pieceId); project.placements.push(c); }
-  }
-  return project;
+  return { v: 2, pieces };
 }
 
 // ---------- edits ----------
@@ -1270,7 +1017,7 @@ export function createPiece(type, style, overrides = {}) {
     elevation: o.elevation,
     plinth: o.plinth ?? b.plinth,
     worktop: o.worktop === undefined ? b.worktop : o.worktop,
-    radiatorCutout: !!o.radiatorCutout
+    space: o.space
   };
   const probe = clampPiece({ ...raw, bays: [{ width: 1, items: [] }] }); // size and fronts clamped first
   let count = T.defaults.bays;
@@ -1290,110 +1037,17 @@ export function createPiece(type, style, overrides = {}) {
   return clampPiece(raw, raw.id);
 }
 
+
+// The example the planner starts from: a wardrobe and a desk, no room.
 export function createProject() {
-  const room = roomFromTemplate('alcoves', {}, {
-    openings: [
-      { id: 'o1', wallId: 'w5', type: 'window', offset: 40, bottom: 90, width: 110, height: 130 },
-      { id: 'o2', wallId: 'w6', type: 'door', offset: 250, bottom: 0, width: 90, height: 210, swing: 'in-left' }
-    ]
-  });
   const wardrobe = createPiece('wardrobe', 'flat-oak', { id: 'p1', width: 170, bays: 2 });
   const desk = createPiece('desk', 'walnut-grooved', { id: 'p2', width: 140 });
-  return clampProject({
-    v: 2, room, pieces: [wardrobe, desk],
-    placements: [
-      { pieceId: 'p1', mode: 'wall', wallId: 'w1', offset: 0, elevation: 0 },
-      { pieceId: 'p2', mode: 'wall', wallId: 'w5', offset: 25, elevation: 0 }
-    ]
-  });
+  return clampProject({ v: 2, pieces: [wardrobe, desk] });
 }
 
-// A plain 4 x 3.5 m rectangle with nothing in it: where the planner starts when someone picks "an empty room".
-export const BLANK_ROOM = { width: 400, depth: 350 };
+// Nothing in it: where the planner starts when someone picks "Start a new piece".
 export function createBlankProject() {
-  return clampProject({ v: 2, room: roomFromTemplate('rect', { ...BLANK_ROOM }), pieces: [], placements: [] });
-}
-
-export function updateRoom(project, patch) {
-  const next = cloneProject(project);
-  const p = isObj(patch) ? patch : {};
-  const room = next.room;
-  if (p.height !== undefined) room.height = clamp(toInt(p.height, room.height), LIMITS.height[0], LIMITS.height[1]);
-  if (has(FLOORS, p.floor)) room.floor = p.floor;
-  if (has(WALL_COLORS, p.wall)) room.wall = p.wall;
-  if (p.skirting !== undefined) room.skirting = clamp(toInt(p.skirting, room.skirting), LIMITS.skirting[0], LIMITS.skirting[1]);
-  if (room.template && room.template.id === 'attic') {
-    room.slope = roomFromTemplate('attic', room.template.params, { height: room.height }).slope;
-  } else if (room.slope) {
-    room.slope.lowHeight = Math.min(room.slope.lowHeight, room.height);
-  }
-  return next;
-}
-
-export function setTemplate(project, id, params) {
-  if (!has(TEMPLATE_PARAMS, id)) return project;
-  const next = cloneProject(project);
-  const old = next.room;
-  const same = old.template && old.template.id === id;
-  const merged = same ? { ...old.template.params, ...(isObj(params) ? params : {}) } : params;
-  const fresh = roomFromTemplate(id, merged, { height: old.height, floor: old.floor, wall: old.wall, skirting: old.skirting, openings: [] });
-  const oldWalls = wallsOf(old);
-  const newWalls = wallsOf(fresh);
-  const kept = [];
-  for (const o of old.openings) {
-    const idx = oldWalls.findIndex((w) => w.id === o.wallId);
-    const wall = idx >= 0 ? newWalls[idx] : null;
-    if (wall && o.offset >= 0 && o.offset + o.width <= wall.length + 0.5) {
-      const { flagged, ...rest } = o;
-      kept.push({ ...rest, wallId: wall.id });
-    } else {
-      kept.push({ ...o, wallId: wall ? wall.id : o.wallId, flagged: true });
-    }
-  }
-  if (!kept.length && id === 'hallway' && !old.openings.length) kept.push(...roomFromTemplate('hallway', fresh.template.params).openings);
-  fresh.openings = kept;
-  next.room = fresh;
-  return next;
-}
-
-function fitOpening(room, o) {
-  const wall = wallById(room, o.wallId);
-  const S = OPENING_TYPES[o.type];
-  if (!wall) return o;
-  const width = Math.min(o.width, Math.max(S.width[0], Math.floor(wall.length)));
-  const height = Math.min(o.height, Math.max(S.height[0], room.height));
-  const offset = clamp(o.offset, 0, Math.max(0, Math.floor(wall.length - width)));
-  const bottom = Math.min(o.bottom, Math.max(0, room.height - height));
-  const out = { ...o, width, height, offset, bottom };
-  if (offset + width <= wall.length + 0.5) delete out.flagged;
-  return out;
-}
-
-export function addOpening(project, opening) {
-  const next = cloneProject(project);
-  if (next.room.openings.length >= LIMITS.openings || !isObj(opening) || !has(OPENING_TYPES, opening.type)) return next;
-  const o = clampOpening({ ...opening, id: undefined }, next.room.openings.length, new Set(next.room.openings.map((x) => x.id)), next.room.height);
-  const id = isObj(opening) && safeId(opening.id, null) && !next.room.openings.some((x) => x.id === opening.id) ? opening.id : nextId('o', next.room.openings);
-  if (!o) return next;
-  next.room.openings.push(fitOpening(next.room, { ...o, id }));
-  return next;
-}
-
-export function updateOpening(project, id, patch) {
-  const next = cloneProject(project);
-  const i = next.room.openings.findIndex((o) => o.id === id);
-  if (i < 0) return next;
-  const merged = { ...next.room.openings[i], ...(isObj(patch) ? patch : {}), id };
-  const c = clampOpening(merged, i, new Set(), next.room.height);
-  if (!c) return next;
-  next.room.openings[i] = fitOpening(next.room, c);
-  return next;
-}
-
-export function removeOpening(project, id) {
-  const next = cloneProject(project);
-  next.room.openings = next.room.openings.filter((o) => o.id !== id);
-  return next;
+  return clampProject({ v: 2, pieces: [] });
 }
 
 export function addPiece(project, type, style, overrides = {}) {
@@ -1447,7 +1101,6 @@ export function updatePiece(project, id, patch) {
 export function removePiece(project, id) {
   const next = cloneProject(project);
   next.pieces = next.pieces.filter((p) => p.id !== id);
-  next.placements = next.placements.filter((pl) => pl.pieceId !== id);
   return next;
 }
 
@@ -1533,72 +1186,6 @@ export function applyPreset(project, pieceId, bayIndex, presetId) {
   return next;
 }
 
-// ---------- placement ----------
-const SNAP = 5;
-const vOverlap = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
-
-function snapOffset(project, piece, wall, wallId, offset, elevation) {
-  const max = Math.max(0, Math.floor(wall.length - piece.width + EPS));
-  const cands = [0, wall.length - piece.width];
-  for (const pl of project.placements) {
-    if (pl.pieceId === piece.id || pl.mode !== 'wall' || pl.wallId !== wallId) continue;
-    const other = project.pieces.find((x) => x.id === pl.pieceId);
-    if (!other || !vOverlap(elevation, elevation + piece.height, pl.elevation, pl.elevation + other.height)) continue;
-    cands.push(pl.offset + other.width, pl.offset - piece.width);
-  }
-  let best = null;
-  for (const c of cands) {
-    const d = Math.abs(c - offset);
-    if (d <= SNAP && (best === null || d < Math.abs(best - offset))) best = c;
-  }
-  const v = best === null ? offset : best;
-  return clamp(Math.round(v), 0, max);
-}
-
-function resolvePlacement(project, pieceId, spec) {
-  const piece = project.pieces.find((p) => p.id === pieceId);
-  if (!piece || !isObj(spec)) return null;
-  const T = TYPES[piece.type];
-  const elevation = clamp(toInt(spec.elevation, defaultElevation(piece)), T.limits.elevation[0], T.limits.elevation[1]);
-  if (spec.mode === 'wall') {
-    const wall = wallById(project.room, spec.wallId);
-    if (!wall) return { pieceId, mode: 'wall', wallId: String(spec.wallId || ''), offset: toInt(spec.offset, 0), elevation };
-    // `snap: false` keeps the offset as given (clamped to the wall): arrow keys and typed numbers must be able to move 1 cm
-    const offset = spec.snap === false
-      ? clamp(toInt(spec.offset, 0), 0, Math.max(0, Math.floor(wall.length - piece.width + EPS)))
-      : snapOffset(project, piece, wall, wall.id, toInt(spec.offset, 0), elevation);
-    return { pieceId, mode: 'wall', wallId: wall.id, offset, elevation };
-  }
-  if (spec.mode === 'free') {
-    let rot = ((toInt(spec.rotation, 0) % 360) + 360) % 360;
-    const near = Math.round(rot / 90) * 90;
-    if (spec.snap !== false && Math.abs(rot - near) <= SNAP) rot = near % 360;
-    return { pieceId, mode: 'free', x: toInt(spec.x, 0), z: toInt(spec.z, 0), rotation: rot, elevation };
-  }
-  return null;
-}
-
-export function placePiece(project, pieceId, spec) {
-  const next = cloneProject(project);
-  const pl = resolvePlacement(next, pieceId, spec);
-  if (!pl) return next;
-  next.placements = next.placements.filter((x) => x.pieceId !== pieceId);
-  next.placements.push(pl);
-  return next;
-}
-
-export function movePlacement(project, pieceId, patch) {
-  const cur = project.placements.find((x) => x.pieceId === pieceId);
-  if (!cur) return cloneProject(project);
-  return placePiece(project, pieceId, { ...cur, ...(isObj(patch) ? patch : {}) });
-}
-
-export function unplace(project, pieceId) {
-  const next = cloneProject(project);
-  next.placements = next.placements.filter((x) => x.pieceId !== pieceId);
-  return next;
-}
-
 // ---------- migration from v1 ----------
 const V1_TYPE = {
   wardrobe: 'wardrobe', 'kitchen-base': 'kitchen-base', 'kitchen-wall': 'kitchen-wall', 'tall-cabinet': 'tall-cabinet',
@@ -1644,28 +1231,14 @@ function migrateModule(m, id) {
 
 export function migrate(v1) {
   const d = clampDesign(v1);
-  const room = roomFromTemplate('rect', { width: d.room.width, depth: d.room.depth }, {
-    height: d.room.height, floor: d.room.floor, wall: d.room.wall,
-    openings: d.room.openings.map((o, i) => ({
-      id: o.id || `o${i + 1}`, wallId: 'w1', type: o.type, offset: o.x, bottom: o.type === 'door' ? 0 : o.y, width: o.w, height: o.h,
-      ...(o.type === 'door' ? { swing: 'in-left' } : {})
-    }))
-  });
-  const pieces = [], placements = [];
+  const pieces = [];
   d.modules.forEach((m, i) => {
     if (!V1_TYPE[m.type]) return;
-    const id = `p${i + 1}`;
-    const piece = migrateModule(m, id);
+    const piece = migrateModule(m, `p${i + 1}`);
+    if (m.elevation) piece.elevation = m.elevation;
     pieces.push(piece);
-    if (TYPES[piece.type].freestanding) {
-      placements.push({
-        pieceId: id, mode: 'free', x: Math.round(m.x + m.width / 2), z: Math.round((m.z === undefined ? 100 : m.z) + m.depth / 2), rotation: 0, elevation: 0
-      });
-    } else {
-      placements.push({ pieceId: id, mode: 'wall', wallId: 'w1', offset: m.x, elevation: m.elevation || 0 });
-    }
   });
-  return clampProject({ v: 2, room, pieces, placements });
+  return clampProject({ v: 2, pieces });
 }
 
 // ---------- surfaces: which material each part of a piece uses ----------

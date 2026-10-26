@@ -1,31 +1,25 @@
 // Planner v2 store: a pure reducer over { project, ui, history } plus a small createStore() wrapper that adds
 // subscriptions and persistence. The reducer has no DOM, so Node can test it. Actions are listed in CONTRACTS.md.
 import {
-  OPENING_TYPES, TYPES, createProject, clampProject, setTemplate, updateRoom, addOpening, updateOpening, removeOpening, wallsOf,
-  addPiece, updatePiece, removePiece, setBays, addItem, moveItem, updateItem, removeItem, applyPreset,
-  placePiece, movePlacement, unplace
+  TYPES, createProject, clampProject, addPiece, updatePiece, removePiece, setBays, addItem, moveItem, updateItem, removeItem, applyPreset
 } from './model.js';
-import { ceilingProfile, minCeiling } from './plan-geom.js';
 import { encodeProject, decodeProject, saveLocal, loadLocal } from './share.js';
 
 export const HISTORY_LIMIT = 100;   // undo steps kept
 export const COALESCE_MS = 1200;    // edits with the same `coalesce` key closer together than this form one undo step
-export const STEP_IDS = ['room', 'furniture', 'interior', 'place', 'review'];
+export const STEP_IDS = ['furniture', 'interior', 'review'];
 
 // ---------- state ----------
 function sanitizeUi(ui, project) {
-  const walls = project.room.walls;
-  const wallId = walls.some((w) => w.id === ui.wallId) ? ui.wallId : (walls[0] ? walls[0].id : null);
-  const openingId = project.room.openings.some((o) => o.id === ui.openingId) ? ui.openingId : null;
   // the piece being edited: its id, the selected bay and the selected item (an index into that bay)
   const piece = project.pieces.find((p) => p.id === ui.pieceId) || project.pieces[0] || null;
   const pieceId = piece ? piece.id : null;
   const bay = piece ? Math.max(0, Math.min(piece.bays.length - 1, Math.round(Number(ui.bay) || 0))) : 0;
   const item = piece && Number.isInteger(ui.item) && piece.bays[bay] && piece.bays[bay].items[ui.item] ? ui.item : null;
-  // a piece stays "fresh" (a new type may replace it) until something else is done to it or it is placed
-  const fresh = ui.fresh && ui.fresh === pieceId && !project.placements.some((pl) => pl.pieceId === pieceId) ? ui.fresh : null;
-  return wallId === ui.wallId && openingId === ui.openingId && pieceId === ui.pieceId && bay === ui.bay && item === ui.item && fresh === (ui.fresh || null)
-    ? ui : { ...ui, wallId, openingId, pieceId, bay, item, fresh };
+  // a piece stays "fresh" (a new type may replace it) until something else is done to it
+  const fresh = ui.fresh && ui.fresh === pieceId ? ui.fresh : null;
+  return pieceId === ui.pieceId && bay === ui.bay && item === ui.item && fresh === (ui.fresh || null)
+    ? ui : { ...ui, pieceId, bay, item, fresh };
 }
 
 export function initialState(project) {
@@ -35,100 +29,13 @@ export function initialState(project) {
     past: [], future: [],
     key: null, keyAt: 0,
     // UI state lives beside the project and is never part of undo, saving or sharing
-    ui: sanitizeUi({ step: 0, wallId: null, openingId: null, pieceId: null, bay: 0, item: null, fresh: null, starting: false, pane: 'plan' }, p)
+    ui: sanitizeUi({ step: 0, pieceId: null, bay: 0, item: null, fresh: null, starting: false, pane: 'plan' }, p)
   };
 }
 
 const same = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
-// Free horizontal gaps on a wall for something that spans [bottom, bottom + height]. Openings that do not share
-// that height band do not get in the way (a socket under a window is fine).
-function gapsOn(room, wall, bottom, height, skipId) {
-  const busy = room.openings
-    .filter((o) => o.wallId === wall.id && o.id !== skipId && bottom < o.bottom + o.height && o.bottom < bottom + height)
-    .map((o) => [Math.max(0, o.offset), Math.min(wall.length, o.offset + o.width)])
-    .sort((a, b) => a[0] - b[0]);
-  const gaps = [];
-  let at = 0;
-  for (const [a, b] of busy) {
-    if (a > at) gaps.push([at, a]);
-    at = Math.max(at, b);
-  }
-  if (at < wall.length) gaps.push([at, wall.length]);
-  return gaps;
-}
-
-// True when something spanning bottom..bottom+height stays under the ceiling along [off, off + width] of the wall
-// (an attic slope lowers the ceiling toward its knee wall).
-export function fitsUnderCeiling(room, wall, spec, off, width) {
-  const top = (spec.bottom || 0) + spec.height;
-  return minCeiling(ceilingProfile(room, wall), off, off + width) >= top - 0.5;
-}
-
-// Offset (multiple of 5 where it fits) that centres `width` in the largest free gap where the opening also fits under
-// the ceiling, or null when there is no such place.
-export function freeOffset(room, wall, spec, width, skipId) {
-  const gaps = gapsOn(room, wall, spec.bottom, spec.height, skipId).filter(([a, b]) => b - a >= width - 1e-6);
-  gaps.sort((g, h) => (h[1] - h[0]) - (g[1] - g[0]));
-  for (const [a, b] of gaps) {
-    const lo = Math.ceil(a), hi = Math.floor(b - width);
-    const mid = Math.min(Math.max(Math.round((a + (b - a - width) / 2) / 5) * 5, lo), hi);
-    const cand = [];
-    for (let off = lo; off <= hi; off += off === lo && lo % 5 ? 5 - (lo % 5) : 5) cand.push(off);
-    cand.push(mid);
-    cand.sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid));
-    const ok = cand.find((off) => fitsUnderCeiling(room, wall, spec, off, width));
-    if (ok !== undefined) return Math.max(0, ok);
-  }
-  return null;
-}
-
-function newOpening(project, spec, ui) {
-  const room = project.room;
-  const defs = OPENING_TYPES[spec && spec.type];
-  if (!defs) return { error: null, opening: null };
-  const walls = wallsOf(room);
-  const wall = walls.find((w) => w.id === (spec.wallId || ui.wallId)) || walls[0];
-  if (!wall) return { error: null, opening: null };
-  const o = { ...defs.defaults, ...spec, type: spec.type, wallId: wall.id };
-  if (!Number.isFinite(o.offset)) {
-    const off = freeOffset(room, wall, o, o.width);
-    if (off === null) return { error: `No room on this wall for a ${o.width} cm ${defs.label.toLowerCase()}.`, opening: null };
-    o.offset = off;
-  }
-  return { error: null, opening: o };
-}
-
-// After a template or measurement change, gives every opening that no longer fits a free spot: first on its own
-// wall, then on the longest other walls. Only if nothing fits does it stay flagged (validation then reports it).
-function rehome(project) {
-  const bad = (room, o) => {
-    const w = room.walls.find((x) => x.id === o.wallId);
-    return !w || o.flagged || o.offset < 0 || o.offset + o.width > wallsOf(room).find((x) => x.id === o.wallId).length + 0.5;
-  };
-  let next = project;
-  for (const o of project.room.openings) {
-    const cur = next.room.openings.find((x) => x.id === o.id);
-    if (!cur || !bad(next.room, cur)) continue;
-    const walls = wallsOf(next.room);
-    const own = walls.find((w) => w.id === cur.wallId);
-    const full = (w) => minCeiling(ceilingProfile(next.room, w), 0, w.length) >= next.room.height - 0.5;
-    const others = walls.filter((w) => w !== own).sort((a, b) => (full(b) - full(a)) || (b.length - a.length));
-    const order = [...(own ? [own] : []), ...others];
-    const rest = { ...next.room, openings: next.room.openings.filter((x) => x.id !== cur.id) };
-    for (const w of order) {
-      const width = Math.min(cur.width, Math.floor(w.length));
-      if (width < OPENING_TYPES[cur.type].width[0]) continue;
-      const off = freeOffset(rest, w, { ...cur, width }, width);
-      if (off === null) continue;
-      next = updateOpening(next, cur.id, { wallId: w.id, width, offset: off });
-      break;
-    }
-  }
-  return next;
-}
-
-// Piece actions (steps 2 and 3). `id` defaults to the piece being edited. Returns null for an unknown action.
+// Piece actions (the Furniture and Interior steps). `id` defaults to the piece being edited. Returns null for an unknown action.
 function pieceAction(project, action, ui) {
   const pid = action.id === undefined ? ui.pieceId : action.id;
   switch (action.type) {
@@ -136,7 +43,7 @@ function pieceAction(project, action, ui) {
       if (!TYPES[action.pieceType]) return project;
       let base = project;
       // the piece just added and still untouched is swapped for the new type, so browsing types does not pile up pieces
-      if (ui.fresh && ui.fresh === ui.pieceId && !project.placements.some((pl) => pl.pieceId === ui.fresh)) base = removePiece(base, ui.fresh);
+      if (ui.fresh && ui.fresh === ui.pieceId) base = removePiece(base, ui.fresh);
       return addPiece(base, action.pieceType, action.style, action.overrides);
     }
     case 'piece/update': return updatePiece(project, pid, action.patch);
@@ -187,45 +94,8 @@ function pieceUi(action, before, next, ui) {
   }
 }
 
-const placeId = (action, ui) => (action.id === undefined ? ui.pieceId : action.id);
-
 // Applies a project action. Returns the new project, or the same object when nothing applies.
-function projectAction(project, action, ui) {
-  switch (action.type) {
-    case 'room/template':
-      return rehome(setTemplate(project, action.id, action.params));
-    case 'room/params': {
-      const t = project.room.template;
-      return t ? rehome(setTemplate(project, t.id, action.params)) : project;
-    }
-    case 'room/update':
-      return updateRoom(project, action.patch);
-    case 'room/opening/add': {
-      const { opening } = newOpening(project, action.opening || {}, ui);
-      return opening ? addOpening(project, opening) : project;
-    }
-    case 'room/opening/update':
-      return updateOpening(project, action.id, action.patch);
-    case 'room/opening/move': {
-      // puts an opening on another wall (default: the selected one) at a free spot
-      const o = project.room.openings.find((x) => x.id === action.id);
-      if (!o) return project;
-      const wall = wallsOf(project.room).find((w) => w.id === (action.wallId || ui.wallId));
-      if (!wall) return project;
-      const rest = { ...project.room, openings: project.room.openings.filter((x) => x.id !== o.id) };
-      const width = Math.min(o.width, Math.floor(wall.length));
-      const off = freeOffset(rest, wall, { ...o, width }, width);
-      return updateOpening(project, o.id, { wallId: wall.id, width, offset: off === null ? 0 : off });
-    }
-    case 'room/opening/remove':
-      return removeOpening(project, action.id);
-    case 'place/set': return placePiece(project, placeId(action, ui), action.spec);
-    case 'place/move': return movePlacement(project, placeId(action, ui), action.patch);
-    case 'place/remove': return unplace(project, placeId(action, ui));
-    default:
-      return pieceAction(project, action, ui);
-  }
-}
+const projectAction = pieceAction;
 
 export function reduce(state, action) {
   if (!action || typeof action.type !== 'string') return state;
@@ -237,7 +107,7 @@ export function reduce(state, action) {
     }
     case 'ui/new-piece':
       // Furniture step with nothing chosen yet: the next type picked adds a new piece
-      return ui.step === 1 && ui.starting && !ui.fresh ? state : { ...state, ui: { ...ui, step: 1, fresh: null, starting: true } };
+      return ui.step === 0 && ui.starting && !ui.fresh ? state : { ...state, ui: { ...ui, step: 0, fresh: null, starting: true } };
     case 'ui/piece': {
       if (!project.pieces.some((p) => p.id === action.id)) return state;
       return ui.pieceId === action.id && ui.item === null && !ui.fresh && !ui.starting ? state : { ...state, ui: { ...ui, pieceId: action.id, bay: 0, item: null, fresh: null, starting: false } };
@@ -255,18 +125,8 @@ export function reduce(state, action) {
       const item = Number.isInteger(action.index) && piece.bays[bay].items[action.index] ? action.index : null;
       return bay === ui.bay && item === ui.item ? state : { ...state, ui: { ...ui, bay, item } };
     }
-    case 'ui/wall': {
-      if (!project.room.walls.some((w) => w.id === action.wallId)) return state;
-      if (ui.wallId === action.wallId && ui.openingId === null) return state;
-      return { ...state, ui: { ...ui, wallId: action.wallId, openingId: null } };
-    }
-    case 'ui/opening': {
-      const o = project.room.openings.find((x) => x.id === action.id);
-      if (!o) return ui.openingId === null ? state : { ...state, ui: { ...ui, openingId: null } };
-      return { ...state, ui: { ...ui, wallId: o.wallId, openingId: o.id } };
-    }
     case 'ui/pane':
-      return ['plan', 'wall', '3d'].includes(action.pane) ? (ui.pane === action.pane ? state : { ...state, ui: { ...ui, pane: action.pane } }) : state;
+      return ['plan', '3d'].includes(action.pane) ? (ui.pane === action.pane ? state : { ...state, ui: { ...ui, pane: action.pane } }) : state;
     case 'history/seal':
       return state.key === null ? state : { ...state, key: null };
     case 'history/undo': {
@@ -283,31 +143,16 @@ export function reduce(state, action) {
     }
     case 'project/load': {
       const p = clampProject(action.project);
-      return { ...initialState(p), ui: sanitizeUi({ ...ui, openingId: null }, p) };
+      return { ...initialState(p), ui: sanitizeUi({ ...ui }, p) };
     }
     default: {
       const next = projectAction(project, action, ui);
-      if (action.type === 'room/opening/add' && same(next, project)) {
-        const { error } = newOpening(project, action.opening || {}, ui);
-        if (error) return { ...state, ui: { ...ui, notice: { id: (ui.notice ? ui.notice.id : 0) + 1, text: error } } };
-      }
       if (next === null || same(next, project)) return state;
       const at = Number.isFinite(action.at) ? action.at : 0;
       const merge = !!action.coalesce && state.key === action.coalesce && at - state.keyAt <= COALESCE_MS && state.past.length > 0;
       const past = merge ? state.past : [...state.past, project].slice(-HISTORY_LIMIT);
       let nextUi = ui;
-      if (action.type === 'room/opening/add') {
-        const added = next.room.openings.find((o) => !project.room.openings.some((x) => x.id === o.id));
-        if (added) nextUi = { ...ui, wallId: added.wallId, openingId: added.id };
-      } else if (action.type === 'room/opening/remove' && ui.openingId === action.id) {
-        nextUi = { ...ui, openingId: null };
-      } else if (action.type.startsWith('piece/')) {
-        nextUi = pieceUi(action, project, next, ui);
-      } else if (action.type === 'place/set' || action.type === 'place/move') {
-        // placing or moving a piece selects it
-        const pid = placeId(action, ui);
-        nextUi = pid === ui.pieceId ? ui : { ...ui, pieceId: pid, bay: 0, item: null, fresh: null };
-      }
+      if (action.type.startsWith('piece/')) nextUi = pieceUi(action, project, next, ui);
       return {
         ...state, project: next, past, future: [], ui: sanitizeUi(nextUi, next),
         key: action.coalesce || null, keyAt: at
@@ -319,7 +164,7 @@ export function reduce(state, action) {
 export const selectors = {
   canUndo: (s) => s.past.length > 0,
   canRedo: (s) => s.future.length > 0,
-  placedCount: (s) => s.project.placements.length
+  pieceCount: (s) => s.project.pieces.length
 };
 
 // ---------- store ----------

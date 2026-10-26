@@ -1,5 +1,5 @@
 // Planner v2 share links and local storage: pure, runs in Node 22 and the browser.
-import { clampProject, migrate, roomFromTemplate } from './model.js';
+import { clampProject, migrate } from './model.js';
 import { decodeDesign } from '../configurator/share.js';
 
 const KEY = 'gj.project.v2';
@@ -42,19 +42,10 @@ async function pipe(stream, bytes, limit) {
   return out;
 }
 
-// Leave out what the decoder can rebuild: walls (and an attic slope) that the template regenerates.
+// A link carries the pieces and nothing else: no room, no placements, and no look or size the piece does not need (the
+// decoder fills every missing field from the piece's style). That keeps the link short.
 export function compactProject(project) {
-  const room = { ...project.room };
-  try {
-    if (room.template) {
-      const t = roomFromTemplate(room.template.id, room.template.params, { height: room.height });
-      if (JSON.stringify(t.walls) === JSON.stringify(room.walls)) {
-        delete room.walls;
-        if (JSON.stringify(t.slope) === JSON.stringify(room.slope)) delete room.slope;
-      }
-    }
-  } catch { /* keep the full room */ }
-  return { ...project, room };
+  return { v: 2, pieces: project.pieces };
 }
 
 export async function encodeProject(project) {
@@ -74,8 +65,8 @@ function fromParsed(raw) {
     if (!isObj(raw.room) || !Array.isArray(raw.modules)) return null;
     return migrate(raw);
   }
-  if (!isObj(raw.room) || !Array.isArray(raw.pieces)) return null;
-  return clampProject(raw);
+  if (!Array.isArray(raw.pieces)) return null;
+  return clampProject(raw); // a room and placements from an older link are ignored
 }
 
 export async function decodeProject(str) {
